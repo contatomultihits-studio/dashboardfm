@@ -9,7 +9,7 @@
   <body>
     <header class="topbar">
       <div class="container topbar-content">
-        <h1>📻 Dashboard FM</h1>
+        <h1>🎵 Dashboard FM</h1>
         <nav id="tabs" class="tabs">
           <button data-tab="inicio" class="tab active">Início</button>
           <button data-tab="colaborador" class="tab">Colaborador</button>
@@ -24,8 +24,8 @@
         <div class="card hero">
           <h2>Projeto 100% estático para GitHub + Vercel</h2>
           <p>
-            Sem dependências, sem build, sem backend obrigatório. Deploy direto do repositório.
-            Dados persistidos no navegador via <code>localStorage</code>.
+            Layout inspirado no seu painel musical: visual claro, gradientes azuis e cards limpos.
+            <span id="modo-dados" class="pill">Modo local</span>
           </p>
         </div>
         <div class="grid cols-3">
@@ -113,6 +113,8 @@
     </main>
 
     <div id="toast"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./config.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

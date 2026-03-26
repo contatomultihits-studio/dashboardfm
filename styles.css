@@ -1,39 +1,41 @@
 :root {
-  --bg: #0a0d14;
-  --surface: #141b27;
-  --line: #283249;
-  --txt: #eef3ff;
-  --muted: #9fb0cc;
-  --brand: #35c4ff;
-  --brand2: #8c5cff;
-  --ok: #3ad5a0;
+  --bg: #f1f6ff;
+  --surface: #ffffff;
+  --line: #d6e3ff;
+  --txt: #0f172a;
+  --muted: #4b5d7a;
+  --brand: #2563eb;
+  --brand2: #0ea5e9;
+  --ok: #059669;
 }
 * { box-sizing: border-box; }
-body { margin: 0; font-family: Inter, Arial, sans-serif; background: radial-gradient(circle at top right, #1b2440 0, #0a0d14 45%); color: var(--txt); }
+body { margin: 0; font-family: Inter, Arial, sans-serif; background: linear-gradient(135deg, #f8fbff 0%, #e5efff 100%); color: var(--txt); }
 .container { width: min(1180px, 94vw); margin: 0 auto; }
-.topbar { border-bottom: 1px solid var(--line); background: rgba(10,13,20,.85); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 10; }
+.topbar { border-bottom: 1px solid var(--line); background: rgba(255,255,255,.88); backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 10; }
 .topbar-content { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .8rem 0; }
 .tabs { display: flex; gap: .4rem; flex-wrap: wrap; }
-.tab { border: 1px solid transparent; color: var(--txt); background: transparent; padding: .45rem .7rem; border-radius: 10px; cursor: pointer; }
-.tab.active { border-color: var(--brand); background: #162741; }
+.tab { border: 1px solid transparent; color: #1e3a8a; background: transparent; padding: .45rem .7rem; border-radius: 10px; cursor: pointer; font-weight: 700; }
+.tab.active { border-color: #93c5fd; background: #dbeafe; }
 main { padding: 1.2rem 0 3rem; }
 .view { display: none; }
 .view.active { display: block; }
 .grid { display: grid; gap: 1rem; }
 .cols-2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .cols-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-.card { background: rgba(20,27,39,.95); border: 1px solid var(--line); border-radius: 14px; padding: 1rem; box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 1rem; box-shadow: 0 8px 24px rgba(37, 99, 235, .08); }
 .hero { margin-bottom: 1rem; }
 .form { display: grid; gap: .55rem; }
-input, select, textarea, button { border-radius: 10px; border: 1px solid var(--line); background: #101725; color: var(--txt); padding: .7rem .75rem; }
-button { background: linear-gradient(90deg, var(--brand), var(--brand2)); border: none; font-weight: 700; cursor: pointer; }
+input, select, textarea, button { border-radius: 10px; border: 1px solid #c8dbff; background: #fff; color: var(--txt); padding: .7rem .75rem; }
+button { background: linear-gradient(90deg, var(--brand), var(--brand2)); border: none; font-weight: 700; color: #fff; cursor: pointer; }
 .inline { display: flex; align-items: center; gap: .5rem; }
 .table { width: 100%; border-collapse: collapse; }
-.table th, .table td { border-bottom: 1px solid var(--line); text-align: left; padding: .55rem; }
+.table th, .table td { border-bottom: 1px solid #e2e8f0; text-align: left; padding: .55rem; }
+.table th { color: #1e40af; }
 #bars { display: grid; gap: .45rem; }
 .bar-row { display: grid; grid-template-columns: 190px 1fr 60px; gap: .5rem; align-items: center; }
 .bar { height: 12px; border-radius: 999px; background: linear-gradient(90deg, var(--brand), var(--brand2)); }
-.kpi-value { font-size: 1.9rem; margin: .3rem 0; }
-#toast { position: fixed; right: 16px; bottom: 16px; padding: .75rem 1rem; border-radius: 10px; background: #132838; border: 1px solid #1f4864; color: var(--txt); opacity: 0; transform: translateY(8px); transition: .2s; }
+.kpi-value { font-size: 1.9rem; margin: .3rem 0; color: #1d4ed8; font-weight: 900; }
+#toast { position: fixed; right: 16px; bottom: 16px; padding: .75rem 1rem; border-radius: 10px; background: #1d4ed8; color: #fff; opacity: 0; transform: translateY(8px); transition: .2s; }
 #toast.show { opacity: 1; transform: translateY(0); }
-code { background: #0f1624; border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
+code { background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 2px 6px; }
+.pill { display:inline-block; padding:.2rem .6rem; border-radius:999px; font-size:.85rem; font-weight:700; background:#e0ecff; color:#1e40af; margin-left:.35rem; }

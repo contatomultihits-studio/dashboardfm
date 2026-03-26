@@ -1,28 +1,29 @@
-# Dashboard FM — versão estática (zero build)
+# Dashboard FM — estático (GitHub + Vercel) com tema musical
 
-Este projeto foi reconstruído do zero para funcionar diretamente com **GitHub + Vercel**, sem depender de build, Node ou configuração avançada.
+Versão reconstruída para abrir fácil na Vercel e agora com visual inspirado no projeto musical (`monitoramentoradios`): paleta azul clara, cards limpos e navegação em tabs.
 
-## Como funciona
+## Deploy (simples)
 
-- Stack: `HTML + CSS + JavaScript` puro.
-- Persistência: `localStorage` no navegador.
-- Módulos:
-  - Início
-  - Colaborador
-  - Gerenciamento
-  - Gestor (Big Numbers)
+1. Suba no GitHub.
+2. Importe na Vercel.
+3. Build Command vazio.
+4. Output Directory vazio.
+5. Deploy.
 
-## Deploy na Vercel
+## Integração Supabase (opcional)
 
-1. Suba este repositório no GitHub.
-2. Na Vercel, clique em **New Project** e importe o repo.
-3. **Framework Preset**: pode deixar `Other` ou auto detect.
-4. **Build Command**: vazio.
-5. **Output Directory**: vazio.
-6. Deploy.
+Sim, agora está preparada para Supabase também.
 
-> Como é estático, deve abrir imediatamente sem erro 404 de build/app.
+1. Abra `config.js`.
+2. Preencha:
 
-## Dados
+```js
+window.APP_CONFIG = {
+  SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',
+  SUPABASE_ANON_KEY: 'SUA_ANON_KEY'
+};
+```
 
-Todos os dados ficam no navegador local do usuário (localStorage).
+3. Deploy novamente.
+
+Sem essas chaves, o app roda em modo local com `localStorage`.
