@@ -31,3 +31,6 @@ A configuração fica salva no navegador.
 - `resumo_participacoes` (usada no gestor)
 
 Sem Supabase, roda em `localStorage`.
+
+### Observação de permissões (RLS)
+Se `resumo_participacoes` abrir mas `programas` estiver bloqueada, o app mostra os nomes a partir do resumo para não aparecer "Manhã Hits" fake.

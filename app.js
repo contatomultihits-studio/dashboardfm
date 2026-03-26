@@ -79,29 +79,41 @@ function wireConfigButton() {
 
 async function loadInitialData() {
   if (hasSupabase) {
-    try {
-      const [programas, premios, participacoes, prioridades] = await Promise.all([
-        sb.from('programas').select('id,nome,cor_hex,ativo').order('nome'),
-        sb.from('premios').select('id,programa_id,nome,descricao,estoque_inicial').order('nome'),
-        sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro'),
-        sb.from('prioridades_ar').select('id,programa_id,data,conteudo,concluido')
-      ]);
+    const queries = await Promise.allSettled([
+      sb.from('programas').select('id,nome,cor_hex,ativo').order('nome'),
+      sb.from('premios').select('id,programa_id,nome,descricao,estoque_inicial').order('nome'),
+      sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro'),
+      sb.from('prioridades_ar').select('id,programa_id,data,conteudo,concluido'),
+      sb.from('resumo_participacoes').select('programa,cor_hex,total_participacoes,dias_com_registro').order('total_participacoes', { ascending: false })
+    ]);
 
-      state.programas = (programas.data || []).map((x) => ({ id: x.id, nome: x.nome, cor: x.cor_hex || '#2563eb', ativo: x.ativo }));
-      state.premios = (premios.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, nome: x.nome, descricao: x.descricao, estoque: x.estoque_inicial }));
-      state.participacoes = (participacoes.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
-      state.prioridades = (prioridades.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data, conteudo: x.conteudo, concluido: x.concluido }));
+    const [qProgramas, qPremios, qParticipacoes, qPrioridades, qResumo] = queries;
 
-      if (!state.programas.length) seedIfNeeded();
-      return;
-    } catch {
-      toast('Falha ao conectar Supabase. Entrando em modo local.');
+    if (qProgramas.status === 'fulfilled' && !qProgramas.value.error) {
+      state.programas = (qProgramas.value.data || []).map((x) => ({ id: x.id, nome: x.nome, cor: x.cor_hex || '#2563eb', ativo: x.ativo }));
     }
+    if (qPremios.status === 'fulfilled' && !qPremios.value.error) {
+      state.premios = (qPremios.value.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, nome: x.nome, descricao: x.descricao, estoque: x.estoque_inicial }));
+    }
+    if (qParticipacoes.status === 'fulfilled' && !qParticipacoes.value.error) {
+      state.participacoes = (qParticipacoes.value.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
+    }
+    if (qPrioridades.status === 'fulfilled' && !qPrioridades.value.error) {
+      state.prioridades = (qPrioridades.value.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data, conteudo: x.conteudo, concluido: x.concluido }));
+    }
+
+    if (!state.programas.length && qResumo.status === 'fulfilled' && !qResumo.value.error) {
+      state.programas = (qResumo.value.data || []).map((x, i) => ({ id: `resumo-${i}`, nome: x.programa, cor: x.cor_hex || '#2563eb', ativo: true }));
+      toast('Sem acesso à tabela programas. Exibindo nomes via resumo_participacoes.');
+    }
+
+    if (state.programas.length) return;
   }
 
   Object.assign(state, loadState());
   seedIfNeeded();
 }
+
 
 function loadState() {
   const raw = localStorage.getItem(dbKey);
@@ -158,6 +170,7 @@ function wireForms() {
     const payload = { programaId: val('g-premio-programa'), nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')) };
 
     if (hasSupabase) {
+      if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas para cadastro via prêmio.');
       const { data, error } = await sb.from('premios').insert({ programa_id: payload.programaId, nome: payload.nome, descricao: payload.descricao, estoque_inicial: payload.estoque }).select('id,programa_id,nome,descricao,estoque_inicial').single();
       if (error) return toast(`Erro: ${error.message}`);
       state.premios.push({ id: data.id, programaId: data.programa_id, nome: data.nome, descricao: data.descricao, estoque: data.estoque_inicial });
@@ -176,6 +189,7 @@ function wireForms() {
     const payload = { programaId: val('p-programa'), data: val('p-data'), quantidade: Number(val('p-quantidade')), tipo: val('p-tipo') };
 
     if (hasSupabase) {
+      if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas para lançar participação.');
       const { data, error } = await sb.from('participacoes').insert({ programa_id: payload.programaId, data_referencia: payload.data, quantidade: payload.quantidade, tipo_registro: payload.tipo }).select('id,programa_id,data_referencia,quantidade,tipo_registro').single();
       if (error) return toast(`Erro: ${error.message}`);
       state.participacoes.push({ id: data.id, programaId: data.programa_id, data: data.data_referencia, quantidade: data.quantidade, tipo: data.tipo_registro });
@@ -194,6 +208,7 @@ function wireForms() {
     const payload = { programaId: val('pr-programa'), data: val('pr-data'), conteudo: val('pr-conteudo'), concluido: false };
 
     if (hasSupabase) {
+      if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas para lançar prioridade.');
       const { data, error } = await sb.from('prioridades_ar').insert({ programa_id: payload.programaId, data: payload.data, conteudo: payload.conteudo, concluido: false }).select('id,programa_id,data,conteudo,concluido').single();
       if (error) return toast(`Erro: ${error.message}`);
       state.prioridades.push({ id: data.id, programaId: data.programa_id, data: data.data, conteudo: data.conteudo, concluido: data.concluido });
@@ -266,6 +281,9 @@ async function renderGestor() {
   document.getElementById('bars').innerHTML = resumo.map((r) => `<div class="bar-row"><small>${r.nome}</small><div class="bar" style="width:${(r.total / max) * 100}%"></div><small>${r.total}</small></div>`).join('');
   document.getElementById('tabela-ranking').innerHTML = `<thead><tr><th>Programa</th><th>Total</th><th>Dias</th></tr></thead><tbody>${resumo.map((r) => `<tr><td>${r.nome}</td><td>${r.total}</td><td>${r.dias}</td></tr>`).join('')}</tbody>`;
 }
+
+
+function hasSyntheticProgramId(idPrograma) { return String(idPrograma || "").startsWith("resumo-"); }
 
 function val(idEl) { return document.getElementById(idEl).value; }
 function id() { return Math.random().toString(36).slice(2, 10); }
