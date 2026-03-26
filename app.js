@@ -1,37 +1,74 @@
 const dbKey = 'dashboardfm_v2';
 const cfgKey = 'dashboardfm_supabase_cfg';
 
-const staticCfg = window.APP_CONFIG || {};
-const savedCfg = (() => {
-  try { return JSON.parse(localStorage.getItem(cfgKey) || '{}'); } catch { return {}; }
-})();
+let hasSupabase = false;
+let sb = null;
 
-const cfg = {
-  SUPABASE_URL: savedCfg.SUPABASE_URL || staticCfg.SUPABASE_URL || '',
-  SUPABASE_ANON_KEY: savedCfg.SUPABASE_ANON_KEY || staticCfg.SUPABASE_ANON_KEY || ''
-};
-
-const hasSupabase = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
-const sb = hasSupabase ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
 const state = { programas: [], premios: [], participacoes: [], prioridades: [] };
 
 init();
 
 async function init() {
   wireConfigButton();
+  await bootstrapSupabase();
   await loadInitialData();
   wireTabs();
   wireForms();
   renderAll();
-  document.getElementById('modo-dados').textContent = hasSupabase ? 'Supabase conectado' : 'Modo local';
+  updateDataModeBadge();
+}
+
+async function bootstrapSupabase() {
+  const staticCfg = window.APP_CONFIG || {};
+  const savedCfg = readSavedConfig();
+  const envCfg = await readConfigFromServer();
+
+  const cfg = {
+    SUPABASE_URL: savedCfg.SUPABASE_URL || envCfg.SUPABASE_URL || staticCfg.SUPABASE_URL || '',
+    SUPABASE_ANON_KEY: savedCfg.SUPABASE_ANON_KEY || envCfg.SUPABASE_ANON_KEY || staticCfg.SUPABASE_ANON_KEY || ''
+  };
+
+  hasSupabase = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
+  sb = hasSupabase ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
+}
+
+function readSavedConfig() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(cfgKey) || '{}');
+    return {
+      SUPABASE_URL: raw.SUPABASE_URL || '',
+      SUPABASE_ANON_KEY: raw.SUPABASE_ANON_KEY || ''
+    };
+  } catch {
+    return { SUPABASE_URL: '', SUPABASE_ANON_KEY: '' };
+  }
+}
+
+async function readConfigFromServer() {
+  try {
+    const res = await fetch('/api/config', { cache: 'no-store' });
+    if (!res.ok) return { SUPABASE_URL: '', SUPABASE_ANON_KEY: '' };
+    const data = await res.json();
+    return {
+      SUPABASE_URL: data.supabaseUrl || '',
+      SUPABASE_ANON_KEY: data.supabaseAnonKey || ''
+    };
+  } catch {
+    return { SUPABASE_URL: '', SUPABASE_ANON_KEY: '' };
+  }
+}
+
+function updateDataModeBadge() {
+  const badge = document.getElementById('modo-dados');
+  badge.textContent = hasSupabase ? 'Supabase conectado' : 'Modo local';
 }
 
 function wireConfigButton() {
   const btn = document.getElementById('btn-supabase');
   btn.addEventListener('click', () => {
-    const url = prompt('Cole a URL do Supabase (https://xxxx.supabase.co):', cfg.SUPABASE_URL || '');
+    const url = prompt('Cole a URL do Supabase (https://xxxx.supabase.co):', '');
     if (!url) return;
-    const key = prompt('Cole a ANON KEY do Supabase:', cfg.SUPABASE_ANON_KEY || '');
+    const key = prompt('Cole a ANON KEY do Supabase:', '');
     if (!key) return;
 
     localStorage.setItem(cfgKey, JSON.stringify({ SUPABASE_URL: url.trim(), SUPABASE_ANON_KEY: key.trim() }));
@@ -54,6 +91,7 @@ async function loadInitialData() {
       state.premios = (premios.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, nome: x.nome, descricao: x.descricao, estoque: x.estoque_inicial }));
       state.participacoes = (participacoes.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
       state.prioridades = (prioridades.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data, conteudo: x.conteudo, concluido: x.concluido }));
+
       if (!state.programas.length) seedIfNeeded();
       return;
     } catch {
@@ -97,10 +135,16 @@ function wireTabs() {
 function wireForms() {
   document.getElementById('form-programa').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const item = { id: id(), nome: val('g-programa-nome'), cor: val('g-programa-cor'), ativo: document.getElementById('g-programa-ativo').checked };
-    state.programas.push(item);
-    if (hasSupabase) await sb.from('programas').insert({ nome: item.nome, cor_hex: item.cor, ativo: item.ativo });
-    else persistLocal();
+    const payload = { nome: val('g-programa-nome'), cor: val('g-programa-cor'), ativo: document.getElementById('g-programa-ativo').checked };
+
+    if (hasSupabase) {
+      const { data, error } = await sb.from('programas').insert({ nome: payload.nome, cor_hex: payload.cor, ativo: payload.ativo }).select('id,nome,cor_hex,ativo').single();
+      if (error) return toast(`Erro: ${error.message}`);
+      state.programas.push({ id: data.id, nome: data.nome, cor: data.cor_hex || '#2563eb', ativo: data.ativo });
+    } else {
+      state.programas.push({ id: id(), ...payload });
+      persistLocal();
+    }
 
     e.target.reset();
     document.getElementById('g-programa-cor').value = '#2563eb';
@@ -111,10 +155,16 @@ function wireForms() {
 
   document.getElementById('form-premio').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const item = { id: id(), programaId: val('g-premio-programa'), nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')) };
-    state.premios.push(item);
-    if (hasSupabase) await sb.from('premios').insert({ programa_id: item.programaId, nome: item.nome, descricao: item.descricao, estoque_inicial: item.estoque });
-    else persistLocal();
+    const payload = { programaId: val('g-premio-programa'), nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')) };
+
+    if (hasSupabase) {
+      const { data, error } = await sb.from('premios').insert({ programa_id: payload.programaId, nome: payload.nome, descricao: payload.descricao, estoque_inicial: payload.estoque }).select('id,programa_id,nome,descricao,estoque_inicial').single();
+      if (error) return toast(`Erro: ${error.message}`);
+      state.premios.push({ id: data.id, programaId: data.programa_id, nome: data.nome, descricao: data.descricao, estoque: data.estoque_inicial });
+    } else {
+      state.premios.push({ id: id(), ...payload });
+      persistLocal();
+    }
 
     e.target.reset();
     renderAll();
@@ -123,10 +173,16 @@ function wireForms() {
 
   document.getElementById('form-participacao').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const item = { id: id(), programaId: val('p-programa'), data: val('p-data'), quantidade: Number(val('p-quantidade')), tipo: val('p-tipo') };
-    state.participacoes.push(item);
-    if (hasSupabase) await sb.from('participacoes').insert({ programa_id: item.programaId, data_referencia: item.data, quantidade: item.quantidade, tipo_registro: item.tipo });
-    else persistLocal();
+    const payload = { programaId: val('p-programa'), data: val('p-data'), quantidade: Number(val('p-quantidade')), tipo: val('p-tipo') };
+
+    if (hasSupabase) {
+      const { data, error } = await sb.from('participacoes').insert({ programa_id: payload.programaId, data_referencia: payload.data, quantidade: payload.quantidade, tipo_registro: payload.tipo }).select('id,programa_id,data_referencia,quantidade,tipo_registro').single();
+      if (error) return toast(`Erro: ${error.message}`);
+      state.participacoes.push({ id: data.id, programaId: data.programa_id, data: data.data_referencia, quantidade: data.quantidade, tipo: data.tipo_registro });
+    } else {
+      state.participacoes.push({ id: id(), ...payload });
+      persistLocal();
+    }
 
     e.target.reset();
     renderGestor();
@@ -135,10 +191,16 @@ function wireForms() {
 
   document.getElementById('form-prioridade').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const item = { id: id(), programaId: val('pr-programa'), data: val('pr-data'), conteudo: val('pr-conteudo'), concluido: false };
-    state.prioridades.push(item);
-    if (hasSupabase) await sb.from('prioridades_ar').insert({ programa_id: item.programaId, data: item.data, conteudo: item.conteudo, concluido: false });
-    else persistLocal();
+    const payload = { programaId: val('pr-programa'), data: val('pr-data'), conteudo: val('pr-conteudo'), concluido: false };
+
+    if (hasSupabase) {
+      const { data, error } = await sb.from('prioridades_ar').insert({ programa_id: payload.programaId, data: payload.data, conteudo: payload.conteudo, concluido: false }).select('id,programa_id,data,conteudo,concluido').single();
+      if (error) return toast(`Erro: ${error.message}`);
+      state.prioridades.push({ id: data.id, programaId: data.programa_id, data: data.data, conteudo: data.conteudo, concluido: data.concluido });
+    } else {
+      state.prioridades.push({ id: id(), ...payload });
+      persistLocal();
+    }
 
     e.target.reset();
     toast('Prioridade salva.');
@@ -182,12 +244,9 @@ function renderPremios() {
 
 async function renderGestor() {
   let resumo = [];
-
   if (hasSupabase) {
     const { data } = await sb.from('resumo_participacoes').select('programa,cor_hex,total_participacoes,dias_com_registro').order('total_participacoes', { ascending: false });
-    if (data?.length) {
-      resumo = data.map((r) => ({ nome: r.programa, cor: r.cor_hex || '#2563eb', total: Number(r.total_participacoes), dias: Number(r.dias_com_registro) }));
-    }
+    if (data?.length) resumo = data.map((r) => ({ nome: r.programa, cor: r.cor_hex || '#2563eb', total: Number(r.total_participacoes), dias: Number(r.dias_com_registro) }));
   }
 
   if (!resumo.length) {

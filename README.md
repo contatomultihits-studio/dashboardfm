@@ -1,9 +1,6 @@
 # Dashboard FM — estático (GitHub + Vercel) com tema musical
 
-Layout inspirado no projeto musical, agora com:
-- visual claro em tons de azul
-- conexão opcional com Supabase
-- botão "Conectar Supabase" dentro da própria tela (sem precisar editar código)
+Layout inspirado no projeto musical, com conexão Supabase automática.
 
 ## Deploy (simples)
 
@@ -13,30 +10,24 @@ Layout inspirado no projeto musical, agora com:
 4. Output Directory vazio.
 5. Deploy.
 
-## Supabase (dados reais)
+## Supabase — conexão automática pela Vercel
 
-### Opção 1 — pela interface
-Clique em **Conectar Supabase** no topo e cole:
-- URL do projeto
-- ANON KEY
+Se você já definiu na Vercel:
+- `SUPABASE_URL` (ou `NEXT_PUBLIC_SUPABASE_URL`)
+- `SUPABASE_ANON_KEY` (ou `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
 
+a dashboard conecta automaticamente via endpoint `/api/config`.
+
+## Supabase — conexão manual (fallback)
+
+Clique em **Conectar Supabase** no topo e cole URL + ANON KEY.
 A configuração fica salva no navegador.
-
-### Opção 2 — fixa no código
-Edite `config.js`:
-
-```js
-window.APP_CONFIG = {
-  SUPABASE_URL: 'https://SEU-PROJETO.supabase.co',
-  SUPABASE_ANON_KEY: 'SUA_ANON_KEY'
-};
-```
 
 ## O que puxa do Supabase
 - `programas`
 - `premios`
 - `participacoes`
 - `prioridades_ar`
-- `resumo_participacoes` (usada na área de gestor para Big Numbers)
+- `resumo_participacoes` (usada no gestor)
 
 Sem Supabase, roda em `localStorage`.
