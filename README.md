@@ -21,5 +21,17 @@ a conexão ocorre automaticamente via `/api/config`.
 ## Fallback manual
 Botão **Conectar Supabase** no topo para salvar URL + KEY no navegador.
 
+## Erro de permissão (RLS)
+Se aparecer mensagens como:
+- "Sem permissão na tabela programas"
+- "Sem acesso à tabela programas"
+
+então o ajuste é no **Supabase (policies/grants)**, não na Vercel.
+
+Execute o script:
+- `docs/supabase-setup.sql`
+
+no SQL Editor do Supabase para liberar `select/insert` para `anon`/`authenticated` nas tabelas usadas pela dashboard.
+
 ## Sem Supabase
 Roda em `localStorage`.

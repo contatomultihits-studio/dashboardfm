@@ -96,7 +96,7 @@ async function loadInitialData() {
     }
     if (!state.programas.length && qResumo.status === 'fulfilled' && !qResumo.value.error) {
       state.programas = (qResumo.value.data || []).map((x, i) => ({ id: `resumo-${i}`, nome: x.programa, cor: x.cor_hex || '#2563eb', ativo: true }));
-      toast('Sem acesso à tabela programas. Exibindo nomes do resumo.');
+      toast('Sem acesso à tabela programas (RLS). Ajuste policies no Supabase.');
     }
     if (state.programas.length) return;
   }
@@ -156,7 +156,7 @@ function wireForms() {
   document.getElementById('form-premio').addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = { programaId: val('g-premio-programa'), nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')) };
-    if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas.');
+    if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas. Ajuste RLS no Supabase.');
     if (hasSupabase) {
       const { data, error } = await sb.from('premios').insert({ programa_id: payload.programaId, nome: payload.nome, descricao: payload.descricao, estoque_inicial: payload.estoque }).select('id,programa_id,nome,descricao,estoque_inicial').single();
       if (error) return toast(`Erro: ${error.message}`);
@@ -173,7 +173,7 @@ function wireForms() {
   document.getElementById('form-prioridade').addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = { programaId: val('pr-programa'), data: val('pr-data'), conteudo: val('pr-conteudo'), concluido: false };
-    if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas.');
+    if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas. Ajuste RLS no Supabase.');
     if (hasSupabase) {
       const { data, error } = await sb.from('prioridades_ar').insert({ programa_id: payload.programaId, data: payload.data, conteudo: payload.conteudo, concluido: false }).select('id,programa_id,data,conteudo,concluido').single();
       if (error) return toast(`Erro: ${error.message}`);
@@ -189,7 +189,7 @@ function wireForms() {
   document.getElementById('form-participacao').addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = { programaId: val('p-programa'), data: val('p-data'), quantidade: Number(val('p-quantidade')), tipo: val('p-tipo') };
-    if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas.');
+    if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas. Ajuste RLS no Supabase.');
     if (hasSupabase) {
       const { data, error } = await sb.from('participacoes').insert({ programa_id: payload.programaId, data_referencia: payload.data, quantidade: payload.quantidade, tipo_registro: payload.tipo }).select('id,programa_id,data_referencia,quantidade,tipo_registro').single();
       if (error) return toast(`Erro: ${error.message}`);
@@ -236,7 +236,7 @@ function renderProgramas() {
   table.innerHTML = `<thead><tr><th>Nome</th><th>Cor</th><th>Status</th><th></th></tr></thead><tbody>${state.programas.map((p) => `<tr><td>${p.nome}</td><td><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:${p.cor}"></span> ${p.cor}</td><td>${p.ativo ? 'Ativo' : 'Inativo'}</td><td><button data-rm-programa="${p.id}">Excluir</button></td></tr>`).join('')}</tbody>`;
   table.querySelectorAll('[data-rm-programa]').forEach((b) => b.addEventListener('click', async () => {
     const idp = b.dataset.rmPrograma;
-    if (hasSyntheticProgramId(idp)) return toast('Sem permissão para excluir este programa.');
+    if (hasSyntheticProgramId(idp)) return toast('Sem permissão para excluir este programa. Ajuste RLS no Supabase.');
     state.programas = state.programas.filter((p) => p.id !== idp);
     if (hasSupabase) await sb.from('programas').delete().eq('id', idp); else persistLocal();
     renderAll();
