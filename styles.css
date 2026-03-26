@@ -39,3 +39,6 @@ button { background: linear-gradient(90deg, var(--brand), var(--brand2)); border
 #toast.show { opacity: 1; transform: translateY(0); }
 code { background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 6px; padding: 2px 6px; }
 .pill { display:inline-block; padding:.2rem .6rem; border-radius:999px; font-size:.85rem; font-weight:700; background:#e0ecff; color:#1e40af; margin-left:.35rem; }
+
+.config-btn { border:1px solid #93c5fd; background:#eff6ff; color:#1d4ed8; padding:.45rem .7rem; border-radius:10px; font-weight:700; cursor:pointer; }
+.version { font-size:.75rem; background:#e0ecff; color:#1e40af; border-radius:999px; padding:2px 8px; margin-left:6px; vertical-align:middle; }

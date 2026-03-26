@@ -1,18 +1,43 @@
 const dbKey = 'dashboardfm_v2';
-const cfg = window.APP_CONFIG || {};
+const cfgKey = 'dashboardfm_supabase_cfg';
+
+const staticCfg = window.APP_CONFIG || {};
+const savedCfg = (() => {
+  try { return JSON.parse(localStorage.getItem(cfgKey) || '{}'); } catch { return {}; }
+})();
+
+const cfg = {
+  SUPABASE_URL: savedCfg.SUPABASE_URL || staticCfg.SUPABASE_URL || '',
+  SUPABASE_ANON_KEY: savedCfg.SUPABASE_ANON_KEY || staticCfg.SUPABASE_ANON_KEY || ''
+};
+
 const hasSupabase = Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY && window.supabase);
 const sb = hasSupabase ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
-
 const state = { programas: [], premios: [], participacoes: [], prioridades: [] };
 
 init();
 
 async function init() {
+  wireConfigButton();
   await loadInitialData();
   wireTabs();
   wireForms();
   renderAll();
   document.getElementById('modo-dados').textContent = hasSupabase ? 'Supabase conectado' : 'Modo local';
+}
+
+function wireConfigButton() {
+  const btn = document.getElementById('btn-supabase');
+  btn.addEventListener('click', () => {
+    const url = prompt('Cole a URL do Supabase (https://xxxx.supabase.co):', cfg.SUPABASE_URL || '');
+    if (!url) return;
+    const key = prompt('Cole a ANON KEY do Supabase:', cfg.SUPABASE_ANON_KEY || '');
+    if (!key) return;
+
+    localStorage.setItem(cfgKey, JSON.stringify({ SUPABASE_URL: url.trim(), SUPABASE_ANON_KEY: key.trim() }));
+    alert('Configuração salva. A página vai recarregar para conectar.');
+    location.reload();
+  });
 }
 
 async function loadInitialData() {
@@ -32,12 +57,11 @@ async function loadInitialData() {
       if (!state.programas.length) seedIfNeeded();
       return;
     } catch {
-      toast('Falha no Supabase. Entrando em modo local.');
+      toast('Falha ao conectar Supabase. Entrando em modo local.');
     }
   }
 
-  const local = loadState();
-  Object.assign(state, local);
+  Object.assign(state, loadState());
   seedIfNeeded();
 }
 
@@ -60,12 +84,12 @@ function seedIfNeeded() {
 
 function wireTabs() {
   document.querySelectorAll('[data-tab]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
       document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById(btn.dataset.tab).classList.add('active');
-      if (btn.dataset.tab === 'gestor') renderGestor();
+      if (btn.dataset.tab === 'gestor') await renderGestor();
     });
   });
 }
@@ -75,11 +99,9 @@ function wireForms() {
     e.preventDefault();
     const item = { id: id(), nome: val('g-programa-nome'), cor: val('g-programa-cor'), ativo: document.getElementById('g-programa-ativo').checked };
     state.programas.push(item);
-    if (hasSupabase) {
-      await sb.from('programas').insert({ nome: item.nome, cor_hex: item.cor, ativo: item.ativo });
-    } else {
-      persistLocal();
-    }
+    if (hasSupabase) await sb.from('programas').insert({ nome: item.nome, cor_hex: item.cor, ativo: item.ativo });
+    else persistLocal();
+
     e.target.reset();
     document.getElementById('g-programa-cor').value = '#2563eb';
     document.getElementById('g-programa-ativo').checked = true;
@@ -91,11 +113,9 @@ function wireForms() {
     e.preventDefault();
     const item = { id: id(), programaId: val('g-premio-programa'), nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')) };
     state.premios.push(item);
-    if (hasSupabase) {
-      await sb.from('premios').insert({ programa_id: item.programaId, nome: item.nome, descricao: item.descricao, estoque_inicial: item.estoque });
-    } else {
-      persistLocal();
-    }
+    if (hasSupabase) await sb.from('premios').insert({ programa_id: item.programaId, nome: item.nome, descricao: item.descricao, estoque_inicial: item.estoque });
+    else persistLocal();
+
     e.target.reset();
     renderAll();
     toast('Prêmio adicionado.');
@@ -105,11 +125,9 @@ function wireForms() {
     e.preventDefault();
     const item = { id: id(), programaId: val('p-programa'), data: val('p-data'), quantidade: Number(val('p-quantidade')), tipo: val('p-tipo') };
     state.participacoes.push(item);
-    if (hasSupabase) {
-      await sb.from('participacoes').insert({ programa_id: item.programaId, data_referencia: item.data, quantidade: item.quantidade, tipo_registro: item.tipo });
-    } else {
-      persistLocal();
-    }
+    if (hasSupabase) await sb.from('participacoes').insert({ programa_id: item.programaId, data_referencia: item.data, quantidade: item.quantidade, tipo_registro: item.tipo });
+    else persistLocal();
+
     e.target.reset();
     renderGestor();
     toast('Participação registrada.');
@@ -119,11 +137,9 @@ function wireForms() {
     e.preventDefault();
     const item = { id: id(), programaId: val('pr-programa'), data: val('pr-data'), conteudo: val('pr-conteudo'), concluido: false };
     state.prioridades.push(item);
-    if (hasSupabase) {
-      await sb.from('prioridades_ar').insert({ programa_id: item.programaId, data: item.data, conteudo: item.conteudo, concluido: false });
-    } else {
-      persistLocal();
-    }
+    if (hasSupabase) await sb.from('prioridades_ar').insert({ programa_id: item.programaId, data: item.data, conteudo: item.conteudo, concluido: false });
+    else persistLocal();
+
     e.target.reset();
     toast('Prioridade salva.');
   });
@@ -151,11 +167,8 @@ function renderProgramas() {
     b.addEventListener('click', async () => {
       const idp = b.dataset.rmPrograma;
       state.programas = state.programas.filter((p) => p.id !== idp);
-      if (hasSupabase) {
-        await sb.from('programas').delete().eq('id', idp);
-      } else {
-        persistLocal();
-      }
+      if (hasSupabase) await sb.from('programas').delete().eq('id', idp);
+      else persistLocal();
       renderAll();
       toast('Programa removido.');
     });
@@ -167,11 +180,22 @@ function renderPremios() {
   table.innerHTML = `<thead><tr><th>Programa</th><th>Nome</th><th>Descrição</th><th>Estoque</th></tr></thead><tbody>${state.premios.map((p) => { const prg = state.programas.find((x) => x.id === p.programaId); return `<tr><td>${prg?.nome || '-'}</td><td>${p.nome}</td><td>${p.descricao}</td><td>${p.estoque}</td></tr>`; }).join('')}</tbody>`;
 }
 
-function renderGestor() {
-  const resumo = state.programas.map((programa) => {
-    const regs = state.participacoes.filter((p) => p.programaId === programa.id);
-    return { nome: programa.nome, cor: programa.cor, total: regs.reduce((a, b) => a + b.quantidade, 0), dias: new Set(regs.map((r) => r.data)).size };
-  }).sort((a, b) => b.total - a.total);
+async function renderGestor() {
+  let resumo = [];
+
+  if (hasSupabase) {
+    const { data } = await sb.from('resumo_participacoes').select('programa,cor_hex,total_participacoes,dias_com_registro').order('total_participacoes', { ascending: false });
+    if (data?.length) {
+      resumo = data.map((r) => ({ nome: r.programa, cor: r.cor_hex || '#2563eb', total: Number(r.total_participacoes), dias: Number(r.dias_com_registro) }));
+    }
+  }
+
+  if (!resumo.length) {
+    resumo = state.programas.map((programa) => {
+      const regs = state.participacoes.filter((p) => p.programaId === programa.id);
+      return { nome: programa.nome, cor: programa.cor, total: regs.reduce((a, b) => a + b.quantidade, 0), dias: new Set(regs.map((r) => r.data)).size };
+    }).sort((a, b) => b.total - a.total);
+  }
 
   const total = resumo.reduce((acc, r) => acc + r.total, 0);
   const dias = resumo.reduce((acc, r) => acc + r.dias, 0);

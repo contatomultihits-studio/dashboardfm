@@ -1,6 +1,9 @@
 # Dashboard FM — estático (GitHub + Vercel) com tema musical
 
-Versão reconstruída para abrir fácil na Vercel e agora com visual inspirado no projeto musical (`monitoramentoradios`): paleta azul clara, cards limpos e navegação em tabs.
+Layout inspirado no projeto musical, agora com:
+- visual claro em tons de azul
+- conexão opcional com Supabase
+- botão "Conectar Supabase" dentro da própria tela (sem precisar editar código)
 
 ## Deploy (simples)
 
@@ -10,12 +13,17 @@ Versão reconstruída para abrir fácil na Vercel e agora com visual inspirado n
 4. Output Directory vazio.
 5. Deploy.
 
-## Integração Supabase (opcional)
+## Supabase (dados reais)
 
-Sim, agora está preparada para Supabase também.
+### Opção 1 — pela interface
+Clique em **Conectar Supabase** no topo e cole:
+- URL do projeto
+- ANON KEY
 
-1. Abra `config.js`.
-2. Preencha:
+A configuração fica salva no navegador.
+
+### Opção 2 — fixa no código
+Edite `config.js`:
 
 ```js
 window.APP_CONFIG = {
@@ -24,6 +32,11 @@ window.APP_CONFIG = {
 };
 ```
 
-3. Deploy novamente.
+## O que puxa do Supabase
+- `programas`
+- `premios`
+- `participacoes`
+- `prioridades_ar`
+- `resumo_participacoes` (usada na área de gestor para Big Numbers)
 
-Sem essas chaves, o app roda em modo local com `localStorage`.
+Sem Supabase, roda em `localStorage`.
