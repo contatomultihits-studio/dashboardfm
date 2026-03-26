@@ -45,5 +45,6 @@ Quando as variáveis existem, os módulos passam a ler/gravar nas tabelas do Sup
 ## 5) Troubleshooting
 
 - **Dashboard não aparece**: confirme se o projeto na Vercel está com framework Next.js e sem override incorreto de pasta de output.
-- **Erro `No Output Directory named "public"`**: este repo inclui `vercel.json` com `outputDirectory: .next`; remova override manual no painel da Vercel se existir.
+- **Erro `No Output Directory named "public"`**: no painel da Vercel, limpe o campo **Output Directory** (deixe vazio) para projetos Next.js.
+- **Página principal retorna `404: NOT_FOUND`**: normalmente não é erro de código. Verifique se existe deployment em **Production**, se a branch de produção está correta e clique em **Redeploy**.
 - **Tela sem dados**: no modo sem Supabase, os dados aparecem após inserir registros nas telas.
