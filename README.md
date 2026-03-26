@@ -28,8 +28,8 @@ Se aparecer mensagens como:
 
 então o ajuste é no **Supabase (policies/grants)**, não na Vercel.
 
-Execute o script:
-- `docs/supabase-setup.sql`
+Execute o script limpo (sem diff do git):
+- `docs/supabase-setup-clean.sql`
 
 no SQL Editor do Supabase para liberar `select/insert` para `anon`/`authenticated` nas tabelas usadas pela dashboard.
 
