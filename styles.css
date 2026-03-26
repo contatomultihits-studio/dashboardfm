@@ -18,6 +18,7 @@ body { margin: 0; font-family: Inter, Arial, sans-serif; background: radial-grad
 main { padding: 1.3rem 0 3rem; }
 .view { display: none; }
 .view.active { display: block; }
+.dashboard-upper { display: grid; gap: 1rem; }
 .grid { display: grid; gap: 1rem; }
 .cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .cols-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
@@ -36,6 +37,8 @@ button:hover { transform: translateY(-1px); box-shadow: 0 14px 24px rgba(37,99,2
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { border-bottom: 1px solid #e2e8f0; text-align: left; padding: .65rem; }
 .table th { color: #1e40af; font-size: 1.05rem; }
+.row-click { cursor: pointer; transition: background .15s; }
+.row-click:hover { background: #f3f7ff; }
 #bars { display: grid; gap: .55rem; }
 .bar-row { display: grid; grid-template-columns: 230px 1fr 70px; gap: .5rem; align-items: center; }
 .bar { height: 14px; border-radius: 999px; background: linear-gradient(90deg, #2563eb, #0ea5e9); }

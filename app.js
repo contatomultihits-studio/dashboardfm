@@ -249,11 +249,10 @@ function renderDashboard() {
   if(de) regs=regs.filter(r=>r.data>=de);
   if(ate) regs=regs.filter(r=>r.data<=ate);
   const resumo=state.programas.map((p)=>{const r=regs.filter(x=>x.programaId===p.id);return {nome:p.nome,total:r.reduce((a,b)=>a+b.quantidade,0),dias:new Set(r.map(x=>x.data)).size};}).sort((a,b)=>b.total-a.total);
-  const total=resumo.reduce((a,b)=>a+b.total,0), dias=resumo.reduce((a,b)=>a+b.dias,0), lider=resumo[0]?.nome||'—';
-  document.getElementById('kpis').innerHTML=`<div class='card'><small>TOTAL DE PARTICIPAÇÕES</small><div class='kpi-value'>${total}</div></div><div class='card'><small>DIAS COM REGISTRO</small><div class='kpi-value'>${dias}</div></div><div class='card'><small>PROGRAMA LÍDER</small><div class='kpi-value'>${lider}</div></div>`;
+  const total=resumo.reduce((a,b)=>a+b.total,0), lider=resumo[0]?.nome||'—';
+  document.getElementById('kpis').innerHTML=`<div class='card'><small>TOTAL DE PARTICIPAÇÕES</small><div class='kpi-value'>${total}</div></div><div class='card'><small>PROGRAMA COM + PARTICIPAÇÕES</small><div class='kpi-value'>${lider}</div></div>`;
   const max=Math.max(1,...resumo.map(r=>r.total));
   document.getElementById('bars').innerHTML=resumo.map(r=>`<div class='bar-row'><small>${r.nome}</small><div class='bar' style='width:${(r.total/max)*100}%'></div><small>${r.total}</small></div>`).join('');
-  document.getElementById('tabela-ranking').innerHTML=`<thead><tr><th>PROGRAMA</th><th>TOTAL</th><th>DIAS</th></tr></thead><tbody>${resumo.map(r=>`<tr><td>${r.nome}</td><td>${r.total}</td><td>${r.dias}</td></tr>`).join('')}</tbody>`;
 
   const now=new Date().toISOString();
   const ativos=state.premios.filter(p=>(!p.inicio||p.inicio<=now)&&(!p.fim||p.fim>=now));
@@ -267,7 +266,9 @@ function renderDashboard() {
   document.getElementById('premio-vigente-telefone').textContent=phoneMask(atual?.telefone);
 
   document.getElementById('proximos-premios').innerHTML=(futuros.slice(0,2).map(p=>`<div class='next-item'><strong>${p.nome}</strong><br/><small>${fmtHour(p.inicio)} - ${fmtHour(p.fim)}</small></div>`).join('')||'<small>SEM PRÓXIMOS PRÊMIOS</small>');
-  document.getElementById('tabela-historico-premios').innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>FIM</th></tr></thead><tbody>${passados.slice(0,20).map(p=>`<tr><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td>${fmtHour(p.fim)}</td></tr>`).join('')}</tbody>`;
+  document.getElementById('ultimos-premios-hora').innerHTML=(passados.slice(0,2).map(p=>`<div class='next-item'><strong>${p.nome}</strong><br/><small>ENCERRADO: ${fmtHour(p.fim)}</small></div>`).join('')||'<small>SEM PRÊMIOS ENCERRADOS</small>');
+  document.getElementById('tabela-historico-premios').innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>FIM</th></tr></thead><tbody>${passados.slice(0,20).map(p=>`<tr data-hist-premio='${p.id}' class='row-click'><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td>${fmtHour(p.fim)}</td></tr>`).join('')}</tbody>`;
+  document.querySelectorAll('[data-hist-premio]').forEach((row)=>row.addEventListener('click',()=>showPremioHistorico(row.dataset.histPremio)));
 }
 
 function phoneMask(phone){if(!phone)return 'TEL: --';const d=String(phone).replace(/\D/g,'');return `TEL: ****${d.slice(-4)}`;}
@@ -279,6 +280,7 @@ function firstDayOfMonthISO(){const d=new Date();d.setDate(1);return d.toISOStri
 function val(idEl){return document.getElementById(idEl).value;}
 function id(){return Math.random().toString(36).slice(2,10);}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}
+function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===idPremio);if(!p)return;alert(`PRÊMIO: ${p.nome}\n\nDESCRIÇÃO: ${p.descricao||'-'}\n\nGANHADOR: ${p.ganhador||'-'}`);}
 
 async function insertPremioSupabase(payload){
   const basePayload = {

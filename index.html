@@ -21,6 +21,19 @@
 
     <main class="container">
       <section id="dashboard" class="view active dashboard-upper">
+        <div class="card filters">
+          <div>
+            <small id="periodo-label">DADOS DO MÊS</small>
+            <h3 style="margin:0.3rem 0 0">VISÃO EXECUTIVA</h3>
+          </div>
+          <div class="range">
+            <label>DE <input id="filtro-de" type="date" /></label>
+            <label>ATÉ <input id="filtro-ate" type="date" /></label>
+            <button id="btn-aplicar-filtro" type="button">APLICAR</button>
+            <button id="btn-refresh" type="button">ATUALIZAR AGORA</button>
+          </div>
+        </div>
+
         <div class="card featured" id="premio-vigente-card">
           <small>PRÊMIO VIGENTE AGORA</small>
           <h2 id="premio-vigente-titulo">AGUARDANDO PRÊMIO ATIVO</h2>
@@ -36,23 +49,14 @@
             <h3>PRÓXIMOS 2 PRÊMIOS</h3>
             <div id="proximos-premios"></div>
           </div>
-          <div class="card filters">
-            <div>
-              <small id="periodo-label">DADOS DO MÊS</small>
-              <h3 style="margin:0.3rem 0 0">VISÃO EXECUTIVA</h3>
-            </div>
-            <div class="range">
-              <label>DE <input id="filtro-de" type="date" /></label>
-              <label>ATÉ <input id="filtro-ate" type="date" /></label>
-              <button id="btn-aplicar-filtro" type="button">APLICAR</button>
-              <button id="btn-refresh" type="button">ATUALIZAR AGORA</button>
-            </div>
+          <div class="card">
+            <h3>ÚLTIMOS 2 PRÊMIOS DA HORA</h3>
+            <div id="ultimos-premios-hora"></div>
           </div>
         </div>
 
         <div class="grid cols-3" id="kpis"></div>
         <div class="card"><h3>PARTICIPAÇÕES POR PROGRAMA</h3><div id="bars"></div></div>
-        <div class="card"><h3>RANKING</h3><table id="tabela-ranking" class="table"></table></div>
         <div class="card"><h3>HISTÓRICO DE PRÊMIOS ENCERRADOS</h3><table id="tabela-historico-premios" class="table"></table></div>
       </section>
 
