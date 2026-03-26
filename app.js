@@ -1,5 +1,6 @@
 const dbKey = 'dashboardfm_v2';
 const cfgKey = 'dashboardfm_supabase_cfg';
+const forceLocalMode = true;
 
 let hasSupabase = false;
 let sb = null;
@@ -30,6 +31,11 @@ async function refreshAllData() {
 }
 
 async function bootstrapSupabase() {
+  if (forceLocalMode) {
+    hasSupabase = false;
+    sb = null;
+    return;
+  }
   const staticCfg = window.APP_CONFIG || {};
   const savedCfg = JSON.parse(localStorage.getItem(cfgKey) || '{}');
   const envCfg = await readConfigFromServer();
@@ -52,6 +58,10 @@ async function readConfigFromServer() {
 
 function wireConfigButton() {
   document.getElementById('btn-supabase').addEventListener('click', () => {
+    if (forceLocalMode) {
+      toast('MODO LOCAL ATIVO');
+      return;
+    }
     const url = prompt('URL do Supabase:', '');
     if (!url) return;
     const key = prompt('ANON KEY:', '');
@@ -73,7 +83,6 @@ async function loadInitialData() {
       id: x.id,
       nome: x.nome,
       descricao: x.descricao,
-      estoque: x.estoque_inicial,
       inicio: x.inicio_vigencia,
       fim: x.fim_vigencia,
       ganhador: x.ganhador_nome || '',
@@ -112,7 +121,7 @@ function wireForms() {
   document.getElementById('form-premio').addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = {
-      nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')),
+      nome: val('g-premio-nome'), descricao: val('g-premio-desc'),
       inicio: new Date(val('g-premio-inicio')).toISOString(), fim: new Date(val('g-premio-fim')).toISOString(),
       ganhador: val('g-premio-ganhador') || null, telefone: val('g-premio-telefone') || null
     };
@@ -125,7 +134,10 @@ function wireForms() {
         telefone: hasGanhadorTelefoneColumn ? (data.ganhador_telefone || payload.telefone || '') : (payload.telefone || '')
       });
     } else { state.premios.push({ id: id(), ...payload }); persistLocal(); }
-    e.target.reset(); renderAll();
+    e.target.reset();
+    document.getElementById('g-premio-inicio').value = '';
+    document.getElementById('g-premio-fim').value = '';
+    renderAll();
   });
 
   document.getElementById('form-participacao').addEventListener('submit', async (e) => {
@@ -176,7 +188,22 @@ function renderParticipacoes() {
   document.getElementById('btn-toggle-participacoes').textContent = showAllParticipacoes ? 'MOSTRAR SÓ AS 5 ÚLTIMAS' : 'VER MAIS ANTIGAS';
   const t = document.getElementById('tabela-participacoes');
   t.innerHTML = `<thead><tr><th>DATA</th><th>PROGRAMA</th><th>QTD</th><th>AÇÕES</th></tr></thead><tbody>${items.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${p.quantidade}</td><td><button data-edit-part='${p.id}'>EDITAR</button> <button data-del-part='${p.id}'>EXCLUIR</button></td></tr>`}).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-part]').forEach((b)=>b.addEventListener('click', async()=>{const it=state.participacoes.find(x=>x.id===b.dataset.editPart);if(!it)return;const q=Number(prompt('NOVA QUANTIDADE:',it.quantidade));if(Number.isNaN(q))return;it.quantidade=q;if(hasSupabase)await sb.from('participacoes').update({quantidade:q}).eq('id',it.id);else persistLocal();renderAll();}));
+  t.querySelectorAll('[data-edit-part]').forEach((b)=>b.addEventListener('click', async()=>{
+    const it=state.participacoes.find(x=>x.id===b.dataset.editPart);
+    if(!it)return;
+    const programaAtual = state.programas.find((x)=>x.id===it.programaId);
+    const programaNome = prompt(`PROGRAMA (${state.programas.map((x)=>x.nome).join(', ')}):`, programaAtual?.nome || '');
+    if(programaNome===null) return;
+    const programaSelecionado = state.programas.find((x)=>x.nome.toLowerCase()===programaNome.trim().toLowerCase());
+    if(!programaSelecionado) return toast('PROGRAMA NÃO ENCONTRADO');
+    const data = prompt('NOVA DATA (AAAA-MM-DD):', it.data || '');
+    if(data===null || !data) return;
+    const q=Number(prompt('NOVA QUANTIDADE:',it.quantidade));
+    if(Number.isNaN(q))return;
+    Object.assign(it, { programaId: programaSelecionado.id, data, quantidade: q });
+    if(hasSupabase) await sb.from('participacoes').update({ programa_id: it.programaId, data_referencia: data, quantidade:q }).eq('id',it.id); else persistLocal();
+    renderAll();
+  }));
   t.querySelectorAll('[data-del-part]').forEach((b)=>b.addEventListener('click', async()=>{
     const idp=b.dataset.delPart;
     if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTA PARTICIPAÇÃO?')) return;
@@ -189,11 +216,25 @@ function renderParticipacoes() {
 function renderProgramas() {
   const t=document.getElementById('tabela-programas');
   t.innerHTML=`<thead><tr><th>NOME</th><th>COR</th><th>STATUS</th><th>AÇÕES</th></tr></thead><tbody>${state.programas.map((p)=>`<tr><td>${p.nome}</td><td>${p.cor}</td><td>${p.ativo?'ATIVO':'INATIVO'}</td><td><button data-edit-prog='${p.id}'>EDITAR</button> <button data-del-prog='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-prog]').forEach((b)=>b.addEventListener('click', async()=>{const it=state.programas.find(x=>x.id===b.dataset.editProg);if(!it)return;const nome=prompt('NOVO NOME:',it.nome);if(!nome)return;it.nome=nome;if(hasSupabase)await sb.from('programas').update({nome}).eq('id',it.id);else persistLocal();renderAll();}));
+  t.querySelectorAll('[data-edit-prog]').forEach((b)=>b.addEventListener('click', async()=>{
+    const it=state.programas.find(x=>x.id===b.dataset.editProg);
+    if(!it)return;
+    const nome=prompt('NOVO NOME:',it.nome);
+    if(!nome)return;
+    const cor=prompt('NOVA COR (HEX):',it.cor || '#2563eb');
+    if(!cor)return;
+    const ativoTxt=prompt('ATIVO? (SIM/NÃO):',it.ativo ? 'SIM' : 'NÃO');
+    if(ativoTxt===null) return;
+    const ativo = ativoTxt.trim().toUpperCase() === 'SIM';
+    Object.assign(it,{nome,cor,ativo});
+    if(hasSupabase)await sb.from('programas').update({nome,cor_hex:cor,ativo}).eq('id',it.id);else persistLocal();
+    renderAll();
+  }));
   t.querySelectorAll('[data-del-prog]').forEach((b)=>b.addEventListener('click', async()=>{
     const idp=b.dataset.delProg;
     if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTE PROGRAMA?')) return;
     state.programas=state.programas.filter(x=>x.id!==idp);
+    state.participacoes=state.participacoes.filter(x=>x.programaId!==idp);
     if(hasSupabase)await sb.from('programas').delete().eq('id',idp);else persistLocal();
     renderAll();
   }));
@@ -208,11 +249,19 @@ function renderPremiosGerenciamento() {
     const nome=prompt('NOME DO PRÊMIO:',it.nome);
     if(!nome)return;
     const desc=prompt('DESCRIÇÃO:',it.descricao||'')||'';
+    const inicioRaw = it.inicio ? toDatetimeLocal(it.inicio) : '';
+    const fimRaw = it.fim ? toDatetimeLocal(it.fim) : '';
+    const inicioEdit = prompt('INÍCIO DA VIGÊNCIA (AAAA-MM-DDTHH:MM):', inicioRaw);
+    if(inicioEdit===null || !inicioEdit) return;
+    const fimEdit = prompt('FIM DA VIGÊNCIA (AAAA-MM-DDTHH:MM):', fimRaw);
+    if(fimEdit===null || !fimEdit) return;
     const ganh=prompt('GANHADOR:',it.ganhador||'')||'';
     const tel=prompt('TELEFONE GANHADOR:',it.telefone||'')||'';
-    Object.assign(it,{nome,descricao:desc,ganhador:ganh,telefone:tel});
+    const inicio = new Date(inicioEdit).toISOString();
+    const fim = new Date(fimEdit).toISOString();
+    Object.assign(it,{nome,descricao:desc,inicio,fim,ganhador:ganh,telefone:tel});
     if(hasSupabase){
-      const { error } = await updatePremioSupabase(it.id, { nome, descricao: desc, ganhador: ganh, telefone: tel });
+      const { error } = await updatePremioSupabase(it.id, { nome, descricao: desc, inicio, fim, ganhador: ganh, telefone: tel });
       if(error) return toast(`ERRO: ${error.message}`);
     } else persistLocal();
     renderAll();
@@ -258,6 +307,7 @@ function renderDashboard() {
 
 function phoneMask(phone){if(!phone)return 'TEL: --';const d=String(phone).replace(/\D/g,'');return `TEL: ****${d.slice(-4)}`;}
 function fmtHour(iso){if(!iso)return '--';return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
+function toDatetimeLocal(iso){if(!iso)return '';const d=new Date(iso);const pad=(n)=>String(n).padStart(2,'0');return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;}
 function monthName(dateISO){const d=dateISO?new Date(`${dateISO}T00:00:00`):new Date();return d.toLocaleDateString('pt-BR',{month:'long'});}
 function todayISO(){return new Date().toISOString().slice(0,10);}
 function firstDayOfMonthISO(){const d=new Date();d.setDate(1);return d.toISOString().slice(0,10);}
@@ -269,7 +319,6 @@ async function insertPremioSupabase(payload){
   const basePayload = {
     nome: payload.nome,
     descricao: payload.descricao,
-    estoque_inicial: payload.estoque,
     inicio_vigencia: payload.inicio,
     fim_vigencia: payload.fim,
     ganhador_nome: payload.ganhador,
@@ -289,6 +338,8 @@ async function updatePremioSupabase(idPremio, payload){
   const basePayload = {
     nome: payload.nome,
     descricao: payload.descricao,
+    inicio_vigencia: payload.inicio,
+    fim_vigencia: payload.fim,
     ganhador_nome: payload.ganhador
   };
 
