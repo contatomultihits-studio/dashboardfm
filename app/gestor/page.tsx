@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabaseClient';
+import { getResumoLocal } from '@/lib/localStore';
 import { KpiCard } from '@/components/KpiCard';
 import { ParticipationChart } from '@/components/ParticipationChart';
 import { ResumoParticipacao } from '@/types/database';
@@ -13,14 +14,20 @@ export default function GestorPage() {
 
   useEffect(() => {
     const load = async () => {
-      if (!supabase) return;
+      if (!supabase) {
+        setResumo(getResumoLocal());
+        return;
+      }
+
       const { data, error } = await supabase
         .from('resumo_participacoes')
         .select('*')
         .order('total_participacoes', { ascending: false });
+
       if (error) return setErro(error.message);
       setResumo((data || []) as ResumoParticipacao[]);
     };
+
     load();
   }, [supabase]);
 
@@ -37,12 +44,12 @@ export default function GestorPage() {
       <div className="card">
         <h1 style={{ marginTop: 0 }}>Dashboard de Gestores</h1>
         <small>Visão rápida de performance para decisão semanal e fechamento mensal.</small>
-        {supabaseError && <p style={{ color: '#FF6B6B' }}>{supabaseError}</p>}
+        {supabaseError && <p style={{ color: '#FFC857' }}>{supabaseError} Rodando em modo local.</p>}
         {erro && <p style={{ color: '#FF6B6B' }}>{erro}</p>}
       </div>
 
       <div className="grid grid-3">
-        <KpiCard title="Total de participações" value={kpis.totalParticipacoes} helper="acumulado na visão resumo_participacoes" />
+        <KpiCard title="Total de participações" value={kpis.totalParticipacoes} helper="acumulado geral" />
         <KpiCard title="Dias com registro" value={kpis.totalDias} helper="somatório de dias monitorados" />
         <KpiCard title="Programa líder" value={kpis.programaLider} helper={`média diária geral ${kpis.mediaDia}`} />
       </div>

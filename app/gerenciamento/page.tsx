@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabaseClient';
+import { getPremiosLocal, getProgramasLocal, removeProgramaLocal, savePremioLocal, saveProgramaLocal } from '@/lib/localStore';
 import { Premio, Programa } from '@/types/database';
 
 export default function GerenciamentoPage() {
@@ -19,7 +20,11 @@ export default function GerenciamentoPage() {
   });
 
   const recarregar = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase) {
+      setProgramas(getProgramasLocal());
+      setPremios(getPremiosLocal());
+      return;
+    }
     const [resProgramas, resPremios] = await Promise.all([
       supabase.from('programas').select('*').order('nome'),
       supabase.from('premios').select('*').order('nome')
@@ -36,7 +41,11 @@ export default function GerenciamentoPage() {
 
   async function criarPrograma(e: FormEvent) {
     e.preventDefault();
-    if (!supabase) return;
+    if (!supabase) {
+      setProgramas(saveProgramaLocal(novoPrograma));
+      setNovoPrograma({ nome: '', cor_hex: '#35C4FF', ativo: true });
+      return setFeedback('Programa criado localmente.');
+    }
     const { error } = await supabase.from('programas').insert(novoPrograma);
     if (error) return setFeedback(error.message);
     setNovoPrograma({ nome: '', cor_hex: '#35C4FF', ativo: true });
@@ -46,7 +55,11 @@ export default function GerenciamentoPage() {
 
   async function criarPremio(e: FormEvent) {
     e.preventDefault();
-    if (!supabase) return;
+    if (!supabase) {
+      setPremios(savePremioLocal(novoPremio));
+      setNovoPremio({ nome: '', descricao: '', estoque_inicial: 0, programa_id: '' });
+      return setFeedback('Prêmio criado localmente.');
+    }
     const { error } = await supabase.from('premios').insert(novoPremio);
     if (error) return setFeedback(error.message);
     setNovoPremio({ nome: '', descricao: '', estoque_inicial: 0, programa_id: '' });
@@ -55,7 +68,10 @@ export default function GerenciamentoPage() {
   }
 
   async function removerPrograma(id: string) {
-    if (!supabase) return;
+    if (!supabase) {
+      setProgramas(removeProgramaLocal(id));
+      return setFeedback('Programa removido localmente.');
+    }
     const { error } = await supabase.from('programas').delete().eq('id', id);
     if (error) return setFeedback(error.message);
     setFeedback('Programa removido.');
@@ -67,7 +83,7 @@ export default function GerenciamentoPage() {
       <div className="card">
         <h1 style={{ marginTop: 0 }}>Gerenciamento</h1>
         <small>Administre programas e prêmios para manter o cadastro operacional da rádio.</small>
-        {supabaseError && <p style={{ color: '#FF6B6B' }}>{supabaseError}</p>}
+        {supabaseError && <p style={{ color: '#FFC857' }}>{supabaseError} Rodando em modo local.</p>}
         {feedback && <p>{feedback}</p>}
       </div>
 
@@ -96,7 +112,7 @@ export default function GerenciamentoPage() {
             />
             Ativo
           </label>
-          <button type="submit" disabled={!supabase}>Adicionar programa</button>
+          <button type="submit">Adicionar programa</button>
         </form>
 
         <form className="card" onSubmit={criarPremio}>
@@ -105,7 +121,6 @@ export default function GerenciamentoPage() {
             value={novoPremio.programa_id}
             onChange={(e) => setNovoPremio((f) => ({ ...f, programa_id: e.target.value }))}
             required
-            disabled={!supabase}
           >
             <option value="">Programa relacionado...</option>
             {programas.map((programa) => (
@@ -136,7 +151,7 @@ export default function GerenciamentoPage() {
             onChange={(e) => setNovoPremio((f) => ({ ...f, estoque_inicial: Number(e.target.value) }))}
             required
           />
-          <button type="submit" disabled={!supabase}>Adicionar prêmio</button>
+          <button type="submit">Adicionar prêmio</button>
         </form>
       </div>
 
@@ -161,7 +176,7 @@ export default function GerenciamentoPage() {
                 </td>
                 <td>{p.ativo ? 'Ativo' : 'Inativo'}</td>
                 <td>
-                  <button onClick={() => removerPrograma(p.id)} disabled={!supabase}>Excluir</button>
+                  <button onClick={() => removerPrograma(p.id)}>Excluir</button>
                 </td>
               </tr>
             ))}
