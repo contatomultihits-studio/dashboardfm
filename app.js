@@ -309,12 +309,12 @@ async function updatePremioSupabase(idPremio, payload){
   };
 
   if (hasGanhadorTelefoneColumn) {
-    const firstTry = await sb.from('premios').update({ ...basePayload, ganhador_telefone: payload.telefone }).eq('id', idPremio);
+    const firstTry = await sb.from('premios').update({ ...basePayload, ganhador_telefone: payload.telefone }).eq('id', idPremio).select('id').maybeSingle();
     if (!firstTry.error || !isMissingTelefoneColumnError(firstTry.error)) return firstTry;
     hasGanhadorTelefoneColumn = false;
   }
 
-  return sb.from('premios').update(basePayload).eq('id', idPremio);
+  return sb.from('premios').update(basePayload).eq('id', idPremio).select('id').maybeSingle();
 }
 
 function isMissingTelefoneColumnError(error) {
@@ -412,8 +412,9 @@ async function submitEditModal(e) {
     const ativo = document.getElementById('e-programa-ativo').checked;
     Object.assign(item, { nome, cor, ativo });
     if (hasSupabase) {
-      const { error } = await sb.from('programas').update({ nome, cor_hex: cor, ativo }).eq('id', item.id);
+      const { data, error } = await sb.from('programas').update({ nome, cor_hex: cor, ativo }).eq('id', item.id).select('id').maybeSingle();
       if (error) return toast(`ERRO: ${error.message}`);
+      if (!data?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTE PROGRAMA (RLS).');
       await syncAfterMutation();
     } else persistLocal();
   }
@@ -429,8 +430,9 @@ async function submitEditModal(e) {
     const telefone = document.getElementById('e-premio-telefone').value || null;
     Object.assign(item, { nome, descricao, inicio, fim, ganhador, telefone });
     if (hasSupabase) {
-      const { error } = await updatePremioSupabase(item.id, { nome, descricao, inicio, fim, ganhador, telefone });
+      const { data, error } = await updatePremioSupabase(item.id, { nome, descricao, inicio, fim, ganhador, telefone });
       if (error) return toast(`ERRO: ${error.message}`);
+      if (!data?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTE PRÊMIO (RLS).');
       await syncAfterMutation();
     } else persistLocal();
   }
@@ -443,8 +445,9 @@ async function submitEditModal(e) {
     const quantidade = Number(document.getElementById('e-participacao-qtd').value);
     Object.assign(item, { programaId, data, quantidade });
     if (hasSupabase) {
-      const { error } = await sb.from('participacoes').update({ programa_id: programaId, data_referencia: data, quantidade }).eq('id', item.id);
+      const { data: upData, error } = await sb.from('participacoes').update({ programa_id: programaId, data_referencia: data, quantidade }).eq('id', item.id).select('id').maybeSingle();
       if (error) return toast(`ERRO: ${error.message}`);
+      if (!upData?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTA PARTICIPAÇÃO (RLS).');
       await syncAfterMutation();
     } else persistLocal();
   }
