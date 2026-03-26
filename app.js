@@ -1,6 +1,5 @@
 const dbKey = 'dashboardfm_v2';
 const cfgKey = 'dashboardfm_supabase_cfg';
-const forceLocalMode = true;
 
 let hasSupabase = false;
 let sb = null;
@@ -31,11 +30,6 @@ async function refreshAllData() {
 }
 
 async function bootstrapSupabase() {
-  if (forceLocalMode) {
-    hasSupabase = false;
-    sb = null;
-    return;
-  }
   const staticCfg = window.APP_CONFIG || {};
   const savedCfg = JSON.parse(localStorage.getItem(cfgKey) || '{}');
   const envCfg = await readConfigFromServer();
@@ -58,10 +52,6 @@ async function readConfigFromServer() {
 
 function wireConfigButton() {
   document.getElementById('btn-supabase').addEventListener('click', () => {
-    if (forceLocalMode) {
-      toast('MODO LOCAL ATIVO');
-      return;
-    }
     const url = prompt('URL do Supabase:', '');
     if (!url) return;
     const key = prompt('ANON KEY:', '');
@@ -78,6 +68,10 @@ async function loadInitialData() {
       sb.from('premios').select('*').order('inicio_vigencia', { ascending: true }),
       sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro').order('data_referencia', { ascending: false })
     ]);
+    if (p1.error || p2.error || p3.error) {
+      toast(`ERRO SUPABASE: ${(p1.error || p2.error || p3.error).message}`);
+      return;
+    }
     state.programas = (p1.data || []).map((x) => ({ id: x.id, nome: x.nome, cor: x.cor_hex || '#2563eb', ativo: x.ativo }));
     state.premios = (p2.data || []).map((x) => ({
       id: x.id,
@@ -112,8 +106,9 @@ function wireForms() {
     e.preventDefault();
     const payload = { nome: val('g-programa-nome'), cor: val('g-programa-cor'), ativo: document.getElementById('g-programa-ativo').checked };
     if (hasSupabase) {
-      const { data } = await sb.from('programas').insert({ nome: payload.nome, cor_hex: payload.cor, ativo: payload.ativo }).select('id,nome,cor_hex,ativo').single();
-      state.programas.push({ id: data.id, nome: data.nome, cor: data.cor_hex || '#2563eb', ativo: data.ativo });
+      const { error } = await sb.from('programas').insert({ nome: payload.nome, cor_hex: payload.cor, ativo: payload.ativo });
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
     } else { state.programas.push({ id: id(), ...payload }); persistLocal(); }
     e.target.reset(); renderAll();
   });
@@ -128,11 +123,8 @@ function wireForms() {
     if (hasSupabase) {
       const { data, error } = await insertPremioSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
-      state.premios.push({
-        id: data.id,
-        ...payload,
-        telefone: hasGanhadorTelefoneColumn ? (data.ganhador_telefone || payload.telefone || '') : (payload.telefone || '')
-      });
+      if (!data?.id) return toast('ERRO: prêmio não retornou ID');
+      await syncAfterMutation();
     } else { state.premios.push({ id: id(), ...payload }); persistLocal(); }
     e.target.reset();
     document.getElementById('g-premio-inicio').value = '';
@@ -146,7 +138,8 @@ function wireForms() {
     if (hasSupabase) {
       const { data, error } = await sb.from('participacoes').insert({ programa_id: payload.programaId, data_referencia: payload.data, quantidade: payload.quantidade, tipo_registro: payload.tipo }).select('id,programa_id,data_referencia,quantidade,tipo_registro').single();
       if (error) return toast(`ERRO: ${error.message}`);
-      state.participacoes.unshift({ id: data.id, programaId: data.programa_id, data: data.data_referencia, quantidade: data.quantidade, tipo: data.tipo_registro });
+      if (!data?.id) return toast('ERRO: participação não retornou ID');
+      await syncAfterMutation();
     } else { state.participacoes.unshift({ id: id(), ...payload }); persistLocal(); }
     e.target.reset(); document.getElementById('p-data').value = todayISO(); renderAll();
   });
@@ -201,14 +194,22 @@ function renderParticipacoes() {
     const q=Number(prompt('NOVA QUANTIDADE:',it.quantidade));
     if(Number.isNaN(q))return;
     Object.assign(it, { programaId: programaSelecionado.id, data, quantidade: q });
-    if(hasSupabase) await sb.from('participacoes').update({ programa_id: it.programaId, data_referencia: data, quantidade:q }).eq('id',it.id); else persistLocal();
+    if(hasSupabase) {
+      const { error } = await sb.from('participacoes').update({ programa_id: it.programaId, data_referencia: data, quantidade:q }).eq('id',it.id);
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
+    } else persistLocal();
     renderAll();
   }));
   t.querySelectorAll('[data-del-part]').forEach((b)=>b.addEventListener('click', async()=>{
     const idp=b.dataset.delPart;
     if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTA PARTICIPAÇÃO?')) return;
     state.participacoes=state.participacoes.filter(x=>x.id!==idp);
-    if(hasSupabase)await sb.from('participacoes').delete().eq('id',idp);else persistLocal();
+    if(hasSupabase){
+      const { error } = await sb.from('participacoes').delete().eq('id',idp);
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
+    } else persistLocal();
     renderAll();
   }));
 }
@@ -227,7 +228,11 @@ function renderProgramas() {
     if(ativoTxt===null) return;
     const ativo = ativoTxt.trim().toUpperCase() === 'SIM';
     Object.assign(it,{nome,cor,ativo});
-    if(hasSupabase)await sb.from('programas').update({nome,cor_hex:cor,ativo}).eq('id',it.id);else persistLocal();
+    if(hasSupabase){
+      const { error } = await sb.from('programas').update({nome,cor_hex:cor,ativo}).eq('id',it.id);
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
+    } else persistLocal();
     renderAll();
   }));
   t.querySelectorAll('[data-del-prog]').forEach((b)=>b.addEventListener('click', async()=>{
@@ -235,7 +240,11 @@ function renderProgramas() {
     if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTE PROGRAMA?')) return;
     state.programas=state.programas.filter(x=>x.id!==idp);
     state.participacoes=state.participacoes.filter(x=>x.programaId!==idp);
-    if(hasSupabase)await sb.from('programas').delete().eq('id',idp);else persistLocal();
+    if(hasSupabase){
+      const { error } = await sb.from('programas').delete().eq('id',idp);
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
+    } else persistLocal();
     renderAll();
   }));
 }
@@ -263,6 +272,7 @@ function renderPremiosGerenciamento() {
     if(hasSupabase){
       const { error } = await updatePremioSupabase(it.id, { nome, descricao: desc, inicio, fim, ganhador: ganh, telefone: tel });
       if(error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
     } else persistLocal();
     renderAll();
   }));
@@ -270,7 +280,11 @@ function renderPremiosGerenciamento() {
     const idp=b.dataset.delPremio;
     if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTE PRÊMIO?')) return;
     state.premios=state.premios.filter(x=>x.id!==idp);
-    if(hasSupabase)await sb.from('premios').delete().eq('id',idp);else persistLocal();
+    if(hasSupabase){
+      const { error } = await sb.from('premios').delete().eq('id',idp);
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
+    } else persistLocal();
     renderAll();
   }));
 }
@@ -354,4 +368,9 @@ async function updatePremioSupabase(idPremio, payload){
 
 function isMissingTelefoneColumnError(error) {
   return String(error?.message || '').toLowerCase().includes('ganhador_telefone');
+}
+
+async function syncAfterMutation() {
+  if (hasSupabase) await loadInitialData();
+  else persistLocal();
 }
