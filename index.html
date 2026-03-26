@@ -112,6 +112,50 @@
       </section>
     </main>
 
+    <div id="edit-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h3 id="edit-modal-title">EDITAR ITEM</h3>
+          <button id="btn-close-modal" type="button" class="btn-ghost">FECHAR</button>
+        </div>
+        <form id="edit-modal-form" class="form">
+          <div id="edit-fields-programa" class="edit-group hidden">
+            <label>NOME</label>
+            <input id="e-programa-nome" required />
+            <label>COR</label>
+            <input id="e-programa-cor" type="color" required />
+            <label class="inline"><input id="e-programa-ativo" type="checkbox" /> ATIVO</label>
+          </div>
+
+          <div id="edit-fields-premio" class="edit-group hidden">
+            <label>NOME</label>
+            <input id="e-premio-nome" required />
+            <label>DESCRIÇÃO</label>
+            <textarea id="e-premio-desc" rows="3" required></textarea>
+            <label>INÍCIO DA VIGÊNCIA</label>
+            <input id="e-premio-inicio" type="datetime-local" required />
+            <label>FIM DA VIGÊNCIA</label>
+            <input id="e-premio-fim" type="datetime-local" required />
+            <label>GANHADOR</label>
+            <input id="e-premio-ganhador" />
+            <label>TELEFONE GANHADOR</label>
+            <input id="e-premio-telefone" />
+          </div>
+
+          <div id="edit-fields-participacao" class="edit-group hidden">
+            <label>PROGRAMA</label>
+            <select id="e-participacao-programa" required></select>
+            <label>DATA</label>
+            <input id="e-participacao-data" type="date" required />
+            <label>QUANTIDADE</label>
+            <input id="e-participacao-qtd" type="number" min="0" required />
+          </div>
+
+          <button type="submit">SALVAR ALTERAÇÕES</button>
+        </form>
+      </div>
+    </div>
+
     <div id="toast"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./config.js"></script>

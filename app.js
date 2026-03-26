@@ -5,6 +5,7 @@ let hasSupabase = false;
 let sb = null;
 let showAllParticipacoes = false;
 let hasGanhadorTelefoneColumn = true;
+const editModalState = { tipo: null, id: null };
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
 const state = { programas: [], premios: [], participacoes: [] };
 
@@ -16,6 +17,7 @@ async function init() {
   await loadInitialData();
   wireTabs();
   wireForms();
+  wireEditModal();
   initDefaultDates();
   wireFilters();
   renderAll();
@@ -150,6 +152,14 @@ function wireForms() {
   });
 }
 
+function wireEditModal() {
+  document.getElementById('btn-close-modal').addEventListener('click', closeEditModal);
+  document.getElementById('edit-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'edit-modal') closeEditModal();
+  });
+  document.getElementById('edit-modal-form').addEventListener('submit', submitEditModal);
+}
+
 function wireFilters() {
   document.getElementById('btn-aplicar-filtro').addEventListener('click', () => renderDashboard());
   document.getElementById('btn-refresh').addEventListener('click', async () => refreshAllData());
@@ -181,26 +191,7 @@ function renderParticipacoes() {
   document.getElementById('btn-toggle-participacoes').textContent = showAllParticipacoes ? 'MOSTRAR SÓ AS 5 ÚLTIMAS' : 'VER MAIS ANTIGAS';
   const t = document.getElementById('tabela-participacoes');
   t.innerHTML = `<thead><tr><th>DATA</th><th>PROGRAMA</th><th>QTD</th><th>AÇÕES</th></tr></thead><tbody>${items.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${p.quantidade}</td><td><button data-edit-part='${p.id}'>EDITAR</button> <button data-del-part='${p.id}'>EXCLUIR</button></td></tr>`}).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-part]').forEach((b)=>b.addEventListener('click', async()=>{
-    const it=state.participacoes.find(x=>x.id===b.dataset.editPart);
-    if(!it)return;
-    const programaAtual = state.programas.find((x)=>x.id===it.programaId);
-    const programaNome = prompt(`PROGRAMA (${state.programas.map((x)=>x.nome).join(', ')}):`, programaAtual?.nome || '');
-    if(programaNome===null) return;
-    const programaSelecionado = state.programas.find((x)=>x.nome.toLowerCase()===programaNome.trim().toLowerCase());
-    if(!programaSelecionado) return toast('PROGRAMA NÃO ENCONTRADO');
-    const data = prompt('NOVA DATA (AAAA-MM-DD):', it.data || '');
-    if(data===null || !data) return;
-    const q=Number(prompt('NOVA QUANTIDADE:',it.quantidade));
-    if(Number.isNaN(q))return;
-    Object.assign(it, { programaId: programaSelecionado.id, data, quantidade: q });
-    if(hasSupabase) {
-      const { error } = await sb.from('participacoes').update({ programa_id: it.programaId, data_referencia: data, quantidade:q }).eq('id',it.id);
-      if (error) return toast(`ERRO: ${error.message}`);
-      await syncAfterMutation();
-    } else persistLocal();
-    renderAll();
-  }));
+  t.querySelectorAll('[data-edit-part]').forEach((b)=>b.addEventListener('click', ()=>openEditModal('participacao', b.dataset.editPart)));
   t.querySelectorAll('[data-del-part]').forEach((b)=>b.addEventListener('click', async()=>{
     const idp=b.dataset.delPart;
     if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTA PARTICIPAÇÃO?')) return;
@@ -217,24 +208,7 @@ function renderParticipacoes() {
 function renderProgramas() {
   const t=document.getElementById('tabela-programas');
   t.innerHTML=`<thead><tr><th>NOME</th><th>COR</th><th>STATUS</th><th>AÇÕES</th></tr></thead><tbody>${state.programas.map((p)=>`<tr><td>${p.nome}</td><td>${p.cor}</td><td>${p.ativo?'ATIVO':'INATIVO'}</td><td><button data-edit-prog='${p.id}'>EDITAR</button> <button data-del-prog='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-prog]').forEach((b)=>b.addEventListener('click', async()=>{
-    const it=state.programas.find(x=>x.id===b.dataset.editProg);
-    if(!it)return;
-    const nome=prompt('NOVO NOME:',it.nome);
-    if(!nome)return;
-    const cor=prompt('NOVA COR (HEX):',it.cor || '#2563eb');
-    if(!cor)return;
-    const ativoTxt=prompt('ATIVO? (SIM/NÃO):',it.ativo ? 'SIM' : 'NÃO');
-    if(ativoTxt===null) return;
-    const ativo = ativoTxt.trim().toUpperCase() === 'SIM';
-    Object.assign(it,{nome,cor,ativo});
-    if(hasSupabase){
-      const { error } = await sb.from('programas').update({nome,cor_hex:cor,ativo}).eq('id',it.id);
-      if (error) return toast(`ERRO: ${error.message}`);
-      await syncAfterMutation();
-    } else persistLocal();
-    renderAll();
-  }));
+  t.querySelectorAll('[data-edit-prog]').forEach((b)=>b.addEventListener('click', ()=>openEditModal('programa', b.dataset.editProg)));
   t.querySelectorAll('[data-del-prog]').forEach((b)=>b.addEventListener('click', async()=>{
     const idp=b.dataset.delProg;
     if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTE PROGRAMA?')) return;
@@ -252,30 +226,7 @@ function renderProgramas() {
 function renderPremiosGerenciamento() {
   const t=document.getElementById('tabela-premios-gerenciamento');
   t.innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>AÇÕES</th></tr></thead><tbody>${state.premios.map((p)=>`<tr><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td><button data-edit-premio='${p.id}'>EDITAR</button> <button data-del-premio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-premio]').forEach((b)=>b.addEventListener('click', async()=>{
-    const it=state.premios.find(x=>x.id===b.dataset.editPremio);
-    if(!it)return;
-    const nome=prompt('NOME DO PRÊMIO:',it.nome);
-    if(!nome)return;
-    const desc=prompt('DESCRIÇÃO:',it.descricao||'')||'';
-    const inicioRaw = it.inicio ? toDatetimeLocal(it.inicio) : '';
-    const fimRaw = it.fim ? toDatetimeLocal(it.fim) : '';
-    const inicioEdit = prompt('INÍCIO DA VIGÊNCIA (AAAA-MM-DDTHH:MM):', inicioRaw);
-    if(inicioEdit===null || !inicioEdit) return;
-    const fimEdit = prompt('FIM DA VIGÊNCIA (AAAA-MM-DDTHH:MM):', fimRaw);
-    if(fimEdit===null || !fimEdit) return;
-    const ganh=prompt('GANHADOR:',it.ganhador||'')||'';
-    const tel=prompt('TELEFONE GANHADOR:',it.telefone||'')||'';
-    const inicio = new Date(inicioEdit).toISOString();
-    const fim = new Date(fimEdit).toISOString();
-    Object.assign(it,{nome,descricao:desc,inicio,fim,ganhador:ganh,telefone:tel});
-    if(hasSupabase){
-      const { error } = await updatePremioSupabase(it.id, { nome, descricao: desc, inicio, fim, ganhador: ganh, telefone: tel });
-      if(error) return toast(`ERRO: ${error.message}`);
-      await syncAfterMutation();
-    } else persistLocal();
-    renderAll();
-  }));
+  t.querySelectorAll('[data-edit-premio]').forEach((b)=>b.addEventListener('click', ()=>openEditModal('premio', b.dataset.editPremio)));
   t.querySelectorAll('[data-del-premio]').forEach((b)=>b.addEventListener('click', async()=>{
     const idp=b.dataset.delPremio;
     if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTE PRÊMIO?')) return;
@@ -373,4 +324,114 @@ function isMissingTelefoneColumnError(error) {
 async function syncAfterMutation() {
   if (hasSupabase) await loadInitialData();
   else persistLocal();
+}
+
+function openEditModal(tipo, itemId) {
+  editModalState.tipo = tipo;
+  editModalState.id = itemId;
+  hideEditGroups();
+  const modal = document.getElementById('edit-modal');
+  const title = document.getElementById('edit-modal-title');
+
+  if (tipo === 'programa') {
+    const item = state.programas.find((x) => x.id === itemId);
+    if (!item) return;
+    title.textContent = 'EDITAR PROGRAMA';
+    document.getElementById('edit-fields-programa').classList.remove('hidden');
+    document.getElementById('e-programa-nome').value = item.nome || '';
+    document.getElementById('e-programa-cor').value = item.cor || '#2563eb';
+    document.getElementById('e-programa-ativo').checked = Boolean(item.ativo);
+  }
+
+  if (tipo === 'premio') {
+    const item = state.premios.find((x) => x.id === itemId);
+    if (!item) return;
+    title.textContent = 'EDITAR PRÊMIO';
+    document.getElementById('edit-fields-premio').classList.remove('hidden');
+    document.getElementById('e-premio-nome').value = item.nome || '';
+    document.getElementById('e-premio-desc').value = item.descricao || '';
+    document.getElementById('e-premio-inicio').value = toDatetimeLocal(item.inicio);
+    document.getElementById('e-premio-fim').value = toDatetimeLocal(item.fim);
+    document.getElementById('e-premio-ganhador').value = item.ganhador || '';
+    document.getElementById('e-premio-telefone').value = item.telefone || '';
+  }
+
+  if (tipo === 'participacao') {
+    const item = state.participacoes.find((x) => x.id === itemId);
+    if (!item) return;
+    title.textContent = 'EDITAR PARTICIPAÇÃO';
+    document.getElementById('edit-fields-participacao').classList.remove('hidden');
+    const sel = document.getElementById('e-participacao-programa');
+    sel.innerHTML = state.programas.map((p) => `<option value="${p.id}">${p.nome}</option>`).join('');
+    sel.value = item.programaId || '';
+    document.getElementById('e-participacao-data').value = item.data || '';
+    document.getElementById('e-participacao-qtd').value = item.quantidade || 0;
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+  editModalState.tipo = null;
+  editModalState.id = null;
+}
+
+function hideEditGroups() {
+  document.getElementById('edit-fields-programa').classList.add('hidden');
+  document.getElementById('edit-fields-premio').classList.add('hidden');
+  document.getElementById('edit-fields-participacao').classList.add('hidden');
+}
+
+async function submitEditModal(e) {
+  e.preventDefault();
+  if (!editModalState.tipo || !editModalState.id) return;
+
+  if (editModalState.tipo === 'programa') {
+    const item = state.programas.find((x) => x.id === editModalState.id);
+    if (!item) return;
+    const nome = document.getElementById('e-programa-nome').value;
+    const cor = document.getElementById('e-programa-cor').value;
+    const ativo = document.getElementById('e-programa-ativo').checked;
+    Object.assign(item, { nome, cor, ativo });
+    if (hasSupabase) {
+      const { error } = await sb.from('programas').update({ nome, cor_hex: cor, ativo }).eq('id', item.id);
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
+    } else persistLocal();
+  }
+
+  if (editModalState.tipo === 'premio') {
+    const item = state.premios.find((x) => x.id === editModalState.id);
+    if (!item) return;
+    const nome = document.getElementById('e-premio-nome').value;
+    const descricao = document.getElementById('e-premio-desc').value;
+    const inicio = new Date(document.getElementById('e-premio-inicio').value).toISOString();
+    const fim = new Date(document.getElementById('e-premio-fim').value).toISOString();
+    const ganhador = document.getElementById('e-premio-ganhador').value || null;
+    const telefone = document.getElementById('e-premio-telefone').value || null;
+    Object.assign(item, { nome, descricao, inicio, fim, ganhador, telefone });
+    if (hasSupabase) {
+      const { error } = await updatePremioSupabase(item.id, { nome, descricao, inicio, fim, ganhador, telefone });
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
+    } else persistLocal();
+  }
+
+  if (editModalState.tipo === 'participacao') {
+    const item = state.participacoes.find((x) => x.id === editModalState.id);
+    if (!item) return;
+    const programaId = document.getElementById('e-participacao-programa').value;
+    const data = document.getElementById('e-participacao-data').value;
+    const quantidade = Number(document.getElementById('e-participacao-qtd').value);
+    Object.assign(item, { programaId, data, quantidade });
+    if (hasSupabase) {
+      const { error } = await sb.from('participacoes').update({ programa_id: programaId, data_referencia: data, quantidade }).eq('id', item.id);
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
+    } else persistLocal();
+  }
+
+  closeEditModal();
+  renderAll();
 }
