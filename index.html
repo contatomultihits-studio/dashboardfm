@@ -31,7 +31,7 @@
             <label>Quantidade</label>
             <input id="p-quantidade" type="number" min="0" required />
             <label>Tipo de registro</label>
-            <select id="p-tipo" required></select>
+            <input id="p-tipo" value="DIARIO_REALTIME" readonly />
             <button type="submit">Salvar participação</button>
           </form>
         </div>
@@ -59,6 +59,12 @@
             <textarea id="g-premio-desc" rows="3" required></textarea>
             <label>Estoque inicial</label>
             <input id="g-premio-estoque" type="number" min="0" required />
+            <label>Início da vigência (opcional)</label>
+            <input id="g-premio-inicio" type="datetime-local" />
+            <label>Fim da vigência (opcional)</label>
+            <input id="g-premio-fim" type="datetime-local" />
+            <label>Ganhador da hora (opcional)</label>
+            <input id="g-premio-ganhador" />
             <button type="submit">Adicionar prêmio</button>
           </form>
 
@@ -81,6 +87,15 @@
       </section>
 
       <section id="gestor" class="view">
+        <div class="card featured" id="premio-vigente-card">
+          <small>PRÊMIO VIGENTE AGORA</small>
+          <h2 id="premio-vigente-titulo">Aguardando prêmio ativo</h2>
+          <p id="premio-vigente-desc">Configure vigência de prêmios no gerenciamento.</p>
+          <div class="badges">
+            <span id="premio-vigente-programa" class="badge">Programa</span>
+            <span id="premio-vigente-ganhador" class="badge badge-red">Sem ganhador</span>
+          </div>
+        </div>
         <div class="card filters">
           <div>
             <small id="periodo-label">DADOS DO MÊS</small>

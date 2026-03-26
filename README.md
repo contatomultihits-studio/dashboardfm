@@ -1,9 +1,9 @@
 # Dashboard FM — estático (GitHub + Vercel) com tema musical
 
 Estrutura atual:
-- **Métricas**: inclusão de participações (com data já preenchida com hoje)
-- **Gerenciamento**: programas, prêmios e prioridade no ar
-- **Gestor**: Big Numbers, ranking, prêmios da hora e filtro por período
+- **Métricas**: inclusão de participações (tipo fixo `DIARIO_REALTIME`)
+- **Gerenciamento**: programas, prêmios (com vigência por hora) e prioridade no ar
+- **Gestor**: Big Numbers, ranking, prêmio vigente agora e ganhador
 
 ## Filtro padrão
 Ao abrir, o Gestor já vem em período mensal:
@@ -26,16 +26,18 @@ Se aparecer mensagens como:
 - "Sem permissão na tabela programas"
 - "Sem acesso à tabela programas"
 
-então o ajuste é no **Supabase (policies/grants)**, não na Vercel.
-
-Execute o script limpo (sem diff do git):
+execute no Supabase SQL Editor:
 - `docs/supabase-setup-clean.sql`
 
-no SQL Editor do Supabase para liberar `select/insert` para `anon`/`authenticated` nas tabelas usadas pela dashboard.
+## Configuração ideal de prêmios por hora
+Para destacar o prêmio vigente e mostrar ganhador ao locutor, execute:
+- `docs/premios-hora-migration.sql`
+
+Isso adiciona em `premios`:
+- `inicio_vigencia`
+- `fim_vigencia`
+- `ganhador_nome`
+- `status`
 
 ## Sem Supabase
 Roda em `localStorage`.
-
-## Constraint tipo_registro
-Se o banco exigir valores específicos em `participacoes.tipo_registro`, ajuste a lista em `config.js` no campo `TIPOS_REGISTRO`.
-A tela Métricas agora usa seletor (dropdown) para evitar erro de check constraint.
