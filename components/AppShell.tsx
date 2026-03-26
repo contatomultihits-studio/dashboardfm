@@ -1,9 +1,15 @@
 'use client';
 
+import type { Route } from 'next';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const items = [
+type NavItem = {
+  href: Route;
+  label: string;
+};
+
+const items: NavItem[] = [
   { href: '/', label: 'Início' },
   { href: '/colaborador', label: 'Abastecimento' },
   { href: '/gerenciamento', label: 'Gerenciamento' },

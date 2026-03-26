@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabaseClient';
 import { Premio, Programa } from '@/types/database';
 
@@ -18,7 +18,7 @@ export default function GerenciamentoPage() {
     programa_id: ''
   });
 
-  async function recarregar() {
+  const recarregar = useCallback(async () => {
     if (!supabase) return;
     const [resProgramas, resPremios] = await Promise.all([
       supabase.from('programas').select('*').order('nome'),
@@ -28,11 +28,11 @@ export default function GerenciamentoPage() {
     if (resPremios.error) setFeedback(resPremios.error.message);
     if (!resProgramas.error) setProgramas(resProgramas.data as Programa[]);
     if (!resPremios.error) setPremios(resPremios.data as Premio[]);
-  }
+  }, [supabase]);
 
   useEffect(() => {
     recarregar();
-  }, [supabase]);
+  }, [recarregar]);
 
   async function criarPrograma(e: FormEvent) {
     e.preventDefault();
