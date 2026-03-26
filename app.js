@@ -18,6 +18,14 @@ async function init() {
   wireFilters();
   renderAll();
   updateDataModeBadge();
+  setInterval(refreshAllData, 180000);
+}
+
+async function refreshAllData() {
+  if (!hasSupabase) return;
+  await loadInitialData();
+  renderAll();
+  toast('Dados atualizados.');
 }
 
 async function bootstrapSupabase() {
@@ -66,8 +74,8 @@ async function loadInitialData() {
     const queries = await Promise.allSettled([
       sb.from('programas').select('id,nome,cor_hex,ativo').order('nome'),
       sb.from('premios').select('*').order('nome'),
-      sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro'),
-      sb.from('prioridades_ar').select('id,programa_id,data,conteudo,concluido'),
+      sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro').order('data_referencia', { ascending: false }),
+      sb.from('prioridades_ar').select('id,programa_id,data,conteudo,concluido').order('data', { ascending: false }),
       sb.from('resumo_participacoes').select('programa,cor_hex').order('programa')
     ]);
 
@@ -76,7 +84,6 @@ async function loadInitialData() {
     if (qPrem.status === 'fulfilled' && !qPrem.value.error) state.premios = (qPrem.value.data || []).map(mapPremioSupabase);
     if (qPart.status === 'fulfilled' && !qPart.value.error) state.participacoes = (qPart.value.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
     if (qPrio.status === 'fulfilled' && !qPrio.value.error) state.prioridades = (qPrio.value.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data, conteudo: x.conteudo, concluido: x.concluido }));
-
     if (!state.programas.length && qResumo.status === 'fulfilled' && !qResumo.value.error) {
       state.programas = (qResumo.value.data || []).map((x, i) => ({ id: `resumo-${i}`, nome: x.programa, cor: x.cor_hex || '#2563eb', ativo: true }));
       toast('Sem acesso à tabela programas (RLS). Ajuste policies no Supabase.');
@@ -89,16 +96,7 @@ async function loadInitialData() {
 }
 
 function mapPremioSupabase(x) {
-  return {
-    id: x.id,
-    programaId: x.programa_id,
-    nome: x.nome,
-    descricao: x.descricao,
-    estoque: x.estoque_inicial,
-    inicio: x.inicio_vigencia || null,
-    fim: x.fim_vigencia || null,
-    ganhador: x.ganhador_nome || ''
-  };
+  return { id: x.id, programaId: x.programa_id, nome: x.nome, descricao: x.descricao, estoque: x.estoque_inicial, inicio: x.inicio_vigencia || null, fim: x.fim_vigencia || null, ganhador: x.ganhador_nome || '' };
 }
 
 function loadState() { const raw = localStorage.getItem(dbKey); if (!raw) return { programas: [], premios: [], participacoes: [], prioridades: [] }; try { return JSON.parse(raw); } catch { return { programas: [], premios: [], participacoes: [], prioridades: [] }; } }
@@ -111,7 +109,7 @@ function wireTabs() {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'gestor') await renderGestor();
+    if (btn.dataset.tab === 'dashboard') await renderDashboard();
   }));
 }
 
@@ -129,12 +127,7 @@ function wireForms() {
 
   document.getElementById('form-premio').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const payload = {
-      programaId: val('g-premio-programa'), nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')),
-      inicio: val('g-premio-inicio') ? new Date(val('g-premio-inicio')).toISOString() : null,
-      fim: val('g-premio-fim') ? new Date(val('g-premio-fim')).toISOString() : null,
-      ganhador: val('g-premio-ganhador') || null
-    };
+    const payload = { programaId: val('g-premio-programa'), nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')), inicio: val('g-premio-inicio') ? new Date(val('g-premio-inicio')).toISOString() : null, fim: val('g-premio-fim') ? new Date(val('g-premio-fim')).toISOString() : null, ganhador: val('g-premio-ganhador') || null };
     if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas. Ajuste RLS no Supabase.');
     if (hasSupabase) {
       const { data, error } = await sb.from('premios').insert({ programa_id: payload.programaId, nome: payload.nome, descricao: payload.descricao, estoque_inicial: payload.estoque, inicio_vigencia: payload.inicio, fim_vigencia: payload.fim, ganhador_nome: payload.ganhador }).select('*').single();
@@ -153,7 +146,7 @@ function wireForms() {
       if (error) return toast(`Erro: ${error.message}`);
       state.prioridades.push({ id: data.id, programaId: data.programa_id, data: data.data, conteudo: data.conteudo, concluido: data.concluido });
     } else { state.prioridades.push({ id: id(), ...payload }); persistLocal(); }
-    e.target.reset(); toast('Prioridade salva.');
+    e.target.reset(); renderAll(); toast('Prioridade salva.');
   });
 
   document.getElementById('form-participacao').addEventListener('submit', async (e) => {
@@ -163,9 +156,9 @@ function wireForms() {
     if (hasSupabase) {
       const { data, error } = await sb.from('participacoes').insert({ programa_id: payload.programaId, data_referencia: payload.data, quantidade: payload.quantidade, tipo_registro: payload.tipo }).select('id,programa_id,data_referencia,quantidade,tipo_registro').single();
       if (error) return toast(`Erro: ${error.message}`);
-      state.participacoes.push({ id: data.id, programaId: data.programa_id, data: data.data_referencia, quantidade: data.quantidade, tipo: data.tipo_registro });
-    } else { state.participacoes.push({ id: id(), ...payload }); persistLocal(); }
-    e.target.reset(); document.getElementById('p-data').value = todayISO(); document.getElementById('p-tipo').value = tipoRegistroPadrao; renderGestor(); toast('Participação registrada.');
+      state.participacoes.unshift({ id: data.id, programaId: data.programa_id, data: data.data_referencia, quantidade: data.quantidade, tipo: data.tipo_registro });
+    } else { state.participacoes.unshift({ id: id(), ...payload }); persistLocal(); }
+    e.target.reset(); document.getElementById('p-data').value = todayISO(); document.getElementById('p-tipo').value = tipoRegistroPadrao; renderAll(); toast('Participação registrada.');
   });
 }
 
@@ -178,30 +171,51 @@ function initDefaultDates() {
   document.getElementById('filtro-ate').value = end;
   document.getElementById('p-tipo').value = tipoRegistroPadrao;
 }
-function wireFilters() { document.getElementById('btn-aplicar-filtro').addEventListener('click', () => renderGestor()); }
+
+function wireFilters() {
+  document.getElementById('btn-aplicar-filtro').addEventListener('click', () => renderDashboard());
+  document.getElementById('btn-refresh').addEventListener('click', async () => { await refreshAllData(); });
+}
 
 function renderAll() {
   fillProgramSelect('p-programa');
   fillProgramSelect('pr-programa');
   fillProgramSelect('g-premio-programa');
   renderProgramas();
-  renderGestor();
+  renderPremiosGerenciamento();
+  renderPrioridades();
+  renderParticipacoes();
+  renderDashboard();
 }
+
 function fillProgramSelect(idSel) { const sel = document.getElementById(idSel); sel.innerHTML = '<option value="">Selecione...</option>' + state.programas.map((p) => `<option value="${p.id}">${p.nome}</option>`).join(''); }
 
-function renderProgramas() {
-  const table = document.getElementById('tabela-programas');
-  table.innerHTML = `<thead><tr><th>Nome</th><th>Cor</th><th>Status</th><th></th></tr></thead><tbody>${state.programas.map((p) => `<tr><td>${p.nome}</td><td><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:${p.cor}"></span> ${p.cor}</td><td>${p.ativo ? 'Ativo' : 'Inativo'}</td><td><button data-rm-programa="${p.id}">Excluir</button></td></tr>`).join('')}</tbody>`;
-  table.querySelectorAll('[data-rm-programa]').forEach((b) => b.addEventListener('click', async () => {
-    const idp = b.dataset.rmPrograma;
-    if (hasSyntheticProgramId(idp)) return toast('Sem permissão para excluir este programa. Ajuste RLS no Supabase.');
-    state.programas = state.programas.filter((p) => p.id !== idp);
-    if (hasSupabase) await sb.from('programas').delete().eq('id', idp); else persistLocal();
-    renderAll(); toast('Programa removido.');
-  }));
+function renderParticipacoes() {
+  const t = document.getElementById('tabela-participacoes');
+  t.innerHTML = `<thead><tr><th>Data</th><th>Programa</th><th>Quantidade</th><th>Ações</th></tr></thead><tbody>${state.participacoes.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${p.quantidade}</td><td><button data-edit-part='${p.id}'>Editar</button></td></tr>`}).join('')}</tbody>`;
+  t.querySelectorAll('[data-edit-part]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.editPart;const item=state.participacoes.find(x=>x.id===idp);if(!item)return;const qtd=Number(prompt('Nova quantidade:',item.quantidade));if(Number.isNaN(qtd))return;item.quantidade=qtd;if(hasSupabase)await sb.from('participacoes').update({quantidade:qtd}).eq('id',idp);else persistLocal();renderAll();}));
 }
 
-async function renderGestor() {
+function renderProgramas() {
+  const t = document.getElementById('tabela-programas');
+  t.innerHTML = `<thead><tr><th>Nome</th><th>Cor</th><th>Status</th><th>Ações</th></tr></thead><tbody>${state.programas.map((p)=>`<tr><td>${p.nome}</td><td><span style='display:inline-block;width:10px;height:10px;border-radius:999px;background:${p.cor}'></span> ${p.cor}</td><td>${p.ativo?'Ativo':'Inativo'}</td><td><button data-edit-prog='${p.id}'>Editar</button> <button data-rm-programa='${p.id}'>Excluir</button></td></tr>`).join('')}</tbody>`;
+  t.querySelectorAll('[data-rm-programa]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.rmPrograma;if(hasSyntheticProgramId(idp))return toast('Sem permissão para excluir.');state.programas=state.programas.filter(p=>p.id!==idp);if(hasSupabase)await sb.from('programas').delete().eq('id',idp);else persistLocal();renderAll();}));
+  t.querySelectorAll('[data-edit-prog]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.editProg;const item=state.programas.find(x=>x.id===idp);if(!item)return;const nome=prompt('Novo nome:',item.nome);if(!nome)return;item.nome=nome;if(hasSupabase)await sb.from('programas').update({nome}).eq('id',idp);else persistLocal();renderAll();}));
+}
+
+function renderPremiosGerenciamento() {
+  const t = document.getElementById('tabela-premios-gerenciamento');
+  t.innerHTML = `<thead><tr><th>Programa</th><th>Prêmio</th><th>Ganhador</th><th>Ações</th></tr></thead><tbody>${state.premios.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${pr?.nome||'-'}</td><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td><button data-edit-premio='${p.id}'>Editar</button></td></tr>`}).join('')}</tbody>`;
+  t.querySelectorAll('[data-edit-premio]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.editPremio;const item=state.premios.find(x=>x.id===idp);if(!item)return;const ganhador=prompt('Nome do ganhador:',item.ganhador||'');if(ganhador===null)return;item.ganhador=ganhador;if(hasSupabase)await sb.from('premios').update({ganhador_nome:ganhador}).eq('id',idp);else persistLocal();renderAll();}));
+}
+
+function renderPrioridades() {
+  const t = document.getElementById('tabela-prioridades');
+  t.innerHTML = `<thead><tr><th>Data</th><th>Programa</th><th>Conteúdo</th><th>Ações</th></tr></thead><tbody>${state.prioridades.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${p.conteudo}</td><td><button data-edit-prio='${p.id}'>Editar</button></td></tr>`}).join('')}</tbody>`;
+  t.querySelectorAll('[data-edit-prio]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.editPrio;const item=state.prioridades.find(x=>x.id===idp);if(!item)return;const conteudo=prompt('Novo conteúdo:',item.conteudo);if(!conteudo)return;item.conteudo=conteudo;if(hasSupabase)await sb.from('prioridades_ar').update({conteudo}).eq('id',idp);else persistLocal();renderAll();}));
+}
+
+async function renderDashboard() {
   const de = document.getElementById('filtro-de').value;
   const ate = document.getElementById('filtro-ate').value;
   updateDataModeBadge();
@@ -212,16 +226,16 @@ async function renderGestor() {
 
   const resumo = state.programas.map((programa) => {
     const regs = registros.filter((p) => p.programaId === programa.id);
-    return { nome: programa.nome, cor: programa.cor, total: regs.reduce((a, b) => a + b.quantidade, 0), dias: new Set(regs.map((r) => r.data)).size };
+    return { nome: programa.nome, total: regs.reduce((a, b) => a + b.quantidade, 0), dias: new Set(regs.map((r) => r.data)).size };
   }).sort((a, b) => b.total - a.total);
 
   const total = resumo.reduce((acc, r) => acc + r.total, 0);
   const dias = resumo.reduce((acc, r) => acc + r.dias, 0);
   const lider = resumo[0]?.nome || '—';
-  document.getElementById('kpis').innerHTML = `<div class="card"><small>Total de participações</small><div class="kpi-value">${total}</div></div><div class="card"><small>Dias com registro</small><div class="kpi-value">${dias}</div></div><div class="card"><small>Programa líder</small><div class="kpi-value">${lider}</div></div>`;
+  document.getElementById('kpis').innerHTML = `<div class='card'><small>Total de participações</small><div class='kpi-value'>${total}</div></div><div class='card'><small>Dias com registro</small><div class='kpi-value'>${dias}</div></div><div class='card'><small>Programa líder</small><div class='kpi-value'>${lider}</div></div>`;
 
   const max = Math.max(1, ...resumo.map((r) => r.total));
-  document.getElementById('bars').innerHTML = resumo.map((r) => `<div class="bar-row"><small>${r.nome}</small><div class="bar" style="width:${(r.total / max) * 100}%"></div><small>${r.total}</small></div>`).join('');
+  document.getElementById('bars').innerHTML = resumo.map((r) => `<div class='bar-row'><small>${r.nome}</small><div class='bar' style='width:${(r.total / max) * 100}%'></div><small>${r.total}</small></div>`).join('');
   document.getElementById('tabela-ranking').innerHTML = `<thead><tr><th>Programa</th><th>Total</th><th>Dias</th></tr></thead><tbody>${resumo.map((r) => `<tr><td>${r.nome}</td><td>${r.total}</td><td>${r.dias}</td></tr>`).join('')}</tbody>`;
 
   const now = new Date().toISOString();
@@ -232,7 +246,7 @@ async function renderGestor() {
   document.getElementById('premio-vigente-programa').textContent = prog?.nome || 'Programa não definido';
   document.getElementById('premio-vigente-ganhador').textContent = ativo?.ganhador || 'Sem ganhador';
 
-  document.getElementById('tabela-premios').innerHTML = `<thead><tr><th>Programa</th><th>Prêmio</th><th>Descrição</th><th>Estoque</th></tr></thead><tbody>${state.premios.map((p) => { const prg = state.programas.find((x) => x.id === p.programaId); return `<tr><td>${prg?.nome || '-'}</td><td>${p.nome}</td><td>${p.descricao}</td><td>${p.estoque}</td></tr>`; }).join('')}</tbody>`;
+  document.getElementById('tabela-premios').innerHTML = `<thead><tr><th>Programa</th><th>Prêmio</th><th>Descrição</th><th>Estoque</th></tr></thead><tbody>${state.premios.map((p) => { const prg = state.programas.find((x) => x.id === p.programaId); return `<tr><td>${prg?.nome || '-'}</td><td style='font-size:1.2rem;font-weight:800;'>${p.nome}</td><td style='font-size:1.05rem;'>${p.descricao || ''}</td><td>${p.estoque}</td></tr>`; }).join('')}</tbody>`;
 }
 
 function monthName(dateISO) { const d = dateISO ? new Date(`${dateISO}T00:00:00`) : new Date(); return d.toLocaleDateString('pt-BR', { month: 'long' }); }

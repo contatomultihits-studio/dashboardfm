@@ -3,24 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dashboard FM</title>
+    <title>Rádio Disney</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <header class="topbar">
       <div class="container topbar-content">
-        <h1>🎵 Dashboard FM <small class="version">v4</small></h1>
+        <h1>🎵 RÁDIO DISNEY <small class="version">v5</small></h1>
         <nav id="tabs" class="tabs">
-          <button data-tab="metricas" class="tab active">Métricas</button>
+          <button data-tab="dashboard" class="tab active">Dashboard</button>
+          <button data-tab="metricas" class="tab">Métricas</button>
           <button data-tab="gerenciamento" class="tab">Gerenciamento</button>
-          <button data-tab="gestor" class="tab">Gestor</button>
         </nav>
         <button id="btn-supabase" class="config-btn">Conectar Supabase</button>
       </div>
     </header>
 
     <main class="container">
-      <section id="metricas" class="view active">
+      <section id="dashboard" class="view active">
+        <div class="card featured" id="premio-vigente-card">
+          <small>PRÊMIO VIGENTE AGORA</small>
+          <h2 id="premio-vigente-titulo">Aguardando prêmio ativo</h2>
+          <p id="premio-vigente-desc">Configure vigência de prêmios no gerenciamento.</p>
+          <div class="badges">
+            <span id="premio-vigente-programa" class="badge">Programa</span>
+            <span id="premio-vigente-ganhador" class="badge badge-red">Sem ganhador</span>
+          </div>
+        </div>
+        <div class="card filters">
+          <div>
+            <small id="periodo-label">DADOS DO MÊS</small>
+            <h3 style="margin: 0.3rem 0 0">Visão executiva</h3>
+          </div>
+          <div class="range">
+            <label>De <input id="filtro-de" type="date" /></label>
+            <label>Até <input id="filtro-ate" type="date" /></label>
+            <button id="btn-aplicar-filtro" type="button">Aplicar filtro</button>
+            <button id="btn-refresh" type="button">Atualizar agora</button>
+          </div>
+        </div>
+
+        <div class="grid cols-3" id="kpis"></div>
+        <div class="card">
+          <h3>Participações por programa</h3>
+          <div id="bars"></div>
+        </div>
+        <div class="card">
+          <h3>Ranking</h3>
+          <table id="tabela-ranking" class="table"></table>
+        </div>
+        <div class="card premios-card">
+          <h3>Prêmios da hora</h3>
+          <table id="tabela-premios" class="table"></table>
+        </div>
+      </section>
+
+      <section id="metricas" class="view">
         <div class="grid cols-2">
           <form id="form-participacao" class="card form">
             <h3>INCLUIR PARTICIPAÇÕES</h3>
@@ -34,6 +72,10 @@
             <input id="p-tipo" value="DIARIO_REALTIME" readonly />
             <button type="submit">Salvar participação</button>
           </form>
+        </div>
+        <div class="card">
+          <h3>Participações lançadas</h3>
+          <table id="tabela-participacoes" class="table"></table>
         </div>
       </section>
 
@@ -80,47 +122,9 @@
           </form>
         </div>
 
-        <div class="card">
-          <h3>Programas</h3>
-          <table id="tabela-programas" class="table"></table>
-        </div>
-      </section>
-
-      <section id="gestor" class="view">
-        <div class="card featured" id="premio-vigente-card">
-          <small>PRÊMIO VIGENTE AGORA</small>
-          <h2 id="premio-vigente-titulo">Aguardando prêmio ativo</h2>
-          <p id="premio-vigente-desc">Configure vigência de prêmios no gerenciamento.</p>
-          <div class="badges">
-            <span id="premio-vigente-programa" class="badge">Programa</span>
-            <span id="premio-vigente-ganhador" class="badge badge-red">Sem ganhador</span>
-          </div>
-        </div>
-        <div class="card filters">
-          <div>
-            <small id="periodo-label">DADOS DO MÊS</small>
-            <h3 style="margin: 0.3rem 0 0">Visão executiva</h3>
-          </div>
-          <div class="range">
-            <label>De <input id="filtro-de" type="date" /></label>
-            <label>Até <input id="filtro-ate" type="date" /></label>
-            <button id="btn-aplicar-filtro" type="button">Aplicar filtro</button>
-          </div>
-        </div>
-
-        <div class="grid cols-3" id="kpis"></div>
-        <div class="card">
-          <h3>Participações por programa</h3>
-          <div id="bars"></div>
-        </div>
-        <div class="card">
-          <h3>Ranking</h3>
-          <table id="tabela-ranking" class="table"></table>
-        </div>
-        <div class="card">
-          <h3>Prêmios da hora</h3>
-          <table id="tabela-premios" class="table"></table>
-        </div>
+        <div class="card"><h3>Programas</h3><table id="tabela-programas" class="table"></table></div>
+        <div class="card"><h3>Prêmios</h3><table id="tabela-premios-gerenciamento" class="table"></table></div>
+        <div class="card"><h3>Prioridades</h3><table id="tabela-prioridades" class="table"></table></div>
       </section>
     </main>
 

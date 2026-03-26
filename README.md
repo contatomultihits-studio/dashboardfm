@@ -1,43 +1,29 @@
-# Dashboard FM — estático (GitHub + Vercel) com tema musical
+# Rádio Disney — concentrador de informações
 
-Estrutura atual:
-- **Métricas**: inclusão de participações (tipo fixo `DIARIO_REALTIME`)
-- **Gerenciamento**: programas, prêmios (com vigência por hora) e prioridade no ar
-- **Gestor**: Big Numbers, ranking, prêmio vigente agora e ganhador
+## Fluxo atual
+- **Dashboard** (página inicial): Big Numbers, ranking, prêmio vigente agora, ganhador, atualização manual + automática (3 min)
+- **Métricas**: inclusão de participações (tipo fixo `DIARIO_REALTIME`) + edição rápida
+- **Gerenciamento**: programas, prêmios (vigência por hora), prioridades + edição rápida
 
-## Filtro padrão
-Ao abrir, o Gestor já vem em período mensal:
-- de: 1º dia do mês atual
-- até: hoje
-- rótulo: **DADOS DE MÊS_ATUAL**
+## Atualização
+- Auto refresh a cada 3 minutos
+- Botão **Atualizar agora** no Dashboard
 
 ## Supabase automático
 Se variáveis estiverem na Vercel:
 - `SUPABASE_URL` (ou `NEXT_PUBLIC_SUPABASE_URL`)
 - `SUPABASE_ANON_KEY` (ou `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
 
-a conexão ocorre automaticamente via `/api/config`.
-
-## Fallback manual
-Botão **Conectar Supabase** no topo para salvar URL + KEY no navegador.
-
-## Erro de permissão (RLS)
-Se aparecer mensagens como:
-- "Sem permissão na tabela programas"
-- "Sem acesso à tabela programas"
-
-execute no Supabase SQL Editor:
+## Setup de permissões
+Se houver erro de permissão execute:
 - `docs/supabase-setup-clean.sql`
 
-## Configuração ideal de prêmios por hora
-Para destacar o prêmio vigente e mostrar ganhador ao locutor, execute:
+## Config ideal para prêmio por hora
+Execute:
 - `docs/premios-hora-migration.sql`
 
-Isso adiciona em `premios`:
+A tabela `premios` passa a ter:
 - `inicio_vigencia`
 - `fim_vigencia`
 - `ganhador_nome`
 - `status`
-
-## Sem Supabase
-Roda em `localStorage`.
