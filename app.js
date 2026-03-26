@@ -4,6 +4,7 @@ const cfgKey = 'dashboardfm_supabase_cfg';
 let hasSupabase = false;
 let sb = null;
 let showAllParticipacoes = false;
+let hasGanhadorTelefoneColumn = true;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
 const state = { programas: [], premios: [], participacoes: [] };
 
@@ -116,9 +117,13 @@ function wireForms() {
       ganhador: val('g-premio-ganhador') || null, telefone: val('g-premio-telefone') || null
     };
     if (hasSupabase) {
-      const { data, error } = await sb.from('premios').insert({ nome: payload.nome, descricao: payload.descricao, estoque_inicial: payload.estoque, inicio_vigencia: payload.inicio, fim_vigencia: payload.fim, ganhador_nome: payload.ganhador, ganhador_telefone: payload.telefone, programa_id: null }).select('*').single();
+      const { data, error } = await insertPremioSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
-      state.premios.push({ id: data.id, ...payload });
+      state.premios.push({
+        id: data.id,
+        ...payload,
+        telefone: hasGanhadorTelefoneColumn ? (data.ganhador_telefone || payload.telefone || '') : (payload.telefone || '')
+      });
     } else { state.premios.push({ id: id(), ...payload }); persistLocal(); }
     e.target.reset(); renderAll();
   });
@@ -172,21 +177,53 @@ function renderParticipacoes() {
   const t = document.getElementById('tabela-participacoes');
   t.innerHTML = `<thead><tr><th>DATA</th><th>PROGRAMA</th><th>QTD</th><th>AÇÕES</th></tr></thead><tbody>${items.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${p.quantidade}</td><td><button data-edit-part='${p.id}'>EDITAR</button> <button data-del-part='${p.id}'>EXCLUIR</button></td></tr>`}).join('')}</tbody>`;
   t.querySelectorAll('[data-edit-part]').forEach((b)=>b.addEventListener('click', async()=>{const it=state.participacoes.find(x=>x.id===b.dataset.editPart);if(!it)return;const q=Number(prompt('NOVA QUANTIDADE:',it.quantidade));if(Number.isNaN(q))return;it.quantidade=q;if(hasSupabase)await sb.from('participacoes').update({quantidade:q}).eq('id',it.id);else persistLocal();renderAll();}));
-  t.querySelectorAll('[data-del-part]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.delPart;state.participacoes=state.participacoes.filter(x=>x.id!==idp);if(hasSupabase)await sb.from('participacoes').delete().eq('id',idp);else persistLocal();renderAll();}));
+  t.querySelectorAll('[data-del-part]').forEach((b)=>b.addEventListener('click', async()=>{
+    const idp=b.dataset.delPart;
+    if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTA PARTICIPAÇÃO?')) return;
+    state.participacoes=state.participacoes.filter(x=>x.id!==idp);
+    if(hasSupabase)await sb.from('participacoes').delete().eq('id',idp);else persistLocal();
+    renderAll();
+  }));
 }
 
 function renderProgramas() {
   const t=document.getElementById('tabela-programas');
   t.innerHTML=`<thead><tr><th>NOME</th><th>COR</th><th>STATUS</th><th>AÇÕES</th></tr></thead><tbody>${state.programas.map((p)=>`<tr><td>${p.nome}</td><td>${p.cor}</td><td>${p.ativo?'ATIVO':'INATIVO'}</td><td><button data-edit-prog='${p.id}'>EDITAR</button> <button data-del-prog='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
   t.querySelectorAll('[data-edit-prog]').forEach((b)=>b.addEventListener('click', async()=>{const it=state.programas.find(x=>x.id===b.dataset.editProg);if(!it)return;const nome=prompt('NOVO NOME:',it.nome);if(!nome)return;it.nome=nome;if(hasSupabase)await sb.from('programas').update({nome}).eq('id',it.id);else persistLocal();renderAll();}));
-  t.querySelectorAll('[data-del-prog]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.delProg;state.programas=state.programas.filter(x=>x.id!==idp);if(hasSupabase)await sb.from('programas').delete().eq('id',idp);else persistLocal();renderAll();}));
+  t.querySelectorAll('[data-del-prog]').forEach((b)=>b.addEventListener('click', async()=>{
+    const idp=b.dataset.delProg;
+    if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTE PROGRAMA?')) return;
+    state.programas=state.programas.filter(x=>x.id!==idp);
+    if(hasSupabase)await sb.from('programas').delete().eq('id',idp);else persistLocal();
+    renderAll();
+  }));
 }
 
 function renderPremiosGerenciamento() {
   const t=document.getElementById('tabela-premios-gerenciamento');
   t.innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>AÇÕES</th></tr></thead><tbody>${state.premios.map((p)=>`<tr><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td><button data-edit-premio='${p.id}'>EDITAR</button> <button data-del-premio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-premio]').forEach((b)=>b.addEventListener('click', async()=>{const it=state.premios.find(x=>x.id===b.dataset.editPremio);if(!it)return;const nome=prompt('NOME DO PRÊMIO:',it.nome);if(!nome)return;const desc=prompt('DESCRIÇÃO:',it.descricao||'')||'';const ganh=prompt('GANHADOR:',it.ganhador||'')||'';const tel=prompt('TELEFONE GANHADOR:',it.telefone||'')||'';Object.assign(it,{nome,descricao:desc,ganhador:ganh,telefone:tel});if(hasSupabase)await sb.from('premios').update({nome,descricao:desc,ganhador_nome:ganh,ganhador_telefone:tel}).eq('id',it.id);else persistLocal();renderAll();}));
-  t.querySelectorAll('[data-del-premio]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.delPremio;state.premios=state.premios.filter(x=>x.id!==idp);if(hasSupabase)await sb.from('premios').delete().eq('id',idp);else persistLocal();renderAll();}));
+  t.querySelectorAll('[data-edit-premio]').forEach((b)=>b.addEventListener('click', async()=>{
+    const it=state.premios.find(x=>x.id===b.dataset.editPremio);
+    if(!it)return;
+    const nome=prompt('NOME DO PRÊMIO:',it.nome);
+    if(!nome)return;
+    const desc=prompt('DESCRIÇÃO:',it.descricao||'')||'';
+    const ganh=prompt('GANHADOR:',it.ganhador||'')||'';
+    const tel=prompt('TELEFONE GANHADOR:',it.telefone||'')||'';
+    Object.assign(it,{nome,descricao:desc,ganhador:ganh,telefone:tel});
+    if(hasSupabase){
+      const { error } = await updatePremioSupabase(it.id, { nome, descricao: desc, ganhador: ganh, telefone: tel });
+      if(error) return toast(`ERRO: ${error.message}`);
+    } else persistLocal();
+    renderAll();
+  }));
+  t.querySelectorAll('[data-del-premio]').forEach((b)=>b.addEventListener('click', async()=>{
+    const idp=b.dataset.delPremio;
+    if(!confirm('TEM CERTEZA QUE DESEJA EXCLUIR ESTE PRÊMIO?')) return;
+    state.premios=state.premios.filter(x=>x.id!==idp);
+    if(hasSupabase)await sb.from('premios').delete().eq('id',idp);else persistLocal();
+    renderAll();
+  }));
 }
 
 function renderDashboard() {
@@ -227,3 +264,43 @@ function firstDayOfMonthISO(){const d=new Date();d.setDate(1);return d.toISOStri
 function val(idEl){return document.getElementById(idEl).value;}
 function id(){return Math.random().toString(36).slice(2,10);}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}
+
+async function insertPremioSupabase(payload){
+  const basePayload = {
+    nome: payload.nome,
+    descricao: payload.descricao,
+    estoque_inicial: payload.estoque,
+    inicio_vigencia: payload.inicio,
+    fim_vigencia: payload.fim,
+    ganhador_nome: payload.ganhador,
+    programa_id: null
+  };
+
+  if (hasGanhadorTelefoneColumn) {
+    const firstTry = await sb.from('premios').insert({ ...basePayload, ganhador_telefone: payload.telefone }).select('*').single();
+    if (!firstTry.error || !isMissingTelefoneColumnError(firstTry.error)) return firstTry;
+    hasGanhadorTelefoneColumn = false;
+  }
+
+  return sb.from('premios').insert(basePayload).select('*').single();
+}
+
+async function updatePremioSupabase(idPremio, payload){
+  const basePayload = {
+    nome: payload.nome,
+    descricao: payload.descricao,
+    ganhador_nome: payload.ganhador
+  };
+
+  if (hasGanhadorTelefoneColumn) {
+    const firstTry = await sb.from('premios').update({ ...basePayload, ganhador_telefone: payload.telefone }).eq('id', idPremio);
+    if (!firstTry.error || !isMissingTelefoneColumnError(firstTry.error)) return firstTry;
+    hasGanhadorTelefoneColumn = false;
+  }
+
+  return sb.from('premios').update(basePayload).eq('id', idPremio);
+}
+
+function isMissingTelefoneColumnError(error) {
+  return String(error?.message || '').toLowerCase().includes('ganhador_telefone');
+}
