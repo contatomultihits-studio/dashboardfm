@@ -40,6 +40,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=SEU_ANON_KEY
 ## 4) Troubleshooting
 
 - **404 na Vercel após deploy**: verifique se a branch com o código foi realmente selecionada no projeto da Vercel e se o deploy atual inclui a pasta `app/`.
+- **Erro `No Output Directory named "public"` na Vercel**: este repositório inclui `vercel.json` fixando `outputDirectory` para `.next`; se o erro persistir, remova o override de Output Directory nas configurações do projeto na Vercel.
 - **Tela em branco/erro ao abrir páginas**: valide as variáveis de ambiente acima. Sem elas, o app exibe mensagem de configuração ausente.
 
 ## 5) Observações
