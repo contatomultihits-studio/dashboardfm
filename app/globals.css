@@ -1,0 +1,77 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, Segoe UI, Roboto, sans-serif;
+  background: radial-gradient(circle at top right, #1a2140 0, #0a0d14 40%);
+  color: #eff4ff;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.card {
+  background: rgba(21, 26, 36, 0.95);
+  border: 1px solid #273148;
+  border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.24);
+  padding: 1rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.input,
+select,
+button,
+textarea {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #273148;
+  background: #101725;
+  color: #eff4ff;
+  padding: 0.7rem 0.8rem;
+}
+
+button {
+  cursor: pointer;
+  font-weight: 600;
+  background: linear-gradient(90deg, #35c4ff, #8c5cff);
+  border: 0;
+}
+
+small {
+  color: #a8b3c7;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid #273148;
+  padding: 0.65rem;
+  text-align: left;
+}
