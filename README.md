@@ -1,51 +1,28 @@
-# Dashboard FM (GitHub + Vercel, com ou sem Supabase)
+# Dashboard FM — versão estática (zero build)
 
-Painel web para operação diária de rádio, com três frentes:
+Este projeto foi reconstruído do zero para funcionar diretamente com **GitHub + Vercel**, sem depender de build, Node ou configuração avançada.
 
-- **Colaborador**: abastecimento dos dados (`participacoes` e `prioridades_ar`).
-- **Gerenciamento**: manutenção de cadastros (`programas` e `premios`).
-- **Gestores**: visão executiva de **Big Numbers** via ranking e gráfico.
+## Como funciona
 
-## 1) Rodar local
+- Stack: `HTML + CSS + JavaScript` puro.
+- Persistência: `localStorage` no navegador.
+- Módulos:
+  - Início
+  - Colaborador
+  - Gerenciamento
+  - Gestor (Big Numbers)
 
-```bash
-npm install
-npm run dev
-```
+## Deploy na Vercel
 
-## 2) Modo de operação
+1. Suba este repositório no GitHub.
+2. Na Vercel, clique em **New Project** e importe o repo.
+3. **Framework Preset**: pode deixar `Other` ou auto detect.
+4. **Build Command**: vazio.
+5. **Output Directory**: vazio.
+6. Deploy.
 
-### Modo A — GitHub + Vercel apenas (sem Supabase)
-Se as variáveis de ambiente do Supabase **não** estiverem configuradas, a dashboard funciona em **modo local** usando `localStorage` no navegador.
+> Como é estático, deve abrir imediatamente sem erro 404 de build/app.
 
-### Modo B — Supabase conectado
-Crie `.env.local` e configure:
+## Dados
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=SEU_ANON_KEY
-```
-
-Quando as variáveis existem, os módulos passam a ler/gravar nas tabelas do Supabase.
-
-## 3) Estrutura de páginas
-
-- `/` (atalhos para os módulos)
-- `/colaborador`
-- `/gerenciamento`
-- `/gestor`
-
-## 4) Deploy GitHub + Vercel
-
-1. Suba este projeto no GitHub.
-2. Na Vercel, importe o repositório.
-3. Faça deploy.
-4. Opcional: configure variáveis do Supabase para ativar modo B.
-
-## 5) Troubleshooting
-
-- **Dashboard não aparece**: confirme se o projeto na Vercel está com framework Next.js e sem override incorreto de pasta de output.
-- **Erro `No Output Directory named "public"`**: no painel da Vercel, limpe o campo **Output Directory** (deixe vazio) para projetos Next.js.
-- **Página principal retorna `404: NOT_FOUND`**: normalmente não é erro de código. Verifique se existe deployment em **Production**, se a branch de produção está correta e clique em **Redeploy**.
-- **404 bruto da Vercel (tela branca com NOT_FOUND)**: este repo agora inclui `public/index.html` fallback para evitar tela vazia enquanto você corrige as configurações do projeto.
-- **Tela sem dados**: no modo sem Supabase, os dados aparecem após inserir registros nas telas.
+Todos os dados ficam no navegador local do usuário (localStorage).
