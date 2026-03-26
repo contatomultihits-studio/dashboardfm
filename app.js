@@ -5,6 +5,7 @@ let hasSupabase = false;
 let sb = null;
 
 const state = { programas: [], premios: [], participacoes: [], prioridades: [] };
+const tiposRegistroConfig = (window.APP_CONFIG?.TIPOS_REGISTRO || ['telefonema']).map((x) => String(x));
 
 init();
 
@@ -192,7 +193,12 @@ function wireForms() {
     if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas. Ajuste RLS no Supabase.');
     if (hasSupabase) {
       const { data, error } = await sb.from('participacoes').insert({ programa_id: payload.programaId, data_referencia: payload.data, quantidade: payload.quantidade, tipo_registro: payload.tipo }).select('id,programa_id,data_referencia,quantidade,tipo_registro').single();
-      if (error) return toast(`Erro: ${error.message}`);
+      if (error) {
+        if (String(error.message || '').includes('participacoes_tipo_registro_check')) {
+          return toast('Tipo de registro inválido no banco. Use uma opção da lista.');
+        }
+        return toast(`Erro: ${error.message}`);
+      }
       state.participacoes.push({ id: data.id, programaId: data.programa_id, data: data.data_referencia, quantidade: data.quantidade, tipo: data.tipo_registro });
     } else {
       state.participacoes.push({ id: id(), ...payload });
@@ -200,6 +206,7 @@ function wireForms() {
     }
     e.target.reset();
     document.getElementById('p-data').value = todayISO();
+    fillTipoRegistroSelect();
     renderGestor();
     toast('Participação registrada.');
   });
@@ -212,6 +219,8 @@ function initDefaultDates() {
   document.getElementById('pr-data').value = end;
   document.getElementById('filtro-de').value = start;
   document.getElementById('filtro-ate').value = end;
+  const tipoEl = document.getElementById('p-tipo');
+  if (tipoEl && !tipoEl.value && tipoEl.options.length) tipoEl.value = tipoEl.options[0].value;
 }
 
 function wireFilters() {
@@ -222,6 +231,7 @@ function renderAll() {
   fillProgramSelect('p-programa');
   fillProgramSelect('pr-programa');
   fillProgramSelect('g-premio-programa');
+  fillTipoRegistroSelect();
   renderProgramas();
   renderGestor();
 }
@@ -229,6 +239,14 @@ function renderAll() {
 function fillProgramSelect(idSel) {
   const sel = document.getElementById(idSel);
   sel.innerHTML = '<option value="">Selecione...</option>' + state.programas.map((p) => `<option value="${p.id}">${p.nome}</option>`).join('');
+}
+
+function fillTipoRegistroSelect() {
+  const el = document.getElementById('p-tipo');
+  if (!el) return;
+  const tiposExistentes = [...new Set(state.participacoes.map((p) => p.tipo).filter(Boolean))];
+  const tipos = [...new Set([...tiposRegistroConfig, ...tiposExistentes])];
+  el.innerHTML = tipos.map((t) => `<option value="${t}">${t}</option>`).join('');
 }
 
 function renderProgramas() {

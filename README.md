@@ -35,3 +35,7 @@ no SQL Editor do Supabase para liberar `select/insert` para `anon`/`authenticate
 
 ## Sem Supabase
 Roda em `localStorage`.
+
+## Constraint tipo_registro
+Se o banco exigir valores específicos em `participacoes.tipo_registro`, ajuste a lista em `config.js` no campo `TIPOS_REGISTRO`.
+A tela Métricas agora usa seletor (dropdown) para evitar erro de check constraint.
