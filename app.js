@@ -3,8 +3,9 @@ const cfgKey = 'dashboardfm_supabase_cfg';
 
 let hasSupabase = false;
 let sb = null;
+let showAllParticipacoes = false;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
-const state = { programas: [], premios: [], participacoes: [], prioridades: [] };
+const state = { programas: [], premios: [], participacoes: [] };
 
 init();
 
@@ -17,7 +18,6 @@ async function init() {
   initDefaultDates();
   wireFilters();
   renderAll();
-  updateDataModeBadge();
   setInterval(refreshAllData, 180000);
 }
 
@@ -25,12 +25,12 @@ async function refreshAllData() {
   if (!hasSupabase) return;
   await loadInitialData();
   renderAll();
-  toast('Dados atualizados.');
+  toast('DADOS ATUALIZADOS');
 }
 
 async function bootstrapSupabase() {
   const staticCfg = window.APP_CONFIG || {};
-  const savedCfg = readSavedConfig();
+  const savedCfg = JSON.parse(localStorage.getItem(cfgKey) || '{}');
   const envCfg = await readConfigFromServer();
   const cfg = {
     SUPABASE_URL: savedCfg.SUPABASE_URL || envCfg.SUPABASE_URL || staticCfg.SUPABASE_URL || '',
@@ -40,7 +40,6 @@ async function bootstrapSupabase() {
   sb = hasSupabase ? window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY) : null;
 }
 
-function readSavedConfig() { try { return JSON.parse(localStorage.getItem(cfgKey) || '{}'); } catch { return {}; } }
 async function readConfigFromServer() {
   try {
     const res = await fetch('/api/config', { cache: 'no-store' });
@@ -50,66 +49,51 @@ async function readConfigFromServer() {
   } catch { return {}; }
 }
 
-function updateDataModeBadge() {
-  const el = document.getElementById('periodo-label');
-  if (!el) return;
-  const mes = document.getElementById('filtro-ate').value;
-  el.textContent = `DADOS DE ${monthName(mes).toUpperCase()} • ${hasSupabase ? 'SUPABASE' : 'LOCAL'}`;
-}
-
 function wireConfigButton() {
   document.getElementById('btn-supabase').addEventListener('click', () => {
     const url = prompt('URL do Supabase:', '');
     if (!url) return;
-    const key = prompt('ANON KEY do Supabase:', '');
+    const key = prompt('ANON KEY:', '');
     if (!key) return;
     localStorage.setItem(cfgKey, JSON.stringify({ SUPABASE_URL: url.trim(), SUPABASE_ANON_KEY: key.trim() }));
-    alert('Configuração salva. Recarregando...');
     location.reload();
   });
 }
 
 async function loadInitialData() {
   if (hasSupabase) {
-    const queries = await Promise.allSettled([
+    const [p1, p2, p3] = await Promise.all([
       sb.from('programas').select('id,nome,cor_hex,ativo').order('nome'),
-      sb.from('premios').select('*').order('nome'),
-      sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro').order('data_referencia', { ascending: false }),
-      sb.from('prioridades_ar').select('id,programa_id,data,conteudo,concluido').order('data', { ascending: false }),
-      sb.from('resumo_participacoes').select('programa,cor_hex').order('programa')
+      sb.from('premios').select('*').order('inicio_vigencia', { ascending: true }),
+      sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro').order('data_referencia', { ascending: false })
     ]);
-
-    const [qProg, qPrem, qPart, qPrio, qResumo] = queries;
-    if (qProg.status === 'fulfilled' && !qProg.value.error) state.programas = (qProg.value.data || []).map((x) => ({ id: x.id, nome: x.nome, cor: x.cor_hex || '#2563eb', ativo: x.ativo }));
-    if (qPrem.status === 'fulfilled' && !qPrem.value.error) state.premios = (qPrem.value.data || []).map(mapPremioSupabase);
-    if (qPart.status === 'fulfilled' && !qPart.value.error) state.participacoes = (qPart.value.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
-    if (qPrio.status === 'fulfilled' && !qPrio.value.error) state.prioridades = (qPrio.value.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data, conteudo: x.conteudo, concluido: x.concluido }));
-    if (!state.programas.length && qResumo.status === 'fulfilled' && !qResumo.value.error) {
-      state.programas = (qResumo.value.data || []).map((x, i) => ({ id: `resumo-${i}`, nome: x.programa, cor: x.cor_hex || '#2563eb', ativo: true }));
-      toast('Sem acesso à tabela programas (RLS). Ajuste policies no Supabase.');
-    }
-    if (state.programas.length) return;
+    state.programas = (p1.data || []).map((x) => ({ id: x.id, nome: x.nome, cor: x.cor_hex || '#2563eb', ativo: x.ativo }));
+    state.premios = (p2.data || []).map((x) => ({
+      id: x.id,
+      nome: x.nome,
+      descricao: x.descricao,
+      estoque: x.estoque_inicial,
+      inicio: x.inicio_vigencia,
+      fim: x.fim_vigencia,
+      ganhador: x.ganhador_nome || '',
+      telefone: x.ganhador_telefone || ''
+    }));
+    state.participacoes = (p3.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
+    return;
   }
 
-  Object.assign(state, loadState());
-  seedIfNeeded();
+  const local = JSON.parse(localStorage.getItem(dbKey) || '{"programas":[],"premios":[],"participacoes":[]}');
+  Object.assign(state, local);
 }
 
-function mapPremioSupabase(x) {
-  return { id: x.id, programaId: x.programa_id, nome: x.nome, descricao: x.descricao, estoque: x.estoque_inicial, inicio: x.inicio_vigencia || null, fim: x.fim_vigencia || null, ganhador: x.ganhador_nome || '' };
-}
-
-function loadState() { const raw = localStorage.getItem(dbKey); if (!raw) return { programas: [], premios: [], participacoes: [], prioridades: [] }; try { return JSON.parse(raw); } catch { return { programas: [], premios: [], participacoes: [], prioridades: [] }; } }
 function persistLocal() { localStorage.setItem(dbKey, JSON.stringify(state)); }
-function seedIfNeeded() { if (hasSupabase || state.programas.length) return; state.programas = [{ id: id(), nome: 'Programa Exemplo', cor: '#2563eb', ativo: true }]; persistLocal(); }
 
 function wireTabs() {
-  document.querySelectorAll('[data-tab]').forEach((btn) => btn.addEventListener('click', async () => {
+  document.querySelectorAll('[data-tab]').forEach((btn) => btn.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach((b) => b.classList.remove('active'));
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'dashboard') await renderDashboard();
   }));
 }
 
@@ -118,141 +102,128 @@ function wireForms() {
     e.preventDefault();
     const payload = { nome: val('g-programa-nome'), cor: val('g-programa-cor'), ativo: document.getElementById('g-programa-ativo').checked };
     if (hasSupabase) {
-      const { data, error } = await sb.from('programas').insert({ nome: payload.nome, cor_hex: payload.cor, ativo: payload.ativo }).select('id,nome,cor_hex,ativo').single();
-      if (error) return toast(`Erro: ${error.message}`);
+      const { data } = await sb.from('programas').insert({ nome: payload.nome, cor_hex: payload.cor, ativo: payload.ativo }).select('id,nome,cor_hex,ativo').single();
       state.programas.push({ id: data.id, nome: data.nome, cor: data.cor_hex || '#2563eb', ativo: data.ativo });
     } else { state.programas.push({ id: id(), ...payload }); persistLocal(); }
-    e.target.reset(); document.getElementById('g-programa-cor').value = '#2563eb'; document.getElementById('g-programa-ativo').checked = true; renderAll(); toast('Programa adicionado.');
+    e.target.reset(); renderAll();
   });
 
   document.getElementById('form-premio').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const payload = { programaId: val('g-premio-programa'), nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')), inicio: val('g-premio-inicio') ? new Date(val('g-premio-inicio')).toISOString() : null, fim: val('g-premio-fim') ? new Date(val('g-premio-fim')).toISOString() : null, ganhador: val('g-premio-ganhador') || null };
-    if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas. Ajuste RLS no Supabase.');
+    const payload = {
+      nome: val('g-premio-nome'), descricao: val('g-premio-desc'), estoque: Number(val('g-premio-estoque')),
+      inicio: new Date(val('g-premio-inicio')).toISOString(), fim: new Date(val('g-premio-fim')).toISOString(),
+      ganhador: val('g-premio-ganhador') || null, telefone: val('g-premio-telefone') || null
+    };
     if (hasSupabase) {
-      const { data, error } = await sb.from('premios').insert({ programa_id: payload.programaId, nome: payload.nome, descricao: payload.descricao, estoque_inicial: payload.estoque, inicio_vigencia: payload.inicio, fim_vigencia: payload.fim, ganhador_nome: payload.ganhador }).select('*').single();
-      if (error) return toast(`Erro: ${error.message}`);
-      state.premios.push(mapPremioSupabase(data));
+      const { data, error } = await sb.from('premios').insert({ nome: payload.nome, descricao: payload.descricao, estoque_inicial: payload.estoque, inicio_vigencia: payload.inicio, fim_vigencia: payload.fim, ganhador_nome: payload.ganhador, ganhador_telefone: payload.telefone, programa_id: null }).select('*').single();
+      if (error) return toast(`ERRO: ${error.message}`);
+      state.premios.push({ id: data.id, ...payload });
     } else { state.premios.push({ id: id(), ...payload }); persistLocal(); }
-    e.target.reset(); renderAll(); toast('Prêmio adicionado.');
-  });
-
-  document.getElementById('form-prioridade').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const payload = { programaId: val('pr-programa'), data: val('pr-data'), conteudo: val('pr-conteudo'), concluido: false };
-    if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas. Ajuste RLS no Supabase.');
-    if (hasSupabase) {
-      const { data, error } = await sb.from('prioridades_ar').insert({ programa_id: payload.programaId, data: payload.data, conteudo: payload.conteudo, concluido: false }).select('id,programa_id,data,conteudo,concluido').single();
-      if (error) return toast(`Erro: ${error.message}`);
-      state.prioridades.push({ id: data.id, programaId: data.programa_id, data: data.data, conteudo: data.conteudo, concluido: data.concluido });
-    } else { state.prioridades.push({ id: id(), ...payload }); persistLocal(); }
-    e.target.reset(); renderAll(); toast('Prioridade salva.');
+    e.target.reset(); renderAll();
   });
 
   document.getElementById('form-participacao').addEventListener('submit', async (e) => {
     e.preventDefault();
     const payload = { programaId: val('p-programa'), data: val('p-data'), quantidade: Number(val('p-quantidade')), tipo: tipoRegistroPadrao };
-    if (hasSyntheticProgramId(payload.programaId)) return toast('Sem permissão na tabela programas. Ajuste RLS no Supabase.');
     if (hasSupabase) {
       const { data, error } = await sb.from('participacoes').insert({ programa_id: payload.programaId, data_referencia: payload.data, quantidade: payload.quantidade, tipo_registro: payload.tipo }).select('id,programa_id,data_referencia,quantidade,tipo_registro').single();
-      if (error) return toast(`Erro: ${error.message}`);
+      if (error) return toast(`ERRO: ${error.message}`);
       state.participacoes.unshift({ id: data.id, programaId: data.programa_id, data: data.data_referencia, quantidade: data.quantidade, tipo: data.tipo_registro });
     } else { state.participacoes.unshift({ id: id(), ...payload }); persistLocal(); }
-    e.target.reset(); document.getElementById('p-data').value = todayISO(); document.getElementById('p-tipo').value = tipoRegistroPadrao; renderAll(); toast('Participação registrada.');
+    e.target.reset(); document.getElementById('p-data').value = todayISO(); renderAll();
   });
+
+  document.getElementById('btn-toggle-participacoes').addEventListener('click', () => {
+    showAllParticipacoes = !showAllParticipacoes;
+    renderParticipacoes();
+  });
+}
+
+function wireFilters() {
+  document.getElementById('btn-aplicar-filtro').addEventListener('click', () => renderDashboard());
+  document.getElementById('btn-refresh').addEventListener('click', async () => refreshAllData());
 }
 
 function initDefaultDates() {
   const start = firstDayOfMonthISO();
   const end = todayISO();
   document.getElementById('p-data').value = end;
-  document.getElementById('pr-data').value = end;
   document.getElementById('filtro-de').value = start;
   document.getElementById('filtro-ate').value = end;
-  document.getElementById('p-tipo').value = tipoRegistroPadrao;
-}
-
-function wireFilters() {
-  document.getElementById('btn-aplicar-filtro').addEventListener('click', () => renderDashboard());
-  document.getElementById('btn-refresh').addEventListener('click', async () => { await refreshAllData(); });
 }
 
 function renderAll() {
   fillProgramSelect('p-programa');
-  fillProgramSelect('pr-programa');
-  fillProgramSelect('g-premio-programa');
   renderProgramas();
   renderPremiosGerenciamento();
-  renderPrioridades();
   renderParticipacoes();
   renderDashboard();
 }
 
-function fillProgramSelect(idSel) { const sel = document.getElementById(idSel); sel.innerHTML = '<option value="">Selecione...</option>' + state.programas.map((p) => `<option value="${p.id}">${p.nome}</option>`).join(''); }
+function fillProgramSelect(idSel) {
+  const sel = document.getElementById(idSel);
+  sel.innerHTML = '<option value="">SELECIONE...</option>' + state.programas.map((p) => `<option value="${p.id}">${p.nome}</option>`).join('');
+}
 
 function renderParticipacoes() {
+  const items = showAllParticipacoes ? state.participacoes : state.participacoes.slice(0, 5);
+  document.getElementById('btn-toggle-participacoes').textContent = showAllParticipacoes ? 'MOSTRAR SÓ AS 5 ÚLTIMAS' : 'VER MAIS ANTIGAS';
   const t = document.getElementById('tabela-participacoes');
-  t.innerHTML = `<thead><tr><th>Data</th><th>Programa</th><th>Quantidade</th><th>Ações</th></tr></thead><tbody>${state.participacoes.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${p.quantidade}</td><td><button data-edit-part='${p.id}'>Editar</button></td></tr>`}).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-part]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.editPart;const item=state.participacoes.find(x=>x.id===idp);if(!item)return;const qtd=Number(prompt('Nova quantidade:',item.quantidade));if(Number.isNaN(qtd))return;item.quantidade=qtd;if(hasSupabase)await sb.from('participacoes').update({quantidade:qtd}).eq('id',idp);else persistLocal();renderAll();}));
+  t.innerHTML = `<thead><tr><th>DATA</th><th>PROGRAMA</th><th>QTD</th><th>AÇÕES</th></tr></thead><tbody>${items.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${p.quantidade}</td><td><button data-edit-part='${p.id}'>EDITAR</button> <button data-del-part='${p.id}'>EXCLUIR</button></td></tr>`}).join('')}</tbody>`;
+  t.querySelectorAll('[data-edit-part]').forEach((b)=>b.addEventListener('click', async()=>{const it=state.participacoes.find(x=>x.id===b.dataset.editPart);if(!it)return;const q=Number(prompt('NOVA QUANTIDADE:',it.quantidade));if(Number.isNaN(q))return;it.quantidade=q;if(hasSupabase)await sb.from('participacoes').update({quantidade:q}).eq('id',it.id);else persistLocal();renderAll();}));
+  t.querySelectorAll('[data-del-part]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.delPart;state.participacoes=state.participacoes.filter(x=>x.id!==idp);if(hasSupabase)await sb.from('participacoes').delete().eq('id',idp);else persistLocal();renderAll();}));
 }
 
 function renderProgramas() {
-  const t = document.getElementById('tabela-programas');
-  t.innerHTML = `<thead><tr><th>Nome</th><th>Cor</th><th>Status</th><th>Ações</th></tr></thead><tbody>${state.programas.map((p)=>`<tr><td>${p.nome}</td><td><span style='display:inline-block;width:10px;height:10px;border-radius:999px;background:${p.cor}'></span> ${p.cor}</td><td>${p.ativo?'Ativo':'Inativo'}</td><td><button data-edit-prog='${p.id}'>Editar</button> <button data-rm-programa='${p.id}'>Excluir</button></td></tr>`).join('')}</tbody>`;
-  t.querySelectorAll('[data-rm-programa]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.rmPrograma;if(hasSyntheticProgramId(idp))return toast('Sem permissão para excluir.');state.programas=state.programas.filter(p=>p.id!==idp);if(hasSupabase)await sb.from('programas').delete().eq('id',idp);else persistLocal();renderAll();}));
-  t.querySelectorAll('[data-edit-prog]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.editProg;const item=state.programas.find(x=>x.id===idp);if(!item)return;const nome=prompt('Novo nome:',item.nome);if(!nome)return;item.nome=nome;if(hasSupabase)await sb.from('programas').update({nome}).eq('id',idp);else persistLocal();renderAll();}));
+  const t=document.getElementById('tabela-programas');
+  t.innerHTML=`<thead><tr><th>NOME</th><th>COR</th><th>STATUS</th><th>AÇÕES</th></tr></thead><tbody>${state.programas.map((p)=>`<tr><td>${p.nome}</td><td>${p.cor}</td><td>${p.ativo?'ATIVO':'INATIVO'}</td><td><button data-edit-prog='${p.id}'>EDITAR</button> <button data-del-prog='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
+  t.querySelectorAll('[data-edit-prog]').forEach((b)=>b.addEventListener('click', async()=>{const it=state.programas.find(x=>x.id===b.dataset.editProg);if(!it)return;const nome=prompt('NOVO NOME:',it.nome);if(!nome)return;it.nome=nome;if(hasSupabase)await sb.from('programas').update({nome}).eq('id',it.id);else persistLocal();renderAll();}));
+  t.querySelectorAll('[data-del-prog]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.delProg;state.programas=state.programas.filter(x=>x.id!==idp);if(hasSupabase)await sb.from('programas').delete().eq('id',idp);else persistLocal();renderAll();}));
 }
 
 function renderPremiosGerenciamento() {
-  const t = document.getElementById('tabela-premios-gerenciamento');
-  t.innerHTML = `<thead><tr><th>Programa</th><th>Prêmio</th><th>Ganhador</th><th>Ações</th></tr></thead><tbody>${state.premios.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${pr?.nome||'-'}</td><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td><button data-edit-premio='${p.id}'>Editar</button></td></tr>`}).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-premio]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.editPremio;const item=state.premios.find(x=>x.id===idp);if(!item)return;const ganhador=prompt('Nome do ganhador:',item.ganhador||'');if(ganhador===null)return;item.ganhador=ganhador;if(hasSupabase)await sb.from('premios').update({ganhador_nome:ganhador}).eq('id',idp);else persistLocal();renderAll();}));
+  const t=document.getElementById('tabela-premios-gerenciamento');
+  t.innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>AÇÕES</th></tr></thead><tbody>${state.premios.map((p)=>`<tr><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td><button data-edit-premio='${p.id}'>EDITAR</button> <button data-del-premio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
+  t.querySelectorAll('[data-edit-premio]').forEach((b)=>b.addEventListener('click', async()=>{const it=state.premios.find(x=>x.id===b.dataset.editPremio);if(!it)return;const nome=prompt('NOME DO PRÊMIO:',it.nome);if(!nome)return;const desc=prompt('DESCRIÇÃO:',it.descricao||'')||'';const ganh=prompt('GANHADOR:',it.ganhador||'')||'';const tel=prompt('TELEFONE GANHADOR:',it.telefone||'')||'';Object.assign(it,{nome,descricao:desc,ganhador:ganh,telefone:tel});if(hasSupabase)await sb.from('premios').update({nome,descricao:desc,ganhador_nome:ganh,ganhador_telefone:tel}).eq('id',it.id);else persistLocal();renderAll();}));
+  t.querySelectorAll('[data-del-premio]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.delPremio;state.premios=state.premios.filter(x=>x.id!==idp);if(hasSupabase)await sb.from('premios').delete().eq('id',idp);else persistLocal();renderAll();}));
 }
 
-function renderPrioridades() {
-  const t = document.getElementById('tabela-prioridades');
-  t.innerHTML = `<thead><tr><th>Data</th><th>Programa</th><th>Conteúdo</th><th>Ações</th></tr></thead><tbody>${state.prioridades.map((p)=>{const pr=state.programas.find(x=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${p.conteudo}</td><td><button data-edit-prio='${p.id}'>Editar</button></td></tr>`}).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-prio]').forEach((b)=>b.addEventListener('click', async()=>{const idp=b.dataset.editPrio;const item=state.prioridades.find(x=>x.id===idp);if(!item)return;const conteudo=prompt('Novo conteúdo:',item.conteudo);if(!conteudo)return;item.conteudo=conteudo;if(hasSupabase)await sb.from('prioridades_ar').update({conteudo}).eq('id',idp);else persistLocal();renderAll();}));
-}
-
-async function renderDashboard() {
+function renderDashboard() {
   const de = document.getElementById('filtro-de').value;
   const ate = document.getElementById('filtro-ate').value;
-  updateDataModeBadge();
+  document.getElementById('periodo-label').textContent = `DADOS DE ${monthName(ate).toUpperCase()} • ${hasSupabase ? 'SUPABASE' : 'LOCAL'}`;
 
-  let registros = [...state.participacoes];
-  if (de) registros = registros.filter((r) => r.data >= de);
-  if (ate) registros = registros.filter((r) => r.data <= ate);
+  let regs=[...state.participacoes];
+  if(de) regs=regs.filter(r=>r.data>=de);
+  if(ate) regs=regs.filter(r=>r.data<=ate);
+  const resumo=state.programas.map((p)=>{const r=regs.filter(x=>x.programaId===p.id);return {nome:p.nome,total:r.reduce((a,b)=>a+b.quantidade,0),dias:new Set(r.map(x=>x.data)).size};}).sort((a,b)=>b.total-a.total);
+  const total=resumo.reduce((a,b)=>a+b.total,0), dias=resumo.reduce((a,b)=>a+b.dias,0), lider=resumo[0]?.nome||'—';
+  document.getElementById('kpis').innerHTML=`<div class='card'><small>TOTAL DE PARTICIPAÇÕES</small><div class='kpi-value'>${total}</div></div><div class='card'><small>DIAS COM REGISTRO</small><div class='kpi-value'>${dias}</div></div><div class='card'><small>PROGRAMA LÍDER</small><div class='kpi-value'>${lider}</div></div>`;
+  const max=Math.max(1,...resumo.map(r=>r.total));
+  document.getElementById('bars').innerHTML=resumo.map(r=>`<div class='bar-row'><small>${r.nome}</small><div class='bar' style='width:${(r.total/max)*100}%'></div><small>${r.total}</small></div>`).join('');
+  document.getElementById('tabela-ranking').innerHTML=`<thead><tr><th>PROGRAMA</th><th>TOTAL</th><th>DIAS</th></tr></thead><tbody>${resumo.map(r=>`<tr><td>${r.nome}</td><td>${r.total}</td><td>${r.dias}</td></tr>`).join('')}</tbody>`;
 
-  const resumo = state.programas.map((programa) => {
-    const regs = registros.filter((p) => p.programaId === programa.id);
-    return { nome: programa.nome, total: regs.reduce((a, b) => a + b.quantidade, 0), dias: new Set(regs.map((r) => r.data)).size };
-  }).sort((a, b) => b.total - a.total);
+  const now=new Date().toISOString();
+  const ativos=state.premios.filter(p=>(!p.inicio||p.inicio<=now)&&(!p.fim||p.fim>=now));
+  const futuros=state.premios.filter(p=>p.inicio&&p.inicio>now).sort((a,b)=>a.inicio.localeCompare(b.inicio));
+  const passados=state.premios.filter(p=>p.fim&&p.fim<now).sort((a,b)=>b.fim.localeCompare(a.fim));
+  const atual=ativos[0]||futuros[0]||state.premios[0];
 
-  const total = resumo.reduce((acc, r) => acc + r.total, 0);
-  const dias = resumo.reduce((acc, r) => acc + r.dias, 0);
-  const lider = resumo[0]?.nome || '—';
-  document.getElementById('kpis').innerHTML = `<div class='card'><small>Total de participações</small><div class='kpi-value'>${total}</div></div><div class='card'><small>Dias com registro</small><div class='kpi-value'>${dias}</div></div><div class='card'><small>Programa líder</small><div class='kpi-value'>${lider}</div></div>`;
+  document.getElementById('premio-vigente-titulo').textContent=atual?atual.nome:'NENHUM PRÊMIO';
+  document.getElementById('premio-vigente-desc').textContent=atual?(atual.descricao||'SEM DESCRIÇÃO'):'CADASTRE PRÊMIOS';
+  document.getElementById('premio-vigente-ganhador').textContent=atual?.ganhador||'SEM GANHADOR';
+  document.getElementById('premio-vigente-telefone').textContent=phoneMask(atual?.telefone);
 
-  const max = Math.max(1, ...resumo.map((r) => r.total));
-  document.getElementById('bars').innerHTML = resumo.map((r) => `<div class='bar-row'><small>${r.nome}</small><div class='bar' style='width:${(r.total / max) * 100}%'></div><small>${r.total}</small></div>`).join('');
-  document.getElementById('tabela-ranking').innerHTML = `<thead><tr><th>Programa</th><th>Total</th><th>Dias</th></tr></thead><tbody>${resumo.map((r) => `<tr><td>${r.nome}</td><td>${r.total}</td><td>${r.dias}</td></tr>`).join('')}</tbody>`;
-
-  const now = new Date().toISOString();
-  const ativo = state.premios.find((p) => (!p.inicio || p.inicio <= now) && (!p.fim || p.fim >= now)) || state.premios[0];
-  const prog = ativo ? state.programas.find((x) => x.id === ativo.programaId) : null;
-  document.getElementById('premio-vigente-titulo').textContent = ativo ? ativo.nome : 'Nenhum prêmio ativo';
-  document.getElementById('premio-vigente-desc').textContent = ativo ? (ativo.descricao || 'Sem descrição') : 'Cadastre prêmio com vigência para destacar aqui.';
-  document.getElementById('premio-vigente-programa').textContent = prog?.nome || 'Programa não definido';
-  document.getElementById('premio-vigente-ganhador').textContent = ativo?.ganhador || 'Sem ganhador';
-
-  document.getElementById('tabela-premios').innerHTML = `<thead><tr><th>Programa</th><th>Prêmio</th><th>Descrição</th><th>Estoque</th></tr></thead><tbody>${state.premios.map((p) => { const prg = state.programas.find((x) => x.id === p.programaId); return `<tr><td>${prg?.nome || '-'}</td><td style='font-size:1.2rem;font-weight:800;'>${p.nome}</td><td style='font-size:1.05rem;'>${p.descricao || ''}</td><td>${p.estoque}</td></tr>`; }).join('')}</tbody>`;
+  document.getElementById('proximos-premios').innerHTML=(futuros.slice(0,2).map(p=>`<div class='next-item'><strong>${p.nome}</strong><br/><small>${fmtHour(p.inicio)} - ${fmtHour(p.fim)}</small></div>`).join('')||'<small>SEM PRÓXIMOS PRÊMIOS</small>');
+  document.getElementById('tabela-historico-premios').innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>FIM</th></tr></thead><tbody>${passados.slice(0,20).map(p=>`<tr><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td>${fmtHour(p.fim)}</td></tr>`).join('')}</tbody>`;
 }
 
-function monthName(dateISO) { const d = dateISO ? new Date(`${dateISO}T00:00:00`) : new Date(); return d.toLocaleDateString('pt-BR', { month: 'long' }); }
-function todayISO() { return new Date().toISOString().slice(0, 10); }
-function firstDayOfMonthISO() { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); }
-function hasSyntheticProgramId(idPrograma) { return String(idPrograma || '').startsWith('resumo-'); }
-function val(idEl) { return document.getElementById(idEl).value; }
-function id() { return Math.random().toString(36).slice(2, 10); }
-function toast(text) { const el = document.getElementById('toast'); el.textContent = text; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 1700); }
+function phoneMask(phone){if(!phone)return 'TEL: --';const d=String(phone).replace(/\D/g,'');return `TEL: ****${d.slice(-4)}`;}
+function fmtHour(iso){if(!iso)return '--';return new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
+function monthName(dateISO){const d=dateISO?new Date(`${dateISO}T00:00:00`):new Date();return d.toLocaleDateString('pt-BR',{month:'long'});}
+function todayISO(){return new Date().toISOString().slice(0,10);}
+function firstDayOfMonthISO(){const d=new Date();d.setDate(1);return d.toISOString().slice(0,10);}
+function val(idEl){return document.getElementById(idEl).value;}
+function id(){return Math.random().toString(36).slice(2,10);}
+function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}

@@ -9,122 +9,108 @@
   <body>
     <header class="topbar">
       <div class="container topbar-content">
-        <h1>🎵 RÁDIO DISNEY <small class="version">v5</small></h1>
+        <h1>🎵 RÁDIO DISNEY <small class="version">v6</small></h1>
         <nav id="tabs" class="tabs">
-          <button data-tab="dashboard" class="tab active">Dashboard</button>
-          <button data-tab="metricas" class="tab">Métricas</button>
-          <button data-tab="gerenciamento" class="tab">Gerenciamento</button>
+          <button data-tab="dashboard" class="tab active">DASHBOARD</button>
+          <button data-tab="metricas" class="tab">MÉTRICAS</button>
+          <button data-tab="gerenciamento" class="tab">GERENCIAMENTO</button>
         </nav>
-        <button id="btn-supabase" class="config-btn">Conectar Supabase</button>
+        <button id="btn-supabase" class="config-btn">CONECTAR SUPABASE</button>
       </div>
     </header>
 
     <main class="container">
-      <section id="dashboard" class="view active">
+      <section id="dashboard" class="view active dashboard-upper">
         <div class="card featured" id="premio-vigente-card">
           <small>PRÊMIO VIGENTE AGORA</small>
-          <h2 id="premio-vigente-titulo">Aguardando prêmio ativo</h2>
-          <p id="premio-vigente-desc">Configure vigência de prêmios no gerenciamento.</p>
+          <h2 id="premio-vigente-titulo">AGUARDANDO PRÊMIO ATIVO</h2>
+          <p id="premio-vigente-desc">CADASTRE PRÊMIOS COM HORÁRIO NO GERENCIAMENTO.</p>
           <div class="badges">
-            <span id="premio-vigente-programa" class="badge">Programa</span>
-            <span id="premio-vigente-ganhador" class="badge badge-red">Sem ganhador</span>
+            <span id="premio-vigente-ganhador" class="badge badge-red">SEM GANHADOR</span>
+            <span id="premio-vigente-telefone" class="badge">TEL: --</span>
           </div>
         </div>
-        <div class="card filters">
-          <div>
-            <small id="periodo-label">DADOS DO MÊS</small>
-            <h3 style="margin: 0.3rem 0 0">Visão executiva</h3>
+
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>PRÓXIMOS 2 PRÊMIOS</h3>
+            <div id="proximos-premios"></div>
           </div>
-          <div class="range">
-            <label>De <input id="filtro-de" type="date" /></label>
-            <label>Até <input id="filtro-ate" type="date" /></label>
-            <button id="btn-aplicar-filtro" type="button">Aplicar filtro</button>
-            <button id="btn-refresh" type="button">Atualizar agora</button>
+          <div class="card filters">
+            <div>
+              <small id="periodo-label">DADOS DO MÊS</small>
+              <h3 style="margin:0.3rem 0 0">VISÃO EXECUTIVA</h3>
+            </div>
+            <div class="range">
+              <label>DE <input id="filtro-de" type="date" /></label>
+              <label>ATÉ <input id="filtro-ate" type="date" /></label>
+              <button id="btn-aplicar-filtro" type="button">APLICAR</button>
+              <button id="btn-refresh" type="button">ATUALIZAR AGORA</button>
+            </div>
           </div>
         </div>
 
         <div class="grid cols-3" id="kpis"></div>
-        <div class="card">
-          <h3>Participações por programa</h3>
-          <div id="bars"></div>
-        </div>
-        <div class="card">
-          <h3>Ranking</h3>
-          <table id="tabela-ranking" class="table"></table>
-        </div>
-        <div class="card premios-card">
-          <h3>Prêmios da hora</h3>
-          <table id="tabela-premios" class="table"></table>
-        </div>
+        <div class="card"><h3>PARTICIPAÇÕES POR PROGRAMA</h3><div id="bars"></div></div>
+        <div class="card"><h3>RANKING</h3><table id="tabela-ranking" class="table"></table></div>
+        <div class="card"><h3>HISTÓRICO DE PRÊMIOS ENCERRADOS</h3><table id="tabela-historico-premios" class="table"></table></div>
       </section>
 
       <section id="metricas" class="view">
         <div class="grid cols-2">
           <form id="form-participacao" class="card form">
             <h3>INCLUIR PARTICIPAÇÕES</h3>
-            <label>Programa</label>
+            <label>PROGRAMA</label>
             <select id="p-programa" required></select>
-            <label>Data de referência</label>
+            <label>DATA DE REFERÊNCIA</label>
             <input id="p-data" type="date" required />
-            <label>Quantidade</label>
+            <label>QUANTIDADE</label>
             <input id="p-quantidade" type="number" min="0" required />
-            <label>Tipo de registro</label>
-            <input id="p-tipo" value="DIARIO_REALTIME" readonly />
-            <button type="submit">Salvar participação</button>
+            <input id="p-tipo" type="hidden" value="DIARIO_REALTIME" />
+            <button type="submit">SALVAR PARTICIPAÇÃO</button>
           </form>
         </div>
         <div class="card">
-          <h3>Participações lançadas</h3>
+          <h3>ÚLTIMAS 5 PARTICIPAÇÕES</h3>
           <table id="tabela-participacoes" class="table"></table>
+          <button id="btn-toggle-participacoes" type="button">VER MAIS ANTIGAS</button>
         </div>
       </section>
 
       <section id="gerenciamento" class="view">
-        <div class="grid cols-3">
+        <div class="grid cols-2">
           <form id="form-programa" class="card form">
-            <h3>Novo programa</h3>
-            <label>Nome</label>
+            <h3>NOVO PROGRAMA</h3>
+            <label>NOME</label>
             <input id="g-programa-nome" required />
-            <label>Cor</label>
+            <label>COR</label>
             <input id="g-programa-cor" type="color" value="#2563eb" required />
-            <label class="inline"><input id="g-programa-ativo" type="checkbox" checked /> Ativo</label>
-            <button type="submit">Adicionar programa</button>
+            <label class="inline"><input id="g-programa-ativo" type="checkbox" checked /> ATIVO</label>
+            <button type="submit">ADICIONAR PROGRAMA</button>
           </form>
 
           <form id="form-premio" class="card form">
-            <h3>Novo prêmio</h3>
-            <label>Programa</label>
-            <select id="g-premio-programa" required></select>
-            <label>Nome</label>
+            <h3>NOVO PRÊMIO DA HORA</h3>
+            <label>NOME</label>
             <input id="g-premio-nome" required />
-            <label>Descrição</label>
+            <label>DESCRIÇÃO</label>
             <textarea id="g-premio-desc" rows="3" required></textarea>
-            <label>Estoque inicial</label>
+            <label>ESTOQUE INICIAL</label>
             <input id="g-premio-estoque" type="number" min="0" required />
-            <label>Início da vigência (opcional)</label>
-            <input id="g-premio-inicio" type="datetime-local" />
-            <label>Fim da vigência (opcional)</label>
-            <input id="g-premio-fim" type="datetime-local" />
-            <label>Ganhador da hora (opcional)</label>
+            <label>INÍCIO DA VIGÊNCIA</label>
+            <input id="g-premio-inicio" type="datetime-local" required />
+            <label>FIM DA VIGÊNCIA</label>
+            <input id="g-premio-fim" type="datetime-local" required />
+            <label>GANHADOR</label>
             <input id="g-premio-ganhador" />
-            <button type="submit">Adicionar prêmio</button>
-          </form>
-
-          <form id="form-prioridade" class="card form">
-            <h3>Prioridade no ar</h3>
-            <label>Programa</label>
-            <select id="pr-programa" required></select>
-            <label>Data</label>
-            <input id="pr-data" type="date" required />
-            <label>Conteúdo</label>
-            <textarea id="pr-conteudo" rows="3" required></textarea>
-            <button type="submit">Salvar prioridade</button>
+            <label>TELEFONE GANHADOR</label>
+            <input id="g-premio-telefone" />
+            <button type="submit">ADICIONAR PRÊMIO</button>
           </form>
         </div>
 
-        <div class="card"><h3>Programas</h3><table id="tabela-programas" class="table"></table></div>
-        <div class="card"><h3>Prêmios</h3><table id="tabela-premios-gerenciamento" class="table"></table></div>
-        <div class="card"><h3>Prioridades</h3><table id="tabela-prioridades" class="table"></table></div>
+        <div class="card"><h3>PROGRAMAS</h3><table id="tabela-programas" class="table"></table></div>
+        <div class="card"><h3>PRÊMIOS (EDITAR/EXCLUIR)</h3><table id="tabela-premios-gerenciamento" class="table"></table></div>
       </section>
     </main>
 
