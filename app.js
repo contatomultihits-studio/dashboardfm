@@ -337,7 +337,7 @@ function openEditModal(tipo, itemId) {
     const item = state.programas.find((x) => x.id === itemId);
     if (!item) return;
     title.textContent = 'EDITAR PROGRAMA';
-    document.getElementById('edit-fields-programa').classList.remove('hidden');
+    setEditGroupState('edit-fields-programa', true);
     document.getElementById('e-programa-nome').value = item.nome || '';
     document.getElementById('e-programa-cor').value = item.cor || '#2563eb';
     document.getElementById('e-programa-ativo').checked = Boolean(item.ativo);
@@ -347,7 +347,7 @@ function openEditModal(tipo, itemId) {
     const item = state.premios.find((x) => x.id === itemId);
     if (!item) return;
     title.textContent = 'EDITAR PRÊMIO';
-    document.getElementById('edit-fields-premio').classList.remove('hidden');
+    setEditGroupState('edit-fields-premio', true);
     document.getElementById('e-premio-nome').value = item.nome || '';
     document.getElementById('e-premio-desc').value = item.descricao || '';
     document.getElementById('e-premio-inicio').value = toDatetimeLocal(item.inicio);
@@ -360,7 +360,7 @@ function openEditModal(tipo, itemId) {
     const item = state.participacoes.find((x) => x.id === itemId);
     if (!item) return;
     title.textContent = 'EDITAR PARTICIPAÇÃO';
-    document.getElementById('edit-fields-participacao').classList.remove('hidden');
+    setEditGroupState('edit-fields-participacao', true);
     const sel = document.getElementById('e-participacao-programa');
     sel.innerHTML = state.programas.map((p) => `<option value="${p.id}">${p.nome}</option>`).join('');
     sel.value = item.programaId || '';
@@ -378,9 +378,26 @@ function closeEditModal() {
 }
 
 function hideEditGroups() {
-  document.getElementById('edit-fields-programa').classList.add('hidden');
-  document.getElementById('edit-fields-premio').classList.add('hidden');
-  document.getElementById('edit-fields-participacao').classList.add('hidden');
+  setEditGroupState('edit-fields-programa', false);
+  setEditGroupState('edit-fields-premio', false);
+  setEditGroupState('edit-fields-participacao', false);
+}
+
+function setEditGroupState(groupId, active) {
+  const group = document.getElementById(groupId);
+  if (!group) return;
+  group.classList.toggle('hidden', !active);
+  group.querySelectorAll('input,select,textarea').forEach((el) => {
+    const needsRequired = el.dataset.required === 'true';
+    if (active) {
+      el.disabled = false;
+      if (needsRequired) el.required = true;
+    } else {
+      if (el.required) el.dataset.required = 'true';
+      el.required = false;
+      el.disabled = true;
+    }
+  });
 }
 
 async function submitEditModal(e) {
