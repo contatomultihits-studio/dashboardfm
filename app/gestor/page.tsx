@@ -1,21 +1,28 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { getSupabaseBrowserClient } from '@/lib/supabaseClient';
 import { KpiCard } from '@/components/KpiCard';
 import { ParticipationChart } from '@/components/ParticipationChart';
 import { ResumoParticipacao } from '@/types/database';
 
 export default function GestorPage() {
   const [resumo, setResumo] = useState<ResumoParticipacao[]>([]);
+  const [erro, setErro] = useState('');
+  const { client: supabase, error: supabaseError } = getSupabaseBrowserClient();
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('resumo_participacoes').select('*').order('total_participacoes', { ascending: false });
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from('resumo_participacoes')
+        .select('*')
+        .order('total_participacoes', { ascending: false });
+      if (error) return setErro(error.message);
       setResumo((data || []) as ResumoParticipacao[]);
     };
     load();
-  }, []);
+  }, [supabase]);
 
   const kpis = useMemo(() => {
     const totalParticipacoes = resumo.reduce((acc, item) => acc + Number(item.total_participacoes), 0);
@@ -30,6 +37,8 @@ export default function GestorPage() {
       <div className="card">
         <h1 style={{ marginTop: 0 }}>Dashboard de Gestores</h1>
         <small>Visão rápida de performance para decisão semanal e fechamento mensal.</small>
+        {supabaseError && <p style={{ color: '#FF6B6B' }}>{supabaseError}</p>}
+        {erro && <p style={{ color: '#FF6B6B' }}>{erro}</p>}
       </div>
 
       <div className="grid grid-3">

@@ -23,6 +23,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=SEU_ANON_KEY
 
 ## 2) Estrutura de páginas
 
+- `/` (atalhos para os módulos)
 - `/colaborador`
 - `/gerenciamento`
 - `/gestor`
@@ -36,7 +37,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=SEU_ANON_KEY
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 4. Faça deploy.
 
-## 4) Observações
+## 4) Troubleshooting
+
+- **404 na Vercel após deploy**: verifique se a branch com o código foi realmente selecionada no projeto da Vercel e se o deploy atual inclui a pasta `app/`.
+- **Tela em branco/erro ao abrir páginas**: valide as variáveis de ambiente acima. Sem elas, o app exibe mensagem de configuração ausente.
+
+## 5) Observações
 
 - A aplicação está pronta para usar o padrão de tabelas informado.
 - Recomendado configurar **RLS policies** no Supabase por perfil (colaborador x gestor x admin).

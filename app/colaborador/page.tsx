@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { getSupabaseBrowserClient } from '@/lib/supabaseClient';
 import { Programa } from '@/types/database';
 
 type Msg = { type: 'ok' | 'err'; text: string } | null;
@@ -9,6 +9,9 @@ type Msg = { type: 'ok' | 'err'; text: string } | null;
 export default function ColaboradorPage() {
   const [programas, setProgramas] = useState<Programa[]>([]);
   const [msg, setMsg] = useState<Msg>(null);
+  const [loading, setLoading] = useState(false);
+  const { client: supabase, error: supabaseError } = getSupabaseBrowserClient();
+
   const [formParticipacao, setFormParticipacao] = useState({
     programa_id: '',
     data_referencia: '',
@@ -23,14 +26,19 @@ export default function ColaboradorPage() {
 
   useEffect(() => {
     const load = async () => {
+      if (!supabase) return;
+      setLoading(true);
       const { data, error } = await supabase.from('programas').select('*').eq('ativo', true).order('nome');
+      if (error) setMsg({ type: 'err', text: `Erro ao carregar programas: ${error.message}` });
       if (!error) setProgramas(data as Programa[]);
+      setLoading(false);
     };
     load();
-  }, []);
+  }, [supabase]);
 
   async function salvarParticipacao(e: FormEvent) {
     e.preventDefault();
+    if (!supabase) return;
     const { error } = await supabase.from('participacoes').insert(formParticipacao);
     if (error) return setMsg({ type: 'err', text: error.message });
     setMsg({ type: 'ok', text: 'Participação registrada com sucesso.' });
@@ -38,6 +46,7 @@ export default function ColaboradorPage() {
 
   async function salvarPrioridade(e: FormEvent) {
     e.preventDefault();
+    if (!supabase) return;
     const { error } = await supabase.from('prioridades_ar').insert({ ...formPrioridade, concluido: false });
     if (error) return setMsg({ type: 'err', text: error.message });
     setMsg({ type: 'ok', text: 'Prioridade inserida com sucesso.' });
@@ -48,6 +57,8 @@ export default function ColaboradorPage() {
       <div className="card">
         <h1 style={{ marginTop: 0 }}>Área do Colaborador</h1>
         <small>Use esta tela para abastecer participações e conteúdo prioritário no ar.</small>
+        {supabaseError && <p style={{ color: '#FF6B6B' }}>{supabaseError}</p>}
+        {loading && <p>Carregando programas...</p>}
         {msg && (
           <p style={{ color: msg.type === 'ok' ? '#3AD5A0' : '#FF6B6B', marginBottom: 0 }}>{msg.text}</p>
         )}
@@ -61,6 +72,7 @@ export default function ColaboradorPage() {
             value={formParticipacao.programa_id}
             onChange={(e) => setFormParticipacao((f) => ({ ...f, programa_id: e.target.value }))}
             required
+            disabled={!supabase || loading}
           >
             <option value="">Selecione...</option>
             {programas.map((p) => (
@@ -93,7 +105,7 @@ export default function ColaboradorPage() {
             onChange={(e) => setFormParticipacao((f) => ({ ...f, tipo_registro: e.target.value }))}
             required
           />
-          <button type="submit">Salvar participação</button>
+          <button type="submit" disabled={!supabase}>Salvar participação</button>
         </form>
 
         <form className="card" onSubmit={salvarPrioridade}>
@@ -103,6 +115,7 @@ export default function ColaboradorPage() {
             value={formPrioridade.programa_id}
             onChange={(e) => setFormPrioridade((f) => ({ ...f, programa_id: e.target.value }))}
             required
+            disabled={!supabase || loading}
           >
             <option value="">Selecione...</option>
             {programas.map((p) => (
@@ -126,7 +139,7 @@ export default function ColaboradorPage() {
             onChange={(e) => setFormPrioridade((f) => ({ ...f, conteudo: e.target.value }))}
             required
           />
-          <button type="submit">Salvar prioridade</button>
+          <button type="submit" disabled={!supabase}>Salvar prioridade</button>
         </form>
       </div>
     </section>
