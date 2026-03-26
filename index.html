@@ -9,10 +9,9 @@
   <body>
     <header class="topbar">
       <div class="container topbar-content">
-        <h1>🎵 Dashboard FM <small class="version">v3</small></h1>
+        <h1>🎵 Dashboard FM <small class="version">v4</small></h1>
         <nav id="tabs" class="tabs">
-          <button data-tab="inicio" class="tab active">Início</button>
-          <button data-tab="colaborador" class="tab">Colaborador</button>
+          <button data-tab="metricas" class="tab active">Métricas</button>
           <button data-tab="gerenciamento" class="tab">Gerenciamento</button>
           <button data-tab="gestor" class="tab">Gestor</button>
         </nav>
@@ -21,25 +20,10 @@
     </header>
 
     <main class="container">
-      <section id="inicio" class="view active">
-        <div class="card hero">
-          <h2>Projeto 100% estático para GitHub + Vercel</h2>
-          <p>
-            Layout inspirado no seu painel musical: visual claro, gradientes azuis e cards limpos.
-            <span id="modo-dados" class="pill">Modo local</span>
-          </p>
-        </div>
-        <div class="grid cols-3">
-          <article class="card"><h3>Colaborador</h3><p>Registre participações e prioridades no ar.</p></article>
-          <article class="card"><h3>Gerenciamento</h3><p>Cadastre programas e prêmios.</p></article>
-          <article class="card"><h3>Gestor</h3><p>Acompanhe Big Numbers e ranking.</p></article>
-        </div>
-      </section>
-
-      <section id="colaborador" class="view">
+      <section id="metricas" class="view active">
         <div class="grid cols-2">
           <form id="form-participacao" class="card form">
-            <h3>Nova participação</h3>
+            <h3>INCLUIR PARTICIPAÇÕES</h3>
             <label>Programa</label>
             <select id="p-programa" required></select>
             <label>Data de referência</label>
@@ -50,28 +34,17 @@
             <input id="p-tipo" value="telefonema" required />
             <button type="submit">Salvar participação</button>
           </form>
-
-          <form id="form-prioridade" class="card form">
-            <h3>Prioridade no ar</h3>
-            <label>Programa</label>
-            <select id="pr-programa" required></select>
-            <label>Data</label>
-            <input id="pr-data" type="date" required />
-            <label>Conteúdo</label>
-            <textarea id="pr-conteudo" rows="4" required></textarea>
-            <button type="submit">Salvar prioridade</button>
-          </form>
         </div>
       </section>
 
       <section id="gerenciamento" class="view">
-        <div class="grid cols-2">
+        <div class="grid cols-3">
           <form id="form-programa" class="card form">
             <h3>Novo programa</h3>
             <label>Nome</label>
             <input id="g-programa-nome" required />
             <label>Cor</label>
-            <input id="g-programa-cor" type="color" value="#35c4ff" required />
+            <input id="g-programa-cor" type="color" value="#2563eb" required />
             <label class="inline"><input id="g-programa-ativo" type="checkbox" checked /> Ativo</label>
             <button type="submit">Adicionar programa</button>
           </form>
@@ -88,19 +61,38 @@
             <input id="g-premio-estoque" type="number" min="0" required />
             <button type="submit">Adicionar prêmio</button>
           </form>
+
+          <form id="form-prioridade" class="card form">
+            <h3>Prioridade no ar</h3>
+            <label>Programa</label>
+            <select id="pr-programa" required></select>
+            <label>Data</label>
+            <input id="pr-data" type="date" required />
+            <label>Conteúdo</label>
+            <textarea id="pr-conteudo" rows="3" required></textarea>
+            <button type="submit">Salvar prioridade</button>
+          </form>
         </div>
 
         <div class="card">
           <h3>Programas</h3>
           <table id="tabela-programas" class="table"></table>
         </div>
-        <div class="card">
-          <h3>Prêmios</h3>
-          <table id="tabela-premios" class="table"></table>
-        </div>
       </section>
 
       <section id="gestor" class="view">
+        <div class="card filters">
+          <div>
+            <small id="periodo-label">DADOS DO MÊS</small>
+            <h3 style="margin: 0.3rem 0 0">Visão executiva</h3>
+          </div>
+          <div class="range">
+            <label>De <input id="filtro-de" type="date" /></label>
+            <label>Até <input id="filtro-ate" type="date" /></label>
+            <button id="btn-aplicar-filtro" type="button">Aplicar filtro</button>
+          </div>
+        </div>
+
         <div class="grid cols-3" id="kpis"></div>
         <div class="card">
           <h3>Participações por programa</h3>
@@ -109,6 +101,10 @@
         <div class="card">
           <h3>Ranking</h3>
           <table id="tabela-ranking" class="table"></table>
+        </div>
+        <div class="card">
+          <h3>Prêmios da hora</h3>
+          <table id="tabela-premios" class="table"></table>
         </div>
       </section>
     </main>
