@@ -113,6 +113,24 @@
           </form>
         </div>
 
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>FILTRO DIÁRIO DE PRÊMIOS</h3>
+            <div class="range">
+              <label>DIA <input id="gmt-date" type="date" /></label>
+              <button id="btn-gmt-prev" type="button">◀ DIA ANTERIOR</button>
+              <button id="btn-gmt-hoje" type="button">HOJE</button>
+              <button id="btn-gmt-next" type="button">PRÓXIMO DIA ▶</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>BUSCAR GANHADOR (BASE COMPLETA)</h3>
+            <label>INICIAIS OU NOME</label>
+            <input id="winner-search" placeholder="Ex.: MAR, JOÃO, ANA..." />
+            <table id="tabela-busca-ganhador" class="table"></table>
+          </div>
+        </div>
+
         <div class="card"><h3>PROGRAMAS</h3><table id="tabela-programas" class="table"></table></div>
         <div class="card"><h3>PRÊMIOS (EDITAR/EXCLUIR)</h3><table id="tabela-premios-gerenciamento" class="table"></table></div>
       </section>

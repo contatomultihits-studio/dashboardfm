@@ -21,6 +21,7 @@ async function init() {
   wireEditModal();
   initDefaultDates();
   wireFilters();
+  wireGerenciamentoTools();
   renderAll();
   updateDashboardAutoRefresh();
 }
@@ -176,12 +177,14 @@ function initDefaultDates() {
   const end = todayISO();
   document.getElementById('p-data').value = end;
   document.getElementById('dashboard-date').value = end;
+  document.getElementById('gmt-date').value = end;
 }
 
 function renderAll() {
   fillProgramSelect('p-programa');
   renderProgramas();
   renderPremiosGerenciamento();
+  renderWinnerSearch();
   renderParticipacoes();
   renderDashboard();
 }
@@ -229,8 +232,10 @@ function renderProgramas() {
 }
 
 function renderPremiosGerenciamento() {
+  const day = document.getElementById('gmt-date')?.value || todayISO();
+  const premiosDia = filterPremiosByDay(state.premios, day);
   const t=document.getElementById('tabela-premios-gerenciamento');
-  t.innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>AÇÕES</th></tr></thead><tbody>${state.premios.map((p)=>`<tr><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td><button data-edit-premio='${p.id}'>EDITAR</button> <button data-del-premio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
+  t.innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>DATA</th><th>AÇÕES</th></tr></thead><tbody>${premiosDia.map((p)=>`<tr><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td>${fmtDateOnly(p.inicio)}</td><td><button data-edit-premio='${p.id}'>EDITAR</button> <button data-del-premio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
   t.querySelectorAll('[data-edit-premio]').forEach((b)=>b.addEventListener('click', ()=>openEditModal('premio', b.dataset.editPremio)));
   t.querySelectorAll('[data-del-premio]').forEach((b)=>b.addEventListener('click', async()=>{
     const idp=b.dataset.delPremio;
@@ -243,6 +248,30 @@ function renderPremiosGerenciamento() {
     } else persistLocal();
     renderAll();
   }));
+}
+
+function wireGerenciamentoTools() {
+  document.getElementById('btn-gmt-prev').addEventListener('click', () => shiftDateInput('gmt-date', -1));
+  document.getElementById('btn-gmt-next').addEventListener('click', () => shiftDateInput('gmt-date', 1));
+  document.getElementById('btn-gmt-hoje').addEventListener('click', () => { document.getElementById('gmt-date').value = todayISO(); renderPremiosGerenciamento(); });
+  document.getElementById('gmt-date').addEventListener('change', () => renderPremiosGerenciamento());
+  document.getElementById('winner-search').addEventListener('input', () => renderWinnerSearch());
+}
+
+function renderWinnerSearch() {
+  const term = (document.getElementById('winner-search')?.value || '').trim().toLowerCase();
+  const table = document.getElementById('tabela-busca-ganhador');
+  if (!table) return;
+  if (!term) {
+    table.innerHTML = '<thead><tr><th>GANHADOR</th><th>PRÊMIO</th><th>DATA</th></tr></thead><tbody><tr><td colspan="3">DIGITE AS INICIAIS PARA BUSCAR.</td></tr></tbody>';
+    return;
+  }
+  const rows = state.premios
+    .filter((p) => (p.ganhador || '').toLowerCase().includes(term))
+    .sort((a, b) => (b.fim || '').localeCompare(a.fim || ''));
+  table.innerHTML = `<thead><tr><th>GANHADOR</th><th>PRÊMIO</th><th>DATA</th></tr></thead><tbody>${
+    rows.length ? rows.map((p) => `<tr><td>${p.ganhador || '-'}</td><td>${p.nome}</td><td>${fmtDateOnly(p.fim || p.inicio)}</td></tr>`).join('') : '<tr><td colspan="3">NENHUM GANHADOR ENCONTRADO.</td></tr>'
+  }</tbody>`;
 }
 
 function renderDashboard() {
@@ -295,6 +324,9 @@ function firstDayOfMonthISO(){const d=new Date();d.setDate(1);return d.toISOStri
 function firstDayOfMonthISOFrom(baseISO){const d=new Date(`${baseISO}T00:00:00`);d.setDate(1);return d.toISOString().slice(0,10);}
 function lastDayOfMonthISOFrom(baseISO){const d=new Date(`${baseISO}T00:00:00`);d.setMonth(d.getMonth()+1,0);return d.toISOString().slice(0,10);}
 function currentClockOnDate(baseISO){const now=new Date();const d=new Date(`${baseISO}T00:00:00`);d.setHours(now.getHours(),now.getMinutes(),now.getSeconds(),0);return d;}
+function shiftDateInput(idInput, days){const el=document.getElementById(idInput);const d=new Date(`${(el.value||todayISO())}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);if(idInput==='gmt-date')renderPremiosGerenciamento();if(idInput==='dashboard-date')renderDashboard();}
+function fmtDateOnly(iso){if(!iso)return '--';return new Date(iso).toLocaleDateString('pt-BR');}
+function filterPremiosByDay(premios, dayISO){const start=`${dayISO}T00:00:00.000Z`;const end=`${dayISO}T23:59:59.999Z`;return premios.filter((p)=>{const i=p.inicio||start;const f=p.fim||end;return i<=end&&f>=start;});}
 function val(idEl){return document.getElementById(idEl).value;}
 function id(){return Math.random().toString(36).slice(2,10);}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}
