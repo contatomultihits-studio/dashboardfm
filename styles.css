@@ -18,7 +18,8 @@ body { margin: 0; font-family: Inter, Arial, sans-serif; background: radial-grad
 main { padding: 1.3rem 0 3rem; }
 .view { display: none; }
 .view.active { display: block; }
-.dashboard-upper { display: grid; gap: 1rem; }
+.view.dashboard-upper { display: none; }
+.view.dashboard-upper.active { display: grid; gap: 1rem; }
 .grid { display: grid; gap: 1rem; }
 .cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .cols-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }

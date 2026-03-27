@@ -6,6 +6,7 @@ let sb = null;
 let showAllParticipacoes = false;
 let hasGanhadorTelefoneColumn = true;
 const editModalState = { tipo: null, id: null };
+let dashboardRefreshInterval = null;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
 const state = { programas: [], premios: [], participacoes: [] };
 
@@ -21,7 +22,7 @@ async function init() {
   initDefaultDates();
   wireFilters();
   renderAll();
-  setInterval(refreshAllData, 180000);
+  updateDashboardAutoRefresh();
 }
 
 async function refreshAllData() {
@@ -100,6 +101,7 @@ function wireTabs() {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById(btn.dataset.tab).classList.add('active');
+    updateDashboardAutoRefresh();
   }));
 }
 
@@ -345,6 +347,18 @@ function isMissingTelefoneColumnError(error) {
 async function syncAfterMutation() {
   if (hasSupabase) await loadInitialData();
   else persistLocal();
+}
+
+function updateDashboardAutoRefresh() {
+  const dashboardActive = document.getElementById('dashboard')?.classList.contains('active');
+  if (dashboardActive && !dashboardRefreshInterval) {
+    dashboardRefreshInterval = setInterval(() => refreshAllData(), 30000);
+    return;
+  }
+  if (!dashboardActive && dashboardRefreshInterval) {
+    clearInterval(dashboardRefreshInterval);
+    dashboardRefreshInterval = null;
+  }
 }
 
 function openEditModal(tipo, itemId) {
