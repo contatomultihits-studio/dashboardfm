@@ -172,7 +172,7 @@ function wireForms() {
       imagemUrl = upload.url || null;
     }
     if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('ar-imagem');
-    const payload = { data: val('ar-data'), programaId: val('ar-programa'), conteudo: val('ar-conteudo'), concluido: false, imagemUrl: imagemUrl || null };
+    const payload = { data: val('ar-data'), programaId: null, conteudo: val('ar-conteudo'), concluido: false, imagemUrl: imagemUrl || null };
     if (hasSupabase) {
       const { error } = await insertPrioridadeSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
@@ -213,7 +213,6 @@ function initDefaultDates() {
 
 function renderAll() {
   fillProgramSelect('p-programa');
-  fillProgramSelect('ar-programa');
   renderProgramas();
   renderPremiosGerenciamento();
   renderWinnerSearch();
@@ -377,7 +376,9 @@ function val(idEl){return document.getElementById(idEl).value;}
 function renderPrioridadesAr() {
   const t = document.getElementById('tabela-prioridades-ar');
   if (!t) return;
-  t.innerHTML = `<thead><tr><th>DATA</th><th>PROGRAMA</th><th>CONTEÚDO</th><th>IMAGEM</th></tr></thead><tbody>${state.prioridades.map((p)=>{const pr=state.programas.find((x)=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${(p.conteudo||'').slice(0,120)}</td><td>${p.imagemUrl?'<span>SIM</span>':'-'}</td></tr>`;}).join('')}</tbody>`;
+  t.innerHTML = `<thead><tr><th>DATA</th><th>CONTEÚDO</th><th>IMAGEM</th><th>AÇÕES</th></tr></thead><tbody>${state.prioridades.map((p)=>`<tr><td>${p.data}</td><td>${(p.conteudo||'').slice(0,140)}</td><td>${p.imagemUrl?`<a href='${p.imagemUrl}' target='_blank' rel='noreferrer'>VER</a>`:'-'}</td><td><button data-edit-prio='${p.id}'>EDITAR</button> <button data-del-prio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
+  t.querySelectorAll('[data-edit-prio]').forEach((b)=>b.addEventListener('click', async()=>editPrioridade(b.dataset.editPrio)));
+  t.querySelectorAll('[data-del-prio]').forEach((b)=>b.addEventListener('click', async()=>deletePrioridade(b.dataset.delPrio)));
 }
 
 async function fileInputToDataUrl(idInput) {
@@ -393,10 +394,43 @@ async function fileInputToDataUrl(idInput) {
 }
 
 async function insertPrioridadeSupabase(payload) {
-  const base = { data: payload.data, programa_id: payload.programaId, conteudo: payload.conteudo, concluido: false };
+  const base = { data: payload.data, programa_id: payload.programaId || null, conteudo: payload.conteudo, concluido: false };
   const firstTry = await sb.from('prioridades_ar').insert({ ...base, imagem_url: payload.imagemUrl || null });
   if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return firstTry;
   return sb.from('prioridades_ar').insert(base);
+}
+
+async function editPrioridade(idPrio) {
+  const item = state.prioridades.find((x)=>x.id===idPrio);
+  if(!item) return;
+  const novaData = prompt('DATA (AAAA-MM-DD):', item.data || '');
+  if(!novaData) return;
+  const novoConteudo = prompt('CONTEÚDO:', item.conteudo || '');
+  if(!novoConteudo) return;
+  const novaImagem = prompt('URL DA IMAGEM (OPCIONAL):', item.imagemUrl || '') ?? '';
+  Object.assign(item, { data: novaData, conteudo: novoConteudo, imagemUrl: novaImagem });
+  if (hasSupabase) {
+    const base = { data: novaData, conteudo: novoConteudo, programa_id: null };
+    const firstTry = await sb.from('prioridades_ar').update({ ...base, imagem_url: novaImagem || null }).eq('id', idPrio);
+    if (firstTry.error && !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return toast(`ERRO: ${firstTry.error.message}`);
+    if (firstTry.error) {
+      const fallback = await sb.from('prioridades_ar').update(base).eq('id', idPrio);
+      if (fallback.error) return toast(`ERRO: ${fallback.error.message}`);
+    }
+    await syncAfterMutation();
+  } else persistLocal();
+  renderPrioridadesAr();
+}
+
+async function deletePrioridade(idPrio) {
+  if(!confirm('EXCLUIR PRIORIDADE DO AR?')) return;
+  state.prioridades = state.prioridades.filter((x)=>x.id!==idPrio);
+  if (hasSupabase) {
+    const { error } = await sb.from('prioridades_ar').delete().eq('id', idPrio);
+    if (error) return toast(`ERRO: ${error.message}`);
+    await syncAfterMutation();
+  } else persistLocal();
+  renderPrioridadesAr();
 }
 
 async function uploadPrioridadeImageSupabase(file) {
