@@ -80,10 +80,11 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
 .range button { white-space: nowrap; }
 .next-item { padding: .65rem .7rem; margin-top: .45rem; border: 2px solid #111; border-radius: 12px; background: #ffffff; box-shadow: 0 4px 0 #111; }
 .hidden { display: none !important; }
-.modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: grid; place-items: center; z-index: 30; padding: 1rem; }
-.modal-card { width: min(680px, 100%); max-height: 92vh; overflow: auto; background: #fff; border: 2px solid #111; border-radius: 24px; padding: 1rem; box-shadow: 10px 10px 0 #111; }
-.modal-head { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: .7rem; }
-.btn-ghost { background: #eef2ff; color: #111; box-shadow: 0 4px 0 #111; border: 2px solid #111; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(17,17,17,.55); backdrop-filter: blur(2px); display: grid; place-items: center; z-index: 30; padding: 1rem; }
+.modal-card { width: min(720px, 100%); max-height: 92vh; overflow: auto; background: #fffef8; border: 3px solid #111; border-radius: 28px; padding: 1rem; box-shadow: 12px 12px 0 #111; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: .9rem; padding-bottom: .7rem; border-bottom: 2px solid #111; }
+.modal-head h3 { margin: 0; text-transform: uppercase; font-size: 2rem; letter-spacing: -.6px; }
+.btn-ghost { background: #fff; color: #111; box-shadow: 0 5px 0 #111; border: 2px solid #111; min-width: 128px; }
 .modal-card .form { gap: .9rem; }
 .modal-card .form label { display: block; font-weight: 700; font-size: .9rem; color: #334155; margin-bottom: .2rem; }
 .edit-group { display: grid; gap: .65rem; }
@@ -92,22 +93,22 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
   .edit-group { grid-template-columns: 1fr 1fr; gap: .75rem 1rem; }
   .edit-group .inline { grid-column: 1 / -1; }
 }
-.premio-detalhe { background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%); border-color: #cfe0ff; }
-.premio-hero { border-radius: 16px; padding: 1rem; background: linear-gradient(135deg, #2f5de9 0%, #3f5de2 60%, #4f46e5 100%); color: #fff; margin-bottom: .9rem; }
+.premio-detalhe { background: linear-gradient(180deg, #fffef8 0%, #fff8de 100%); border-color: #111; }
+.premio-hero { border-radius: 18px; padding: 1rem; background: linear-gradient(135deg, #46ff9f 0%, #88ffc2 45%, #fff06a 100%); color: #111; margin-bottom: .9rem; border: 2px solid #111; box-shadow: 4px 4px 0 #111; }
 .premio-hero h2 { margin: .35rem 0 .65rem; font-size: 1.7rem; line-height: 1.1; }
 .premio-tags { display: flex; flex-wrap: wrap; gap: .45rem; }
-.premio-tags .tag { display: inline-block; padding: .3rem .6rem; border-radius: 999px; background: rgba(255,255,255,.22); font-weight: 700; font-size: .86rem; }
-.premio-info { display: grid; gap: .8rem; padding: .5rem .25rem; }
+.premio-tags .tag { display: inline-block; padding: .3rem .6rem; border-radius: 999px; background: #fff; border: 2px solid #111; font-weight: 800; font-size: .86rem; }
+.premio-info { display: grid; gap: .8rem; padding: .5rem .25rem; color: #111; }
 .premio-info p { margin: 0; line-height: 1.45; }
 .prioridade-card { text-align: left; background: #fff; border: 1px solid #d8e3ff; box-shadow: 0 12px 24px rgba(37,99,235,.12); }
 .prioridade-thumb-wrap { width: 100%; height: 180px; border-radius: 14px; background: #f4f7ff; display: grid; place-items: center; overflow: hidden; margin-bottom: .7rem; }
 .prioridade-thumb { width: 100%; height: 100%; object-fit: contain; }
 .prioridade-thumb-placeholder { color: #64748b; font-weight: 700; }
 .prioridade-title { font-weight: 800; color: #1e293b; line-height: 1.35; }
-.prioridade-detalhe { max-width: 760px; }
-.prioridade-hero { border-radius: 14px; background: #eef4ff; padding: .6rem; margin-bottom: .85rem; }
+.prioridade-detalhe { max-width: 760px; background: linear-gradient(180deg, #fffef8 0%, #fff8de 100%); }
+.prioridade-hero { border-radius: 14px; background: #fff; border: 2px solid #111; padding: .6rem; margin-bottom: .85rem; }
 .prioridade-modal-img { width: 100%; max-height: 320px; object-fit: contain; border-radius: 10px; }
-.prioridade-modal-noimg { min-height: 160px; display: grid; place-items: center; color: #64748b; font-weight: 700; }
+.prioridade-modal-noimg { min-height: 160px; display: grid; place-items: center; color: #111; font-weight: 800; background: #fff06a; border-radius: 8px; border: 2px solid #111; }
 .prioridade-texto p { margin: .45rem 0 0; line-height: 1.55; white-space: normal; }
 .prioridade-texto .rich-render { margin-top: .45rem; line-height: 1.55; }
 
