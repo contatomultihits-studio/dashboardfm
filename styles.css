@@ -135,6 +135,11 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
 .dashboard-upper .badge { background: #fff06a; color: #111; border: 2px solid #111; }
 .dashboard-upper .badge-red { background: #ff6b6b; color: #111; border: 2px solid #111; }
 .dashboard-upper .prioridade-card { border: 2px solid #111; box-shadow: 6px 6px 0 #111; }
+.prioridades-head { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin-bottom: .75rem; }
+.prioridades-nav { display: flex; align-items: center; gap: .45rem; }
+.prioridades-nav button { min-width: 44px; padding: .45rem .55rem; }
+.prioridades-nav button:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: 0 3px 0 #111; }
+#prioridades-page-info { font-weight: 800; text-transform: uppercase; color: #111; }
 
 .rich-editor-wrap { border: 2px solid #111; border-radius: 14px; padding: .5rem; background: #fff; }
 .rich-toolbar { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .45rem; }

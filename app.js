@@ -5,6 +5,7 @@ let hasSupabase = false;
 let sb = null;
 let showAllParticipacoes = false;
 let hasGanhadorTelefoneColumn = true;
+let prioridadeCarouselStart = 0;
 const editModalState = { tipo: null, id: null };
 let dashboardRefreshInterval = null;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
@@ -207,6 +208,8 @@ function wireFilters() {
   document.getElementById('premio-modal').addEventListener('click', (e) => { if (e.target.id === 'premio-modal') document.getElementById('premio-modal').classList.add('hidden'); });
   document.getElementById('btn-close-prioridade-modal').addEventListener('click', () => document.getElementById('prioridade-modal').classList.add('hidden'));
   document.getElementById('prioridade-modal').addEventListener('click', (e) => { if (e.target.id === 'prioridade-modal') document.getElementById('prioridade-modal').classList.add('hidden'); });
+  document.getElementById('btn-prio-prev')?.addEventListener('click', () => shiftPrioridadesDashboard(-1));
+  document.getElementById('btn-prio-next')?.addEventListener('click', () => shiftPrioridadesDashboard(1));
 }
 
 function initDefaultDates() {
@@ -438,14 +441,28 @@ function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===id
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,(m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
 function fmtDateTime(iso){if(!iso)return '--';return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function shiftDashboardDate(days){const el=document.getElementById('dashboard-date');const d=new Date(`${el.value||todayISO()}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);renderDashboard();}
+function shiftPrioridadesDashboard(step){prioridadeCarouselStart=Math.max(0, prioridadeCarouselStart+step);renderDashboard();}
 
 function renderPrioridadesCards(dashboardDate){
   const box = document.getElementById('prioridades-cards');
   if (!box) return;
   const doDia = state.prioridades.filter((p)=>p.data===dashboardDate);
-  const items = (doDia.length ? doDia : [...state.prioridades]).slice(0,3);
+  const source = doDia.length ? doDia : [...state.prioridades];
+  const pageSize = 3;
+  const maxStart = Math.max(0, source.length - pageSize);
+  if (prioridadeCarouselStart > maxStart) prioridadeCarouselStart = maxStart;
+  const items = source.slice(prioridadeCarouselStart, prioridadeCarouselStart + pageSize);
   box.innerHTML = items.length ? items.map((p)=>`<button class="card prioridade-card" data-prio-card="${p.id}" type="button"><div class="prioridade-thumb-wrap">${p.imagemUrl?`<img src="${p.imagemUrl}" alt="Prioridade" class="prioridade-thumb" />`:'<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}</div><div class="prioridade-title">${escapeHtml(stripHtml(p.conteudo||'').slice(0,56) || 'PRIORIDADE DO AR')}</div></button>`).join('') : `<div class="card"><strong>SEM PRIORIDADES PARA ESTE DIA.</strong></div>`;
   box.querySelectorAll('[data-prio-card]').forEach((el)=>el.addEventListener('click',()=>showPrioridadeDetalhe(el.dataset.prioCard)));
+  const info = document.getElementById('prioridades-page-info');
+  if (info) {
+    if (!source.length) info.textContent = '0 de 0';
+    else info.textContent = `${prioridadeCarouselStart + 1}-${Math.min(source.length, prioridadeCarouselStart + pageSize)} de ${source.length}`;
+  }
+  const prevBtn = document.getElementById('btn-prio-prev');
+  const nextBtn = document.getElementById('btn-prio-next');
+  if (prevBtn) prevBtn.disabled = prioridadeCarouselStart <= 0;
+  if (nextBtn) nextBtn.disabled = prioridadeCarouselStart >= maxStart;
 }
 
 function showPrioridadeDetalhe(idPrio){
