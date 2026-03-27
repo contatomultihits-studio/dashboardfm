@@ -27,9 +27,11 @@
             <h3 style="margin:0.3rem 0 0">VISÃO EXECUTIVA</h3>
           </div>
           <div class="range">
-            <label>DE <input id="filtro-de" type="date" /></label>
-            <label>ATÉ <input id="filtro-ate" type="date" /></label>
-            <button id="btn-aplicar-filtro" type="button">APLICAR</button>
+            <label>DIA DA DASHBOARD <input id="dashboard-date" type="date" /></label>
+            <button id="btn-prev-dia" type="button">◀ DIA ANTERIOR</button>
+            <button id="btn-hoje" type="button">HOJE</button>
+            <button id="btn-next-dia" type="button">PRÓXIMO DIA ▶</button>
+            <button id="btn-aplicar-filtro" type="button">APLICAR DIA</button>
             <button id="btn-refresh" type="button">ATUALIZAR AGORA</button>
           </div>
         </div>
@@ -157,6 +159,16 @@
 
           <button type="submit">SALVAR ALTERAÇÕES</button>
         </form>
+      </div>
+    </div>
+
+    <div id="premio-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+      <div class="modal-card premio-detalhe">
+        <div class="modal-head">
+          <h3 id="premio-modal-title">DETALHES DO PRÊMIO</h3>
+          <button id="btn-close-premio-modal" type="button" class="btn-ghost">FECHAR</button>
+        </div>
+        <div id="premio-modal-body"></div>
       </div>
     </div>
 

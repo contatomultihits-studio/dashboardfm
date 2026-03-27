@@ -162,15 +162,18 @@ function wireEditModal() {
 
 function wireFilters() {
   document.getElementById('btn-aplicar-filtro').addEventListener('click', () => renderDashboard());
+  document.getElementById('btn-prev-dia').addEventListener('click', () => shiftDashboardDate(-1));
+  document.getElementById('btn-next-dia').addEventListener('click', () => shiftDashboardDate(1));
+  document.getElementById('btn-hoje').addEventListener('click', () => { document.getElementById('dashboard-date').value = todayISO(); renderDashboard(); });
   document.getElementById('btn-refresh').addEventListener('click', async () => refreshAllData());
+  document.getElementById('btn-close-premio-modal').addEventListener('click', () => document.getElementById('premio-modal').classList.add('hidden'));
+  document.getElementById('premio-modal').addEventListener('click', (e) => { if (e.target.id === 'premio-modal') document.getElementById('premio-modal').classList.add('hidden'); });
 }
 
 function initDefaultDates() {
-  const start = firstDayOfMonthISO();
   const end = todayISO();
   document.getElementById('p-data').value = end;
-  document.getElementById('filtro-de').value = start;
-  document.getElementById('filtro-ate').value = end;
+  document.getElementById('dashboard-date').value = end;
 }
 
 function renderAll() {
@@ -241,27 +244,37 @@ function renderPremiosGerenciamento() {
 }
 
 function renderDashboard() {
-  const de = document.getElementById('filtro-de').value;
-  const ate = document.getElementById('filtro-ate').value;
-  document.getElementById('periodo-label').textContent = `DADOS DE ${monthName(ate).toUpperCase()} • ${hasSupabase ? 'SUPABASE' : 'LOCAL'}`;
+  const dashboardDate = document.getElementById('dashboard-date').value || todayISO();
+  document.getElementById('periodo-label').textContent = `DADOS DE ${monthName(dashboardDate).toUpperCase()} • ${hasSupabase ? 'SUPABASE' : 'LOCAL'} • ${dashboardDate}`;
 
+  const de = firstDayOfMonthISOFrom(dashboardDate);
+  const ate = lastDayOfMonthISOFrom(dashboardDate);
   let regs=[...state.participacoes];
-  if(de) regs=regs.filter(r=>r.data>=de);
-  if(ate) regs=regs.filter(r=>r.data<=ate);
+  regs=regs.filter(r=>r.data>=de && r.data<=ate);
   const resumo=state.programas.map((p)=>{const r=regs.filter(x=>x.programaId===p.id);return {nome:p.nome,total:r.reduce((a,b)=>a+b.quantidade,0),dias:new Set(r.map(x=>x.data)).size};}).sort((a,b)=>b.total-a.total);
   const total=resumo.reduce((a,b)=>a+b.total,0), lider=resumo[0]?.nome||'—';
   document.getElementById('kpis').innerHTML=`<div class='card'><small>TOTAL DE PARTICIPAÇÕES</small><div class='kpi-value'>${total}</div></div><div class='card'><small>PROGRAMA COM + PARTICIPAÇÕES</small><div class='kpi-value'>${lider}</div></div>`;
   const max=Math.max(1,...resumo.map(r=>r.total));
   document.getElementById('bars').innerHTML=resumo.map(r=>`<div class='bar-row'><small>${r.nome}</small><div class='bar' style='width:${(r.total/max)*100}%'></div><small>${r.total}</small></div>`).join('');
 
-  const now=new Date().toISOString();
-  const ativos=state.premios.filter(p=>(!p.inicio||p.inicio<=now)&&(!p.fim||p.fim>=now));
-  const futuros=state.premios.filter(p=>p.inicio&&p.inicio>now).sort((a,b)=>a.inicio.localeCompare(b.inicio));
-  const passados=state.premios.filter(p=>p.fim&&p.fim<now).sort((a,b)=>b.fim.localeCompare(a.fim));
-  const atual=ativos[0]||futuros[0]||state.premios[0];
+  const dayStart = `${dashboardDate}T00:00:00.000Z`;
+  const dayEnd = `${dashboardDate}T23:59:59.999Z`;
+  const nowRef = currentClockOnDate(dashboardDate).toISOString();
+  const premiosDia = state.premios.filter((p) => {
+    const inicio = p.inicio || dayStart;
+    const fim = p.fim || dayEnd;
+    return inicio <= dayEnd && fim >= dayStart;
+  });
+  const ativos=premiosDia.filter(p=>(!p.inicio||p.inicio<=nowRef)&&(!p.fim||p.fim>=nowRef));
+  const futuros=premiosDia.filter(p=>p.inicio&&p.inicio>nowRef).sort((a,b)=>a.inicio.localeCompare(b.inicio));
+  const passados=premiosDia.filter(p=>p.fim&&p.fim<nowRef).sort((a,b)=>b.fim.localeCompare(a.fim));
+  const atual=ativos[0]||futuros[0]||null;
+  const semPremioAgora = !ativos.length;
 
-  document.getElementById('premio-vigente-titulo').textContent=atual?atual.nome:'NENHUM PRÊMIO';
-  document.getElementById('premio-vigente-desc').textContent=atual?(atual.descricao||'SEM DESCRIÇÃO'):'CADASTRE PRÊMIOS';
+  document.getElementById('premio-vigente-card').classList.toggle('clickable-featured', Boolean(atual));
+  document.getElementById('premio-vigente-card').onclick = atual ? () => showPremioHistorico(atual.id) : null;
+  document.getElementById('premio-vigente-titulo').textContent=semPremioAgora?'SEM PRÊMIO PROGRAMADO PARA ESSA HORA':atual.nome;
+  document.getElementById('premio-vigente-desc').textContent=semPremioAgora?'SELECIONE OUTRO DIA PARA VER A PROGRAMAÇÃO.':(atual.descricao||'SEM DESCRIÇÃO');
   document.getElementById('premio-vigente-ganhador').textContent=atual?.ganhador||'SEM GANHADOR';
   document.getElementById('premio-vigente-telefone').textContent=phoneMask(atual?.telefone);
 
@@ -277,10 +290,16 @@ function toDatetimeLocal(iso){if(!iso)return '';const d=new Date(iso);const pad=
 function monthName(dateISO){const d=dateISO?new Date(`${dateISO}T00:00:00`):new Date();return d.toLocaleDateString('pt-BR',{month:'long'});}
 function todayISO(){return new Date().toISOString().slice(0,10);}
 function firstDayOfMonthISO(){const d=new Date();d.setDate(1);return d.toISOString().slice(0,10);}
+function firstDayOfMonthISOFrom(baseISO){const d=new Date(`${baseISO}T00:00:00`);d.setDate(1);return d.toISOString().slice(0,10);}
+function lastDayOfMonthISOFrom(baseISO){const d=new Date(`${baseISO}T00:00:00`);d.setMonth(d.getMonth()+1,0);return d.toISOString().slice(0,10);}
+function currentClockOnDate(baseISO){const now=new Date();const d=new Date(`${baseISO}T00:00:00`);d.setHours(now.getHours(),now.getMinutes(),now.getSeconds(),0);return d;}
 function val(idEl){return document.getElementById(idEl).value;}
 function id(){return Math.random().toString(36).slice(2,10);}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}
-function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===idPremio);if(!p)return;alert(`PRÊMIO: ${p.nome}\n\nDESCRIÇÃO: ${p.descricao||'-'}\n\nGANHADOR: ${p.ganhador||'-'}`);}
+function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===idPremio);if(!p)return;document.getElementById('premio-modal-title').textContent=p.nome||'DETALHES DO PRÊMIO';document.getElementById('premio-modal-body').innerHTML=`<div class="premio-info"><p><strong>DESCRIÇÃO</strong><br/>${escapeHtml(p.descricao||'-')}</p><p><strong>GANHADOR</strong><br/>${escapeHtml(p.ganhador||'-')}</p><p><strong>TELEFONE</strong><br/>${escapeHtml(phoneMask(p.telefone))}</p><p><strong>VIGÊNCIA</strong><br/>${fmtDateTime(p.inicio)} até ${fmtDateTime(p.fim)}</p></div>`;document.getElementById('premio-modal').classList.remove('hidden');}
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,(m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+function fmtDateTime(iso){if(!iso)return '--';return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
+function shiftDashboardDate(days){const el=document.getElementById('dashboard-date');const d=new Date(`${el.value||todayISO()}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);renderDashboard();}
 
 async function insertPremioSupabase(payload){
   const basePayload = {

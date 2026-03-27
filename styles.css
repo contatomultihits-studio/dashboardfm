@@ -25,6 +25,8 @@ main { padding: 1.3rem 0 3rem; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 1.1rem; box-shadow: 0 12px 30px rgba(37, 99, 235, .08); }
 .featured { background: linear-gradient(135deg, #2f5de9 0%, #3569ee 60%, #4537c9 100%); border: none; color: #fff; }
 .featured h2 { font-size: 2rem; margin: .3rem 0 .6rem; }
+.clickable-featured { cursor: pointer; transition: transform .15s, box-shadow .15s; }
+.clickable-featured:hover { transform: translateY(-2px); box-shadow: 0 18px 32px rgba(37, 99, 235, .32); }
 .badges { display:flex; gap:.5rem; flex-wrap:wrap; }
 .badge { background: rgba(255,255,255,.2); padding:.35rem .7rem; border-radius:999px; font-weight:700; }
 .badge-red { background:#ff4d57; color:#fff; }
@@ -50,9 +52,13 @@ button:hover { transform: translateY(-1px); box-shadow: 0 14px 24px rgba(37,99,2
 .filters { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
 .range { display: flex; gap: .5rem; flex-wrap: wrap; align-items: end; }
 .range label { display: grid; gap: .2rem; font-size: .9rem; color: #334155; }
+.range button { white-space: nowrap; }
 .next-item { padding: .65rem .7rem; margin-top: .45rem; border: 1px solid #dbe7ff; border-radius: 12px; background: #f6f9ff; }
 .hidden { display: none !important; }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); display: grid; place-items: center; z-index: 30; padding: 1rem; }
 .modal-card { width: min(680px, 100%); max-height: 92vh; overflow: auto; background: #fff; border: 1px solid #d3dff9; border-radius: 20px; padding: 1rem; box-shadow: 0 30px 60px rgba(15,23,42,.35); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: .7rem; }
 .btn-ghost { background: #e2e8f0; color: #0f172a; box-shadow: none; }
+.premio-detalhe { background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%); border-color: #cfe0ff; }
+.premio-info { display: grid; gap: .8rem; padding: .5rem .25rem; }
+.premio-info p { margin: 0; line-height: 1.45; }
