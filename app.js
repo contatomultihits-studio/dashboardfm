@@ -19,6 +19,7 @@ async function init() {
   wireTabs();
   wireForms();
   wireEditModal();
+  wireRichEditors();
   initDefaultDates();
   wireFilters();
   wireGerenciamentoTools();
@@ -164,6 +165,8 @@ function wireForms() {
 
   document.getElementById('form-prioridade').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const conteudoHtml = getEditorHtml('ar-editor');
+    if (!stripHtml(conteudoHtml).trim()) return toast('CONTEÚDO É OBRIGATÓRIO');
     const file = document.getElementById('ar-imagem')?.files?.[0] || null;
     let imagemUrl = null;
     if (hasSupabase && file) {
@@ -172,13 +175,14 @@ function wireForms() {
       imagemUrl = upload.url || null;
     }
     if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('ar-imagem');
-    const payload = { data: val('ar-data'), programaId: null, conteudo: val('ar-conteudo'), concluido: false, imagemUrl: imagemUrl || null };
+    const payload = { data: val('ar-data'), programaId: null, conteudo: conteudoHtml, concluido: false, imagemUrl: imagemUrl || null };
     if (hasSupabase) {
       const { error } = await insertPrioridadeSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
       await syncAfterMutation();
     } else { state.prioridades.unshift({ id: id(), ...payload }); persistLocal(); }
     e.target.reset();
+    setEditorHtml('ar-editor', '');
     document.getElementById('ar-data').value = todayISO();
     renderAll();
   });
@@ -210,6 +214,7 @@ function initDefaultDates() {
   document.getElementById('dashboard-date').value = end;
   document.getElementById('gmt-date').value = end;
   document.getElementById('ar-data').value = end;
+  setEditorHtml('ar-editor', '');
   presetPremioFormDateTime();
 }
 
@@ -379,8 +384,8 @@ function val(idEl){return document.getElementById(idEl).value;}
 function renderPrioridadesAr() {
   const t = document.getElementById('tabela-prioridades-ar');
   if (!t) return;
-  t.innerHTML = `<thead><tr><th>DATA</th><th>CONTEÚDO</th><th>IMAGEM</th><th>AÇÕES</th></tr></thead><tbody>${state.prioridades.map((p)=>`<tr><td>${p.data}</td><td>${(p.conteudo||'').slice(0,140)}</td><td>${p.imagemUrl?`<a href='${p.imagemUrl}' target='_blank' rel='noreferrer'>VER</a>`:'-'}</td><td><button data-edit-prio='${p.id}'>EDITAR</button> <button data-del-prio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
-  t.querySelectorAll('[data-edit-prio]').forEach((b)=>b.addEventListener('click', async()=>editPrioridade(b.dataset.editPrio)));
+  t.innerHTML = `<thead><tr><th>DATA</th><th>CONTEÚDO</th><th>IMAGEM</th><th>AÇÕES</th></tr></thead><tbody>${state.prioridades.map((p)=>`<tr><td>${p.data}</td><td>${escapeHtml(stripHtml(p.conteudo||'').slice(0,140))}</td><td>${p.imagemUrl?`<a href='${p.imagemUrl}' target='_blank' rel='noreferrer'>VER</a>`:'-'}</td><td><button data-edit-prio='${p.id}'>EDITAR</button> <button data-del-prio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
+  t.querySelectorAll('[data-edit-prio]').forEach((b)=>b.addEventListener('click', async()=>openEditModal('prioridade', b.dataset.editPrio)));
   t.querySelectorAll('[data-del-prio]').forEach((b)=>b.addEventListener('click', async()=>deletePrioridade(b.dataset.delPrio)));
 }
 
@@ -403,37 +408,17 @@ async function insertPrioridadeSupabase(payload) {
   return sb.from('prioridades_ar').insert(base);
 }
 
-async function editPrioridade(idPrio) {
-  const item = state.prioridades.find((x)=>x.id===idPrio);
-  if(!item) return;
-  const novaData = prompt('DATA (AAAA-MM-DD):', item.data || '');
-  if(!novaData) return;
-  const novoConteudo = prompt('CONTEÚDO:', item.conteudo || '');
-  if(!novoConteudo) return;
-  const novaImagem = prompt('URL DA IMAGEM (OPCIONAL):', item.imagemUrl || '') ?? '';
-  Object.assign(item, { data: novaData, conteudo: novoConteudo, imagemUrl: novaImagem });
-  if (hasSupabase) {
-    const base = { data: novaData, conteudo: novoConteudo, programa_id: null };
-    const firstTry = await sb.from('prioridades_ar').update({ ...base, imagem_url: novaImagem || null }).eq('id', idPrio);
-    if (firstTry.error && !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return toast(`ERRO: ${firstTry.error.message}`);
-    if (firstTry.error) {
-      const fallback = await sb.from('prioridades_ar').update(base).eq('id', idPrio);
-      if (fallback.error) return toast(`ERRO: ${fallback.error.message}`);
-    }
-    await syncAfterMutation();
-  } else persistLocal();
-  renderPrioridadesAr();
-}
-
 async function deletePrioridade(idPrio) {
   if(!confirm('EXCLUIR PRIORIDADE DO AR?')) return;
-  state.prioridades = state.prioridades.filter((x)=>x.id!==idPrio);
   if (hasSupabase) {
     const { error } = await sb.from('prioridades_ar').delete().eq('id', idPrio);
     if (error) return toast(`ERRO: ${error.message}`);
     await syncAfterMutation();
-  } else persistLocal();
-  renderPrioridadesAr();
+  } else {
+    state.prioridades = state.prioridades.filter((x)=>x.id!==idPrio);
+    persistLocal();
+  }
+  renderAll();
 }
 
 async function uploadPrioridadeImageSupabase(file) {
@@ -457,7 +442,7 @@ function renderPrioridadesCards(dashboardDate){
   if (!box) return;
   const doDia = state.prioridades.filter((p)=>p.data===dashboardDate);
   const items = (doDia.length ? doDia : [...state.prioridades]).slice(0,3);
-  box.innerHTML = items.length ? items.map((p)=>`<button class="card prioridade-card" data-prio-card="${p.id}" type="button"><div class="prioridade-thumb-wrap">${p.imagemUrl?`<img src="${p.imagemUrl}" alt="Prioridade" class="prioridade-thumb" />`:'<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}</div><div class="prioridade-title">${escapeHtml((p.conteudo||'').slice(0,56) || 'PRIORIDADE DO AR')}</div></button>`).join('') : `<div class="card"><strong>SEM PRIORIDADES PARA ESTE DIA.</strong></div>`;
+  box.innerHTML = items.length ? items.map((p)=>`<button class="card prioridade-card" data-prio-card="${p.id}" type="button"><div class="prioridade-thumb-wrap">${p.imagemUrl?`<img src="${p.imagemUrl}" alt="Prioridade" class="prioridade-thumb" />`:'<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}</div><div class="prioridade-title">${escapeHtml(stripHtml(p.conteudo||'').slice(0,56) || 'PRIORIDADE DO AR')}</div></button>`).join('') : `<div class="card"><strong>SEM PRIORIDADES PARA ESTE DIA.</strong></div>`;
   box.querySelectorAll('[data-prio-card]').forEach((el)=>el.addEventListener('click',()=>showPrioridadeDetalhe(el.dataset.prioCard)));
 }
 
@@ -465,7 +450,7 @@ function showPrioridadeDetalhe(idPrio){
   const p = state.prioridades.find((x)=>x.id===idPrio);
   if(!p) return;
   document.getElementById('prioridade-modal-title').textContent = `PRIORIDADE DO AR • ${fmtDateOnly(p.data)}`;
-  document.getElementById('prioridade-modal-body').innerHTML = `<div class="prioridade-hero">${p.imagemUrl?`<img src="${p.imagemUrl}" alt="Imagem prioridade" class="prioridade-modal-img" />`:'<div class="prioridade-modal-noimg">SEM IMAGEM</div>'}</div><div class="prioridade-texto"><strong>CONTEÚDO</strong><p>${escapeHtml(p.conteudo||'-').replace(/\\n/g,'<br/>')}</p></div>`;
+  document.getElementById('prioridade-modal-body').innerHTML = `<div class="prioridade-hero">${p.imagemUrl?`<img src="${p.imagemUrl}" alt="Imagem prioridade" class="prioridade-modal-img" />`:'<div class="prioridade-modal-noimg">SEM IMAGEM</div>'}</div><div class="prioridade-texto"><strong>CONTEÚDO</strong><div class="rich-render">${renderRichText(p.conteudo||'-')}</div></div>`;
   document.getElementById('prioridade-modal').classList.remove('hidden');
 }
 
@@ -569,6 +554,17 @@ function openEditModal(tipo, itemId) {
     document.getElementById('e-participacao-qtd').value = item.quantidade || 0;
   }
 
+  if (tipo === 'prioridade') {
+    const item = state.prioridades.find((x) => x.id === itemId);
+    if (!item) return;
+    title.textContent = 'EDITAR PRIORIDADE';
+    setEditGroupState('edit-fields-prioridade', true);
+    document.getElementById('e-prio-data').value = item.data || '';
+    document.getElementById('e-prio-imagem-url').value = item.imagemUrl || '';
+    document.getElementById('e-prio-imagem-file').value = '';
+    setEditorHtml('e-prio-editor', item.conteudo || '');
+  }
+
   modal.classList.remove('hidden');
 }
 
@@ -582,6 +578,7 @@ function hideEditGroups() {
   setEditGroupState('edit-fields-programa', false);
   setEditGroupState('edit-fields-premio', false);
   setEditGroupState('edit-fields-participacao', false);
+  setEditGroupState('edit-fields-prioridade', false);
 }
 
 function setEditGroupState(groupId, active) {
@@ -653,6 +650,116 @@ async function submitEditModal(e) {
     } else persistLocal();
   }
 
+  if (editModalState.tipo === 'prioridade') {
+    const item = state.prioridades.find((x) => x.id === editModalState.id);
+    if (!item) return;
+    const novaData = document.getElementById('e-prio-data').value;
+    const novoConteudo = getEditorHtml('e-prio-editor');
+    const imagemUrlInput = document.getElementById('e-prio-imagem-url').value.trim();
+    const file = document.getElementById('e-prio-imagem-file')?.files?.[0] || null;
+    if (!stripHtml(novoConteudo).trim()) return toast('CONTEÚDO É OBRIGATÓRIO');
+    let imagemUrlFinal = imagemUrlInput || item.imagemUrl || '';
+    if (file) {
+      if (hasSupabase) {
+        const upload = await uploadPrioridadeImageSupabase(file);
+        if (upload.error) return toast(`ERRO UPLOAD: ${upload.error.message}`);
+        imagemUrlFinal = upload.url || imagemUrlFinal;
+      } else {
+        imagemUrlFinal = await fileInputToDataUrl('e-prio-imagem-file');
+      }
+    }
+    Object.assign(item, { data: novaData, conteudo: novoConteudo, imagemUrl: imagemUrlFinal || '' });
+    if (hasSupabase) {
+      const base = { data: novaData, conteudo: novoConteudo, programa_id: null };
+      const firstTry = await sb.from('prioridades_ar').update({ ...base, imagem_url: imagemUrlFinal || null }).eq('id', item.id);
+      if (firstTry.error && !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return toast(`ERRO: ${firstTry.error.message}`);
+      if (firstTry.error) {
+        const fallback = await sb.from('prioridades_ar').update(base).eq('id', item.id);
+        if (fallback.error) return toast(`ERRO: ${fallback.error.message}`);
+      }
+      await syncAfterMutation();
+    } else persistLocal();
+  }
+
   closeEditModal();
   renderAll();
+}
+
+function wireRichEditors() {
+  document.querySelectorAll('.rich-toolbar button[data-cmd]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const editorId = btn.closest('.rich-toolbar')?.dataset.editor;
+      const editor = document.getElementById(editorId || '');
+      if (!editor) return;
+      editor.focus();
+      document.execCommand(btn.dataset.cmd, false, null);
+    });
+  });
+  document.querySelectorAll('.font-picker[data-font-target]').forEach((picker) => {
+    picker.addEventListener('change', () => {
+      const editor = document.getElementById(picker.dataset.fontTarget || '');
+      if (!editor) return;
+      editor.focus();
+      document.execCommand('fontName', false, picker.value);
+    });
+  });
+}
+
+function getEditorHtml(idEditor) {
+  const editor = document.getElementById(idEditor);
+  if (!editor) return '';
+  const clean = sanitizeRichText(editor.innerHTML || '');
+  const hiddenInputId = idEditor === 'ar-editor' ? 'ar-conteudo' : (idEditor === 'e-prio-editor' ? 'e-prio-conteudo' : '');
+  if (hiddenInputId) document.getElementById(hiddenInputId).value = clean;
+  return clean;
+}
+
+function setEditorHtml(idEditor, value) {
+  const editor = document.getElementById(idEditor);
+  if (!editor) return;
+  editor.innerHTML = sanitizeRichText(value || '');
+}
+
+function renderRichText(value) {
+  const content = String(value || '');
+  if (content.includes('<')) return sanitizeRichText(content);
+  return escapeHtml(content).replace(/\n/g, '<br/>');
+}
+
+function sanitizeRichText(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${html || ''}</div>`, 'text/html');
+  const root = doc.body.firstChild;
+  const allowedTags = new Set(['DIV', 'P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'SPAN']);
+  const allowedFonts = ['Arial', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia'];
+
+  const walk = (node) => {
+    [...node.children].forEach((child) => {
+      if (!allowedTags.has(child.tagName)) {
+        child.replaceWith(...child.childNodes);
+        return;
+      }
+      const style = child.getAttribute('style') || '';
+      const keep = [];
+      const fontMatch = style.match(/font-family:\s*([^;]+)/i);
+      if (fontMatch) {
+        const picked = fontMatch[1].replace(/['"]/g, '').split(',')[0].trim();
+        if (allowedFonts.includes(picked)) keep.push(`font-family:${picked}`);
+      }
+      const alignMatch = style.match(/text-align:\s*(left|center|right)/i);
+      if (alignMatch) keep.push(`text-align:${alignMatch[1].toLowerCase()}`);
+      if (keep.length) child.setAttribute('style', keep.join(';'));
+      else child.removeAttribute('style');
+      [...child.attributes].forEach((attr) => {
+        if (attr.name !== 'style') child.removeAttribute(attr.name);
+      });
+      walk(child);
+    });
+  };
+  walk(root);
+  return root.innerHTML.trim();
+}
+
+function stripHtml(value) {
+  return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }

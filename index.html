@@ -26,7 +26,7 @@
           <span class="sticker sticker-a">AO VIVO</span>
           <span class="sticker sticker-b">#PLAYLIST</span>
           <span class="doodle">✷</span>
-          <h1>RÁDIO DISNEY<br/>CONTROL ROOM</h1>
+          <h1>RÁDIO DISNEY</h1>
           <p>PAINEL CRIATIVO PARA OPERAÇÃO DIÁRIA, PRÊMIOS E PRIORIDADES DO AR.</p>
         </div>
 
@@ -154,7 +154,25 @@
             <label>DATA</label>
             <input id="ar-data" type="date" required />
             <label>CONTEÚDO</label>
-            <textarea id="ar-conteudo" rows="6" required></textarea>
+            <div class="rich-editor-wrap">
+              <div class="rich-toolbar" data-editor="ar-editor">
+                <button type="button" class="btn-ghost" data-cmd="bold">Negrito</button>
+                <button type="button" class="btn-ghost" data-cmd="italic">Itálico</button>
+                <button type="button" class="btn-ghost" data-cmd="underline">Subl.</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyLeft">Esq</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyCenter">Centro</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyRight">Dir</button>
+                <select data-font-target="ar-editor" class="font-picker">
+                  <option value="Arial">Arial</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Trebuchet MS">Trebuchet</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+              <div id="ar-editor" class="rich-editor" contenteditable="true" aria-label="Conteúdo da prioridade"></div>
+            </div>
+            <input id="ar-conteudo" type="hidden" />
             <label>IMAGEM (UPLOAD)</label>
             <input id="ar-imagem" type="file" accept="image/*" />
             <button type="submit">SALVAR PRIORIDADE</button>
@@ -204,6 +222,35 @@
             <input id="e-participacao-data" type="date" required />
             <label>QUANTIDADE</label>
             <input id="e-participacao-qtd" type="number" min="0" required />
+          </div>
+
+          <div id="edit-fields-prioridade" class="edit-group hidden">
+            <label>DATA</label>
+            <input id="e-prio-data" type="date" required />
+            <label>IMAGEM URL (OPCIONAL)</label>
+            <input id="e-prio-imagem-url" placeholder="https://..." />
+            <label class="full-row">TROCAR IMAGEM (UPLOAD)</label>
+            <input id="e-prio-imagem-file" type="file" accept="image/*" class="full-row" />
+            <label class="full-row">CONTEÚDO</label>
+            <div class="rich-editor-wrap full-row">
+              <div class="rich-toolbar" data-editor="e-prio-editor">
+                <button type="button" class="btn-ghost" data-cmd="bold">Negrito</button>
+                <button type="button" class="btn-ghost" data-cmd="italic">Itálico</button>
+                <button type="button" class="btn-ghost" data-cmd="underline">Subl.</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyLeft">Esq</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyCenter">Centro</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyRight">Dir</button>
+                <select data-font-target="e-prio-editor" class="font-picker">
+                  <option value="Arial">Arial</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Trebuchet MS">Trebuchet</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+              <div id="e-prio-editor" class="rich-editor" contenteditable="true" aria-label="Conteúdo da prioridade"></div>
+            </div>
+            <input id="e-prio-conteudo" type="hidden" />
           </div>
 
           <button type="submit">SALVAR ALTERAÇÕES</button>

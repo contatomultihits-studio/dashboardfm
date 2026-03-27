@@ -66,6 +66,7 @@ button:hover { transform: scale(1.05) rotate(-1deg); box-shadow: 0 14px 24px rgb
 .modal-card .form { gap: .9rem; }
 .modal-card .form label { display: block; font-weight: 700; font-size: .9rem; color: #334155; margin-bottom: .2rem; }
 .edit-group { display: grid; gap: .65rem; }
+.edit-group .full-row { grid-column: 1 / -1; }
 @media (min-width: 900px) {
   .edit-group { grid-template-columns: 1fr 1fr; gap: .75rem 1rem; }
   .edit-group .inline { grid-column: 1 / -1; }
@@ -87,6 +88,7 @@ button:hover { transform: scale(1.05) rotate(-1deg); box-shadow: 0 14px 24px rgb
 .prioridade-modal-img { width: 100%; max-height: 320px; object-fit: contain; border-radius: 10px; }
 .prioridade-modal-noimg { min-height: 160px; display: grid; place-items: center; color: #64748b; font-weight: 700; }
 .prioridade-texto p { margin: .45rem 0 0; line-height: 1.55; white-space: normal; }
+.prioridade-texto .rich-render { margin-top: .45rem; line-height: 1.55; }
 
 .editorial-hero { position: relative; background: #111; color: #fff; min-height: 220px; overflow: hidden; }
 .editorial-hero h1 { font-size: clamp(2.2rem, 6vw, 4.8rem); line-height: .92; margin: 0; }
@@ -100,3 +102,10 @@ button:hover { transform: scale(1.05) rotate(-1deg); box-shadow: 0 14px 24px rgb
   0%, 100% { transform: translateY(0) rotate(-15deg); }
   50% { transform: translateY(-6px) rotate(-10deg); }
 }
+
+.rich-editor-wrap { border: 2px solid #111; border-radius: 14px; padding: .5rem; background: #fff; }
+.rich-toolbar { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .45rem; }
+.rich-toolbar .btn-ghost { padding: .4rem .6rem; border-radius: 9px; border: 1px solid #cbd5e1; }
+.font-picker { min-width: 120px; border: 1px solid #cbd5e1; border-radius: 9px; padding: .35rem .4rem; }
+.rich-editor { min-height: 150px; border: 1px solid #d5deeb; border-radius: 12px; padding: .7rem; background: #f8fbff; outline: none; }
+.rich-editor:focus { border-color: #1454ff; box-shadow: 0 0 0 3px rgba(20,84,255,.2); }
