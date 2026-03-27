@@ -74,3 +74,13 @@ button:hover { transform: translateY(-1px); box-shadow: 0 14px 24px rgba(37,99,2
 .premio-tags .tag { display: inline-block; padding: .3rem .6rem; border-radius: 999px; background: rgba(255,255,255,.22); font-weight: 700; font-size: .86rem; }
 .premio-info { display: grid; gap: .8rem; padding: .5rem .25rem; }
 .premio-info p { margin: 0; line-height: 1.45; }
+.prioridade-card { text-align: left; background: #fff; border: 1px solid #d8e3ff; box-shadow: 0 12px 24px rgba(37,99,235,.12); }
+.prioridade-thumb-wrap { width: 100%; height: 180px; border-radius: 14px; background: #f4f7ff; display: grid; place-items: center; overflow: hidden; margin-bottom: .7rem; }
+.prioridade-thumb { width: 100%; height: 100%; object-fit: contain; }
+.prioridade-thumb-placeholder { color: #64748b; font-weight: 700; }
+.prioridade-title { font-weight: 800; color: #1e293b; line-height: 1.35; }
+.prioridade-detalhe { max-width: 760px; }
+.prioridade-hero { border-radius: 14px; background: #eef4ff; padding: .6rem; margin-bottom: .85rem; }
+.prioridade-modal-img { width: 100%; max-height: 320px; object-fit: contain; border-radius: 10px; }
+.prioridade-modal-noimg { min-height: 160px; display: grid; place-items: center; color: #64748b; font-weight: 700; }
+.prioridade-texto p { margin: .45rem 0 0; line-height: 1.55; white-space: normal; }

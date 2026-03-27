@@ -200,6 +200,8 @@ function wireFilters() {
   document.getElementById('btn-refresh').addEventListener('click', async () => refreshAllData());
   document.getElementById('btn-close-premio-modal').addEventListener('click', () => document.getElementById('premio-modal').classList.add('hidden'));
   document.getElementById('premio-modal').addEventListener('click', (e) => { if (e.target.id === 'premio-modal') document.getElementById('premio-modal').classList.add('hidden'); });
+  document.getElementById('btn-close-prioridade-modal').addEventListener('click', () => document.getElementById('prioridade-modal').classList.add('hidden'));
+  document.getElementById('prioridade-modal').addEventListener('click', (e) => { if (e.target.id === 'prioridade-modal') document.getElementById('prioridade-modal').classList.add('hidden'); });
 }
 
 function initDefaultDates() {
@@ -321,6 +323,7 @@ function presetPremioFormDateTime() {
 function renderDashboard() {
   const dashboardDate = document.getElementById('dashboard-date').value || todayISO();
   document.getElementById('periodo-label').textContent = `DADOS: ${new Date(`${dashboardDate}T00:00:00`).toLocaleDateString('pt-BR')}`;
+  renderPrioridadesCards(dashboardDate);
 
   const de = firstDayOfMonthISOFrom(dashboardDate);
   const ate = lastDayOfMonthISOFrom(dashboardDate);
@@ -448,6 +451,23 @@ function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===id
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,(m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
 function fmtDateTime(iso){if(!iso)return '--';return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function shiftDashboardDate(days){const el=document.getElementById('dashboard-date');const d=new Date(`${el.value||todayISO()}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);renderDashboard();}
+
+function renderPrioridadesCards(dashboardDate){
+  const box = document.getElementById('prioridades-cards');
+  if (!box) return;
+  const doDia = state.prioridades.filter((p)=>p.data===dashboardDate);
+  const items = (doDia.length ? doDia : [...state.prioridades]).slice(0,3);
+  box.innerHTML = items.length ? items.map((p)=>`<button class="card prioridade-card" data-prio-card="${p.id}" type="button"><div class="prioridade-thumb-wrap">${p.imagemUrl?`<img src="${p.imagemUrl}" alt="Prioridade" class="prioridade-thumb" />`:'<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}</div><div class="prioridade-title">${escapeHtml((p.conteudo||'').slice(0,56) || 'PRIORIDADE DO AR')}</div></button>`).join('') : `<div class="card"><strong>SEM PRIORIDADES PARA ESTE DIA.</strong></div>`;
+  box.querySelectorAll('[data-prio-card]').forEach((el)=>el.addEventListener('click',()=>showPrioridadeDetalhe(el.dataset.prioCard)));
+}
+
+function showPrioridadeDetalhe(idPrio){
+  const p = state.prioridades.find((x)=>x.id===idPrio);
+  if(!p) return;
+  document.getElementById('prioridade-modal-title').textContent = `PRIORIDADE DO AR • ${fmtDateOnly(p.data)}`;
+  document.getElementById('prioridade-modal-body').innerHTML = `<div class="prioridade-hero">${p.imagemUrl?`<img src="${p.imagemUrl}" alt="Imagem prioridade" class="prioridade-modal-img" />`:'<div class="prioridade-modal-noimg">SEM IMAGEM</div>'}</div><div class="prioridade-texto"><strong>CONTEÚDO</strong><p>${escapeHtml(p.conteudo||'-').replace(/\\n/g,'<br/>')}</p></div>`;
+  document.getElementById('prioridade-modal').classList.remove('hidden');
+}
 
 async function insertPremioSupabase(payload){
   const basePayload = {
