@@ -81,30 +81,32 @@
           <table id="tabela-participacoes" class="table"></table>
           <button id="btn-toggle-participacoes" type="button">VER MAIS ANTIGAS</button>
         </div>
+        <form id="form-programa" class="card form">
+          <h3>NOVO PROGRAMA</h3>
+          <label>NOME</label>
+          <input id="g-programa-nome" required />
+          <label>COR</label>
+          <input id="g-programa-cor" type="color" value="#2563eb" required />
+          <label class="inline"><input id="g-programa-ativo" type="checkbox" checked /> ATIVO</label>
+          <button type="submit">ADICIONAR PROGRAMA</button>
+        </form>
+        <div class="card"><h3>PROGRAMAS</h3><table id="tabela-programas" class="table"></table></div>
       </section>
 
       <section id="gerenciamento" class="view">
         <div class="grid cols-2">
-          <form id="form-programa" class="card form">
-            <h3>NOVO PROGRAMA</h3>
-            <label>NOME</label>
-            <input id="g-programa-nome" required />
-            <label>COR</label>
-            <input id="g-programa-cor" type="color" value="#2563eb" required />
-            <label class="inline"><input id="g-programa-ativo" type="checkbox" checked /> ATIVO</label>
-            <button type="submit">ADICIONAR PROGRAMA</button>
-          </form>
-
           <form id="form-premio" class="card form">
             <h3>NOVO PRÊMIO DA HORA</h3>
             <label>NOME</label>
             <input id="g-premio-nome" required />
             <label>DESCRIÇÃO</label>
             <textarea id="g-premio-desc" rows="3" required></textarea>
-            <label>INÍCIO DA VIGÊNCIA</label>
-            <input id="g-premio-inicio" type="datetime-local" required />
-            <label>FIM DA VIGÊNCIA</label>
-            <input id="g-premio-fim" type="datetime-local" required />
+            <label>DATA DA PROMOÇÃO</label>
+            <input id="g-premio-data" type="date" required />
+            <label>HORA INÍCIO</label>
+            <input id="g-premio-inicio-hora" type="time" required />
+            <label>HORA FIM</label>
+            <input id="g-premio-fim-hora" type="time" required />
             <label>GANHADOR</label>
             <input id="g-premio-ganhador" />
             <label>TELEFONE GANHADOR</label>
@@ -131,7 +133,6 @@
           </div>
         </div>
 
-        <div class="card"><h3>PROGRAMAS</h3><table id="tabela-programas" class="table"></table></div>
         <div class="card"><h3>PRÊMIOS (EDITAR/EXCLUIR)</h3><table id="tabela-premios-gerenciamento" class="table"></table></div>
       </section>
     </main>

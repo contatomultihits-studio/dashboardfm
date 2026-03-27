@@ -120,9 +120,16 @@ function wireForms() {
 
   document.getElementById('form-premio').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const dia = val('g-premio-data');
+    const hInicio = val('g-premio-inicio-hora');
+    const hFim = val('g-premio-fim-hora');
+    const inicio = new Date(`${dia}T${hInicio}:00`);
+    const fim = new Date(`${dia}T${hFim}:00`);
+    if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) return toast('DATA/HORA INVÁLIDA');
+    if (fim <= inicio) return toast('HORA FIM DEVE SER MAIOR QUE INÍCIO');
     const payload = {
       nome: val('g-premio-nome'), descricao: val('g-premio-desc'),
-      inicio: new Date(val('g-premio-inicio')).toISOString(), fim: new Date(val('g-premio-fim')).toISOString(),
+      inicio: inicio.toISOString(), fim: fim.toISOString(),
       ganhador: val('g-premio-ganhador') || null, telefone: val('g-premio-telefone') || null
     };
     if (hasSupabase) {
@@ -132,8 +139,7 @@ function wireForms() {
       await syncAfterMutation();
     } else { state.premios.push({ id: id(), ...payload }); persistLocal(); }
     e.target.reset();
-    document.getElementById('g-premio-inicio').value = '';
-    document.getElementById('g-premio-fim').value = '';
+    presetPremioFormDateTime();
     renderAll();
   });
 
@@ -178,6 +184,7 @@ function initDefaultDates() {
   document.getElementById('p-data').value = end;
   document.getElementById('dashboard-date').value = end;
   document.getElementById('gmt-date').value = end;
+  presetPremioFormDateTime();
 }
 
 function renderAll() {
@@ -272,6 +279,18 @@ function renderWinnerSearch() {
   table.innerHTML = `<thead><tr><th>GANHADOR</th><th>PRÊMIO</th><th>DATA</th></tr></thead><tbody>${
     rows.length ? rows.map((p) => `<tr><td>${p.ganhador || '-'}</td><td>${p.nome}</td><td>${fmtDateOnly(p.fim || p.inicio)}</td></tr>`).join('') : '<tr><td colspan="3">NENHUM GANHADOR ENCONTRADO.</td></tr>'
   }</tbody>`;
+}
+
+function presetPremioFormDateTime() {
+  const hoje = todayISO();
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const start = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const endD = new Date(now.getTime() + 60 * 60 * 1000);
+  const end = `${pad(endD.getHours())}:${pad(endD.getMinutes())}`;
+  document.getElementById('g-premio-data').value = hoje;
+  document.getElementById('g-premio-inicio-hora').value = start;
+  document.getElementById('g-premio-fim-hora').value = end;
 }
 
 function renderDashboard() {
