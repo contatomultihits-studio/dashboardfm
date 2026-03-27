@@ -8,7 +8,7 @@ let hasGanhadorTelefoneColumn = true;
 const editModalState = { tipo: null, id: null };
 let dashboardRefreshInterval = null;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
-const state = { programas: [], premios: [], participacoes: [] };
+const state = { programas: [], premios: [], participacoes: [], prioridades: [] };
 
 init();
 
@@ -67,13 +67,14 @@ function wireConfigButton() {
 
 async function loadInitialData() {
   if (hasSupabase) {
-    const [p1, p2, p3] = await Promise.all([
+    const [p1, p2, p3, p4] = await Promise.all([
       sb.from('programas').select('id,nome,cor_hex,ativo').order('nome'),
       sb.from('premios').select('*').order('inicio_vigencia', { ascending: true }),
-      sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro').order('data_referencia', { ascending: false })
+      sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro').order('data_referencia', { ascending: false }),
+      sb.from('prioridades_ar').select('*').order('data', { ascending: false })
     ]);
-    if (p1.error || p2.error || p3.error) {
-      toast(`ERRO SUPABASE: ${(p1.error || p2.error || p3.error).message}`);
+    if (p1.error || p2.error || p3.error || p4.error) {
+      toast(`ERRO SUPABASE: ${(p1.error || p2.error || p3.error || p4.error).message}`);
       return;
     }
     state.programas = (p1.data || []).map((x) => ({ id: x.id, nome: x.nome, cor: x.cor_hex || '#2563eb', ativo: x.ativo }));
@@ -87,10 +88,11 @@ async function loadInitialData() {
       telefone: x.ganhador_telefone || ''
     }));
     state.participacoes = (p3.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
+    state.prioridades = (p4.data || []).map((x) => ({ id: x.id, data: x.data, programaId: x.programa_id, conteudo: x.conteudo, concluido: Boolean(x.concluido), imagemUrl: x.imagem_url || '' }));
     return;
   }
 
-  const local = JSON.parse(localStorage.getItem(dbKey) || '{"programas":[],"premios":[],"participacoes":[]}');
+  const local = JSON.parse(localStorage.getItem(dbKey) || '{"programas":[],"premios":[],"participacoes":[],"prioridades":[]}');
   Object.assign(state, local);
 }
 
@@ -159,6 +161,20 @@ function wireForms() {
     showAllParticipacoes = !showAllParticipacoes;
     renderParticipacoes();
   });
+
+  document.getElementById('form-prioridade').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const imagemBase64 = await fileInputToDataUrl('ar-imagem');
+    const payload = { data: val('ar-data'), programaId: val('ar-programa'), conteudo: val('ar-conteudo'), concluido: false, imagemUrl: imagemBase64 || null };
+    if (hasSupabase) {
+      const { error } = await insertPrioridadeSupabase(payload);
+      if (error) return toast(`ERRO: ${error.message}`);
+      await syncAfterMutation();
+    } else { state.prioridades.unshift({ id: id(), ...payload }); persistLocal(); }
+    e.target.reset();
+    document.getElementById('ar-data').value = todayISO();
+    renderAll();
+  });
 }
 
 function wireEditModal() {
@@ -184,15 +200,18 @@ function initDefaultDates() {
   document.getElementById('p-data').value = end;
   document.getElementById('dashboard-date').value = end;
   document.getElementById('gmt-date').value = end;
+  document.getElementById('ar-data').value = end;
   presetPremioFormDateTime();
 }
 
 function renderAll() {
   fillProgramSelect('p-programa');
+  fillProgramSelect('ar-programa');
   renderProgramas();
   renderPremiosGerenciamento();
   renderWinnerSearch();
   renderParticipacoes();
+  renderPrioridadesAr();
   renderDashboard();
 }
 
@@ -295,15 +314,14 @@ function presetPremioFormDateTime() {
 
 function renderDashboard() {
   const dashboardDate = document.getElementById('dashboard-date').value || todayISO();
-  document.getElementById('periodo-label').textContent = `DADOS DE ${monthName(dashboardDate).toUpperCase()} • ${hasSupabase ? 'SUPABASE' : 'LOCAL'} • ${dashboardDate}`;
+  document.getElementById('periodo-label').textContent = `DADOS: ${new Date(`${dashboardDate}T00:00:00`).toLocaleDateString('pt-BR')}`;
 
   const de = firstDayOfMonthISOFrom(dashboardDate);
   const ate = lastDayOfMonthISOFrom(dashboardDate);
   let regs=[...state.participacoes];
   regs=regs.filter(r=>r.data>=de && r.data<=ate);
   const resumo=state.programas.map((p)=>{const r=regs.filter(x=>x.programaId===p.id);return {nome:p.nome,total:r.reduce((a,b)=>a+b.quantidade,0),dias:new Set(r.map(x=>x.data)).size};}).sort((a,b)=>b.total-a.total);
-  const total=resumo.reduce((a,b)=>a+b.total,0), lider=resumo[0]?.nome||'—';
-  document.getElementById('kpis').innerHTML=`<div class='card'><small>TOTAL DE PARTICIPAÇÕES</small><div class='kpi-value'>${total}</div></div><div class='card'><small>PROGRAMA COM + PARTICIPAÇÕES</small><div class='kpi-value'>${lider}</div></div>`;
+  document.getElementById('kpis').innerHTML='';
   const max=Math.max(1,...resumo.map(r=>r.total));
   document.getElementById('bars').innerHTML=resumo.map(r=>`<div class='bar-row'><small>${r.nome}</small><div class='bar' style='width:${(r.total/max)*100}%'></div><small>${r.total}</small></div>`).join('');
 
@@ -348,6 +366,31 @@ function shiftDateInput(idInput, days){const el=document.getElementById(idInput)
 function fmtDateOnly(iso){if(!iso)return '--';return new Date(iso).toLocaleDateString('pt-BR');}
 function filterPremiosByDay(premios, dayISO){const start=`${dayISO}T00:00:00.000Z`;const end=`${dayISO}T23:59:59.999Z`;return premios.filter((p)=>{const i=p.inicio||start;const f=p.fim||end;return i<=end&&f>=start;});}
 function val(idEl){return document.getElementById(idEl).value;}
+
+function renderPrioridadesAr() {
+  const t = document.getElementById('tabela-prioridades-ar');
+  if (!t) return;
+  t.innerHTML = `<thead><tr><th>DATA</th><th>PROGRAMA</th><th>CONTEÚDO</th><th>IMAGEM</th></tr></thead><tbody>${state.prioridades.map((p)=>{const pr=state.programas.find((x)=>x.id===p.programaId);return `<tr><td>${p.data}</td><td>${pr?.nome||'-'}</td><td>${(p.conteudo||'').slice(0,120)}</td><td>${p.imagemUrl?'<span>SIM</span>':'-'}</td></tr>`;}).join('')}</tbody>`;
+}
+
+async function fileInputToDataUrl(idInput) {
+  const input = document.getElementById(idInput);
+  const file = input?.files?.[0];
+  if (!file) return '';
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Falha ao ler imagem'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function insertPrioridadeSupabase(payload) {
+  const base = { data: payload.data, programa_id: payload.programaId, conteudo: payload.conteudo, concluido: false };
+  const firstTry = await sb.from('prioridades_ar').insert({ ...base, imagem_url: payload.imagemUrl || null });
+  if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return firstTry;
+  return sb.from('prioridades_ar').insert(base);
+}
 function id(){return Math.random().toString(36).slice(2,10);}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}
 function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===idPremio);if(!p)return;document.getElementById('premio-modal-title').textContent='DETALHES DO PRÊMIO DA HORA';document.getElementById('premio-modal-body').innerHTML=`<div class="premio-hero"><small>🎵 PRÊMIO DA HORA</small><h2>${escapeHtml(p.nome||'-')}</h2><div class="premio-tags"><span class="tag">${fmtDateTime(p.inicio)}</span><span class="tag">${fmtDateTime(p.fim)}</span></div></div><div class="premio-info"><p><strong>DESCRIÇÃO</strong><br/>${escapeHtml(p.descricao||'-')}</p><p><strong>GANHADOR</strong><br/>${escapeHtml(p.ganhador||'-')}</p><p><strong>TELEFONE</strong><br/>${escapeHtml(phoneMask(p.telefone))}</p></div>`;document.getElementById('premio-modal').classList.remove('hidden');}

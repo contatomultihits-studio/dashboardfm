@@ -13,7 +13,8 @@
         <nav id="tabs" class="tabs">
           <button data-tab="dashboard" class="tab active">DASHBOARD</button>
           <button data-tab="metricas" class="tab">MÉTRICAS</button>
-          <button data-tab="gerenciamento" class="tab">GERENCIAMENTO</button>
+          <button data-tab="gerenciamento" class="tab">PROMOÇÃO</button>
+          <button data-tab="artistico" class="tab">ARTÍSTICO</button>
         </nav>
         <button id="btn-supabase" class="config-btn">CONECTAR SUPABASE</button>
       </div>
@@ -23,11 +24,11 @@
       <section id="dashboard" class="view active dashboard-upper">
         <div class="card filters">
           <div>
-            <small id="periodo-label">DADOS DO MÊS</small>
+            <small id="periodo-label">DADOS: --</small>
             <h3 style="margin:0.3rem 0 0">VISÃO EXECUTIVA</h3>
           </div>
           <div class="range">
-            <label>DIA DA DASHBOARD <input id="dashboard-date" type="date" /></label>
+            <input id="dashboard-date" type="date" />
             <button id="btn-prev-dia" type="button">◀ DIA ANTERIOR</button>
             <button id="btn-hoje" type="button">HOJE</button>
             <button id="btn-next-dia" type="button">PRÓXIMO DIA ▶</button>
@@ -134,6 +135,27 @@
         </div>
 
         <div class="card"><h3>PRÊMIOS (EDITAR/EXCLUIR)</h3><table id="tabela-premios-gerenciamento" class="table"></table></div>
+      </section>
+
+      <section id="artistico" class="view">
+        <div class="grid cols-2">
+          <form id="form-prioridade" class="card form">
+            <h3>PRIORIDADES DO AR</h3>
+            <label>DATA</label>
+            <input id="ar-data" type="date" required />
+            <label>PROGRAMA</label>
+            <select id="ar-programa" required></select>
+            <label>CONTEÚDO</label>
+            <textarea id="ar-conteudo" rows="6" required></textarea>
+            <label>IMAGEM (UPLOAD)</label>
+            <input id="ar-imagem" type="file" accept="image/*" />
+            <button type="submit">SALVAR PRIORIDADE</button>
+          </form>
+        </div>
+        <div class="card">
+          <h3>LISTA DE PRIORIDADES</h3>
+          <table id="tabela-prioridades-ar" class="table"></table>
+        </div>
       </section>
     </main>
 

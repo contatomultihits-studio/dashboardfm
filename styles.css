@@ -48,7 +48,7 @@ button:hover { transform: translateY(-1px); box-shadow: 0 14px 24px rgba(37,99,2
 .kpi-value { font-size: 2rem; margin: .3rem 0; color: #1d4ed8; font-weight: 900; }
 #toast { position: fixed; right: 16px; bottom: 16px; padding: .8rem 1rem; border-radius: 12px; background: #1d4ed8; color: #fff; opacity: 0; transform: translateY(8px); transition: .2s; }
 #toast.show { opacity: 1; transform: translateY(0); }
-.config-btn { border: 1px solid #93c5fd; background: #eff6ff; color: #1d4ed8; padding: .55rem .9rem; border-radius: 14px; font-weight: 800; cursor: pointer; }
+.config-btn { display: none; }
 .version { font-size: .75rem; background: #e0ecff; color: #1e40af; border-radius: 999px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
 .filters { display: flex; justify-content: space-between; align-items: end; gap: 1rem; }
 .range { display: flex; gap: .5rem; flex-wrap: wrap; align-items: end; }
