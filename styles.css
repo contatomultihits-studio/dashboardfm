@@ -60,5 +60,9 @@ button:hover { transform: translateY(-1px); box-shadow: 0 14px 24px rgba(37,99,2
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: .7rem; }
 .btn-ghost { background: #e2e8f0; color: #0f172a; box-shadow: none; }
 .premio-detalhe { background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%); border-color: #cfe0ff; }
+.premio-hero { border-radius: 16px; padding: 1rem; background: linear-gradient(135deg, #2f5de9 0%, #3f5de2 60%, #4f46e5 100%); color: #fff; margin-bottom: .9rem; }
+.premio-hero h2 { margin: .35rem 0 .65rem; font-size: 1.7rem; line-height: 1.1; }
+.premio-tags { display: flex; flex-wrap: wrap; gap: .45rem; }
+.premio-tags .tag { display: inline-block; padding: .3rem .6rem; border-radius: 999px; background: rgba(255,255,255,.22); font-weight: 700; font-size: .86rem; }
 .premio-info { display: grid; gap: .8rem; padding: .5rem .25rem; }
 .premio-info p { margin: 0; line-height: 1.45; }

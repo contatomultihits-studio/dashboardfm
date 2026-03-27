@@ -268,7 +268,7 @@ function renderDashboard() {
   const ativos=premiosDia.filter(p=>(!p.inicio||p.inicio<=nowRef)&&(!p.fim||p.fim>=nowRef));
   const futuros=premiosDia.filter(p=>p.inicio&&p.inicio>nowRef).sort((a,b)=>a.inicio.localeCompare(b.inicio));
   const passados=premiosDia.filter(p=>p.fim&&p.fim<nowRef).sort((a,b)=>b.fim.localeCompare(a.fim));
-  const atual=ativos[0]||futuros[0]||null;
+  const atual=ativos[0]||null;
   const semPremioAgora = !ativos.length;
 
   document.getElementById('premio-vigente-card').classList.toggle('clickable-featured', Boolean(atual));
@@ -296,7 +296,7 @@ function currentClockOnDate(baseISO){const now=new Date();const d=new Date(`${ba
 function val(idEl){return document.getElementById(idEl).value;}
 function id(){return Math.random().toString(36).slice(2,10);}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}
-function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===idPremio);if(!p)return;document.getElementById('premio-modal-title').textContent=p.nome||'DETALHES DO PRÊMIO';document.getElementById('premio-modal-body').innerHTML=`<div class="premio-info"><p><strong>DESCRIÇÃO</strong><br/>${escapeHtml(p.descricao||'-')}</p><p><strong>GANHADOR</strong><br/>${escapeHtml(p.ganhador||'-')}</p><p><strong>TELEFONE</strong><br/>${escapeHtml(phoneMask(p.telefone))}</p><p><strong>VIGÊNCIA</strong><br/>${fmtDateTime(p.inicio)} até ${fmtDateTime(p.fim)}</p></div>`;document.getElementById('premio-modal').classList.remove('hidden');}
+function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===idPremio);if(!p)return;document.getElementById('premio-modal-title').textContent='DETALHES DO PRÊMIO DA HORA';document.getElementById('premio-modal-body').innerHTML=`<div class="premio-hero"><small>🎵 PRÊMIO DA HORA</small><h2>${escapeHtml(p.nome||'-')}</h2><div class="premio-tags"><span class="tag">${fmtDateTime(p.inicio)}</span><span class="tag">${fmtDateTime(p.fim)}</span></div></div><div class="premio-info"><p><strong>DESCRIÇÃO</strong><br/>${escapeHtml(p.descricao||'-')}</p><p><strong>GANHADOR</strong><br/>${escapeHtml(p.ganhador||'-')}</p><p><strong>TELEFONE</strong><br/>${escapeHtml(phoneMask(p.telefone))}</p></div>`;document.getElementById('premio-modal').classList.remove('hidden');}
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,(m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
 function fmtDateTime(iso){if(!iso)return '--';return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function shiftDashboardDate(days){const el=document.getElementById('dashboard-date');const d=new Date(`${el.value||todayISO()}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);renderDashboard();}
