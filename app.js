@@ -242,7 +242,7 @@ function renderPremiosGerenciamento() {
   const day = document.getElementById('gmt-date')?.value || todayISO();
   const premiosDia = filterPremiosByDay(state.premios, day);
   const t=document.getElementById('tabela-premios-gerenciamento');
-  t.innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>DATA</th><th>AÇÕES</th></tr></thead><tbody>${premiosDia.map((p)=>`<tr><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td>${fmtDateOnly(p.inicio)}</td><td><button data-edit-premio='${p.id}'>EDITAR</button> <button data-del-premio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
+  t.innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>DATA</th><th>HORÁRIO</th><th>AÇÕES</th></tr></thead><tbody>${premiosDia.map((p)=>`<tr><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td>${fmtDateOnly(p.inicio)}</td><td>${fmtHour(p.inicio)} - ${fmtHour(p.fim)}</td><td><button data-edit-premio='${p.id}'>EDITAR</button> <button data-del-premio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
   t.querySelectorAll('[data-edit-premio]').forEach((b)=>b.addEventListener('click', ()=>openEditModal('premio', b.dataset.editPremio)));
   t.querySelectorAll('[data-del-premio]').forEach((b)=>b.addEventListener('click', async()=>{
     const idp=b.dataset.delPremio;
@@ -328,10 +328,11 @@ function renderDashboard() {
   document.getElementById('premio-vigente-ganhador').textContent=atual?.ganhador||'SEM GANHADOR';
   document.getElementById('premio-vigente-telefone').textContent=phoneMask(atual?.telefone);
 
-  document.getElementById('proximos-premios').innerHTML=(futuros.slice(0,2).map(p=>`<div class='next-item'><strong>${p.nome}</strong><br/><small>${fmtHour(p.inicio)} - ${fmtHour(p.fim)}</small></div>`).join('')||'<small>SEM PRÓXIMOS PRÊMIOS</small>');
-  document.getElementById('ultimos-premios-hora').innerHTML=(passados.slice(0,2).map(p=>`<div class='next-item'><strong>${p.nome}</strong><br/><small>ENCERRADO: ${fmtHour(p.fim)}</small></div>`).join('')||'<small>SEM PRÊMIOS ENCERRADOS</small>');
+  document.getElementById('proximos-premios').innerHTML=(futuros.slice(0,2).map(p=>`<div class='next-item row-click' data-preview-premio='${p.id}'><strong>${p.nome}</strong><br/><small>${fmtHour(p.inicio)} - ${fmtHour(p.fim)}</small></div>`).join('')||'<small>SEM PRÓXIMOS PRÊMIOS</small>');
+  document.getElementById('ultimos-premios-hora').innerHTML=(passados.slice(0,2).map(p=>`<div class='next-item row-click' data-preview-premio='${p.id}'><strong>${p.nome}</strong><br/><small>ENCERRADO: ${fmtHour(p.fim)}</small></div>`).join('')||'<small>SEM PRÊMIOS ENCERRADOS</small>');
   document.getElementById('tabela-historico-premios').innerHTML=`<thead><tr><th>PRÊMIO</th><th>GANHADOR</th><th>FIM</th></tr></thead><tbody>${passados.slice(0,20).map(p=>`<tr data-hist-premio='${p.id}' class='row-click'><td>${p.nome}</td><td>${p.ganhador||'-'}</td><td>${fmtHour(p.fim)}</td></tr>`).join('')}</tbody>`;
   document.querySelectorAll('[data-hist-premio]').forEach((row)=>row.addEventListener('click',()=>showPremioHistorico(row.dataset.histPremio)));
+  document.querySelectorAll('[data-preview-premio]').forEach((el)=>el.addEventListener('click',()=>showPremioHistorico(el.dataset.previewPremio)));
 }
 
 function phoneMask(phone){if(!phone)return 'TEL: --';const d=String(phone).replace(/\D/g,'');return `TEL: ****${d.slice(-4)}`;}
