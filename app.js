@@ -164,8 +164,15 @@ function wireForms() {
 
   document.getElementById('form-prioridade').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const imagemBase64 = await fileInputToDataUrl('ar-imagem');
-    const payload = { data: val('ar-data'), programaId: val('ar-programa'), conteudo: val('ar-conteudo'), concluido: false, imagemUrl: imagemBase64 || null };
+    const file = document.getElementById('ar-imagem')?.files?.[0] || null;
+    let imagemUrl = null;
+    if (hasSupabase && file) {
+      const upload = await uploadPrioridadeImageSupabase(file);
+      if (upload.error) return toast(`ERRO UPLOAD: ${upload.error.message}`);
+      imagemUrl = upload.url || null;
+    }
+    if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('ar-imagem');
+    const payload = { data: val('ar-data'), programaId: val('ar-programa'), conteudo: val('ar-conteudo'), concluido: false, imagemUrl: imagemUrl || null };
     if (hasSupabase) {
       const { error } = await insertPrioridadeSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
@@ -390,6 +397,16 @@ async function insertPrioridadeSupabase(payload) {
   const firstTry = await sb.from('prioridades_ar').insert({ ...base, imagem_url: payload.imagemUrl || null });
   if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return firstTry;
   return sb.from('prioridades_ar').insert(base);
+}
+
+async function uploadPrioridadeImageSupabase(file) {
+  const safeName = String(file.name || 'imagem').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${todayISO()}/${Date.now()}-${safeName}`;
+  const storage = sb.storage.from('prioridades');
+  const up = await storage.upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'image/jpeg' });
+  if (up.error) return { error: up.error };
+  const pub = storage.getPublicUrl(path);
+  return { url: pub.data?.publicUrl || '', error: null };
 }
 function id(){return Math.random().toString(36).slice(2,10);}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}
