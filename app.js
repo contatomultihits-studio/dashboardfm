@@ -177,8 +177,9 @@ function wireForms() {
     if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('ar-imagem');
     const payload = { data: val('ar-data'), programaId: null, conteudo: conteudoHtml, concluido: false, imagemUrl: imagemUrl || null };
     if (hasSupabase) {
-      const { error } = await insertPrioridadeSupabase(payload);
+      const { data, error } = await insertPrioridadeSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
+      if (!data?.id) return toast('SEM PERMISSÃO PARA CRIAR PRIORIDADE (RLS).');
       await syncAfterMutation();
     } else { state.prioridades.unshift({ id: id(), ...payload }); persistLocal(); }
     e.target.reset();
@@ -403,16 +404,17 @@ async function fileInputToDataUrl(idInput) {
 
 async function insertPrioridadeSupabase(payload) {
   const base = { data: payload.data, programa_id: payload.programaId || null, conteudo: payload.conteudo, concluido: false };
-  const firstTry = await sb.from('prioridades_ar').insert({ ...base, imagem_url: payload.imagemUrl || null });
+  const firstTry = await sb.from('prioridades_ar').insert({ ...base, imagem_url: payload.imagemUrl || null }).select('id').maybeSingle();
   if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return firstTry;
-  return sb.from('prioridades_ar').insert(base);
+  return sb.from('prioridades_ar').insert(base).select('id').maybeSingle();
 }
 
 async function deletePrioridade(idPrio) {
   if(!confirm('EXCLUIR PRIORIDADE DO AR?')) return;
   if (hasSupabase) {
-    const { error } = await sb.from('prioridades_ar').delete().eq('id', idPrio);
+    const { data, error } = await sb.from('prioridades_ar').delete().eq('id', idPrio).select('id').maybeSingle();
     if (error) return toast(`ERRO: ${error.message}`);
+    if (!data?.id) return toast('SEM PERMISSÃO PARA EXCLUIR ESTA PRIORIDADE (RLS).');
     await syncAfterMutation();
   } else {
     state.prioridades = state.prioridades.filter((x)=>x.id!==idPrio);
@@ -671,11 +673,14 @@ async function submitEditModal(e) {
     Object.assign(item, { data: novaData, conteudo: novoConteudo, imagemUrl: imagemUrlFinal || '' });
     if (hasSupabase) {
       const base = { data: novaData, conteudo: novoConteudo, programa_id: null };
-      const firstTry = await sb.from('prioridades_ar').update({ ...base, imagem_url: imagemUrlFinal || null }).eq('id', item.id);
+      const firstTry = await sb.from('prioridades_ar').update({ ...base, imagem_url: imagemUrlFinal || null }).eq('id', item.id).select('id').maybeSingle();
       if (firstTry.error && !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return toast(`ERRO: ${firstTry.error.message}`);
       if (firstTry.error) {
-        const fallback = await sb.from('prioridades_ar').update(base).eq('id', item.id);
+        const fallback = await sb.from('prioridades_ar').update(base).eq('id', item.id).select('id').maybeSingle();
         if (fallback.error) return toast(`ERRO: ${fallback.error.message}`);
+        if (!fallback.data?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTA PRIORIDADE (RLS).');
+      } else if (!firstTry.data?.id) {
+        return toast('SEM PERMISSÃO PARA EDITAR ESTA PRIORIDADE (RLS).');
       }
       await syncAfterMutation();
     } else persistLocal();

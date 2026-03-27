@@ -90,7 +90,7 @@ button:hover { transform: scale(1.05) rotate(-1deg); box-shadow: 0 14px 24px rgb
 .prioridade-texto p { margin: .45rem 0 0; line-height: 1.55; white-space: normal; }
 .prioridade-texto .rich-render { margin-top: .45rem; line-height: 1.55; }
 
-.editorial-hero { position: relative; background: #111; color: #fff; min-height: 220px; overflow: hidden; }
+.editorial-hero { position: relative; background: #111; color: #fff; min-height: 150px; overflow: hidden; padding-bottom: 1.3rem; }
 .editorial-hero h1 { font-size: clamp(2.2rem, 6vw, 4.8rem); line-height: .92; margin: 0; }
 .editorial-hero p { max-width: 560px; font-size: .9rem; letter-spacing: .04em; color: #d4d4d8; margin-top: .8rem; }
 .sticker { position: absolute; padding: .35rem .7rem; border: 2px solid #111; border-radius: 999px; font-weight: 900; font-size: .78rem; }
