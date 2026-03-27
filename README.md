@@ -18,6 +18,8 @@ Se variáveis estiverem na Vercel:
 Se houver erro de permissão execute:
 - `docs/supabase-setup-clean.sql`
 
+> Importante: esse script agora inclui `UPDATE` e `DELETE` para `prioridades_ar`, necessário para a edição/exclusão funcionar no Artístico.
+
 ## Config ideal para prêmio por hora
 Execute:
 - `docs/premios-hora-migration.sql`
