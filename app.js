@@ -700,6 +700,15 @@ function wireRichEditors() {
       document.execCommand(btn.dataset.cmd, false, null);
     });
   });
+  document.querySelectorAll('.rich-toolbar button[data-style-preset]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const editorId = btn.closest('.rich-toolbar')?.dataset.editor;
+      const editor = document.getElementById(editorId || '');
+      if (!editor) return;
+      editor.focus();
+      applyPresetStyle(btn.dataset.stylePreset);
+    });
+  });
   document.querySelectorAll('.font-picker[data-font-target]').forEach((picker) => {
     picker.addEventListener('change', () => {
       const editor = document.getElementById(picker.dataset.fontTarget || '');
@@ -708,6 +717,24 @@ function wireRichEditors() {
       document.execCommand('fontName', false, picker.value);
     });
   });
+}
+
+function applyPresetStyle(preset) {
+  if (preset === 'textRed') return document.execCommand('foreColor', false, '#dc2626');
+  if (preset === 'textBlack') return document.execCommand('foreColor', false, '#111111');
+  if (preset === 'bgYellow') return document.execCommand('hiliteColor', false, '#fef08a');
+  if (preset === 'fontUp') return wrapSelectionWithStyle('font-size:1.15em');
+  if (preset === 'fontDown') return wrapSelectionWithStyle('font-size:0.9em');
+}
+
+function wrapSelectionWithStyle(styleText) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  if (!range || range.collapsed) return;
+  const selectedText = range.toString();
+  const safeText = escapeHtml(selectedText);
+  document.execCommand('insertHTML', false, `<span style="${styleText}">${safeText}</span>`);
 }
 
 function getEditorHtml(idEditor) {
@@ -737,6 +764,9 @@ function sanitizeRichText(html) {
   const root = doc.body.firstChild;
   const allowedTags = new Set(['DIV', 'P', 'BR', 'B', 'STRONG', 'I', 'EM', 'U', 'SPAN']);
   const allowedFonts = ['Arial', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Georgia'];
+  const allowedColors = ['#dc2626', '#111111', 'rgb(220, 38, 38)', 'rgb(17, 17, 17)'];
+  const allowedHighlights = ['#fef08a', 'rgb(254, 240, 138)'];
+  const allowedFontSizes = ['0.9em', '1.15em'];
 
   const walk = (node) => {
     [...node.children].forEach((child) => {
@@ -753,6 +783,21 @@ function sanitizeRichText(html) {
       }
       const alignMatch = style.match(/text-align:\s*(left|center|right)/i);
       if (alignMatch) keep.push(`text-align:${alignMatch[1].toLowerCase()}`);
+      const colorMatch = style.match(/color:\s*([^;]+)/i);
+      if (colorMatch) {
+        const color = colorMatch[1].trim().toLowerCase();
+        if (allowedColors.includes(color)) keep.push(`color:${color}`);
+      }
+      const bgMatch = style.match(/background-color:\s*([^;]+)/i);
+      if (bgMatch) {
+        const bg = bgMatch[1].trim().toLowerCase();
+        if (allowedHighlights.includes(bg)) keep.push(`background-color:${bg}`);
+      }
+      const sizeMatch = style.match(/font-size:\s*([^;]+)/i);
+      if (sizeMatch) {
+        const sz = sizeMatch[1].trim().toLowerCase();
+        if (allowedFontSizes.includes(sz)) keep.push(`font-size:${sz}`);
+      }
       if (keep.length) child.setAttribute('style', keep.join(';'));
       else child.removeAttribute('style');
       [...child.attributes].forEach((attr) => {
@@ -766,5 +811,12 @@ function sanitizeRichText(html) {
 }
 
 function stripHtml(value) {
-  return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const decoded = decodeHtmlEntities(String(value || ''));
+  return decoded.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function decodeHtmlEntities(value) {
+  const txt = document.createElement('textarea');
+  txt.innerHTML = value;
+  return txt.value;
 }
