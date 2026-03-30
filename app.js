@@ -453,8 +453,17 @@ function firstDayOfMonthISOFrom(baseISO){const d=new Date(`${baseISO}T00:00:00`)
 function lastDayOfMonthISOFrom(baseISO){const d=new Date(`${baseISO}T00:00:00`);d.setMonth(d.getMonth()+1,0);return d.toISOString().slice(0,10);}
 function currentClockOnDate(baseISO){const now=new Date();const d=new Date(`${baseISO}T00:00:00`);d.setHours(now.getHours(),now.getMinutes(),now.getSeconds(),0);return d;}
 function shiftDateInput(idInput, days){const el=document.getElementById(idInput);const d=new Date(`${(el.value||todayISO())}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);if(idInput==='gmt-date')renderPremiosGerenciamento();if(idInput==='dashboard-date')renderDashboard();}
-function fmtDateOnly(iso){if(!iso)return '--';return new Date(iso).toLocaleDateString('pt-BR');}
-function fmtDayMonth(iso){if(!iso)return '--/--';return new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});}
+function normalizeDateParts(value){
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return { y: match[1], m: match[2], d: match[3] };
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return { y: String(d.getFullYear()), m: String(d.getMonth() + 1).padStart(2, '0'), d: String(d.getDate()).padStart(2, '0') };
+}
+function fmtDateOnly(iso){const p=normalizeDateParts(iso);if(!p)return '--';return `${p.d}/${p.m}/${p.y}`;}
+function fmtDayMonth(iso){const p=normalizeDateParts(iso);if(!p)return '--/--';return `${p.d}/${p.m}`;}
+function fmtTimeNoSeconds(value){const raw=String(value||'').trim();if(!raw)return '--:--';const m=raw.match(/^(\d{2}):(\d{2})/);return m?`${m[1]}:${m[2]}`:raw.slice(0,5);}
 function filterPremiosByDay(premios, dayISO){const start=`${dayISO}T00:00:00.000Z`;const end=`${dayISO}T23:59:59.999Z`;return premios.filter((p)=>{const i=p.inicio||start;const f=p.fim||end;return i<=end&&f>=start;});}
 function val(idEl){return document.getElementById(idEl).value;}
 
@@ -471,7 +480,7 @@ function renderConvidadosGestao() {
   if (!t) return;
   const rows = [...state.convidados].sort((a, b) => `${a.data}T${a.hora}`.localeCompare(`${b.data}T${b.hora}`));
   t.innerHTML = `<thead><tr><th>NOME</th><th>DATA</th><th>HORA</th><th>CONCLUÍDO</th><th>AÇÕES</th></tr></thead><tbody>${
-    rows.map((c) => `<tr><td>${escapeHtml(c.nome || '-')}</td><td>${fmtDateOnly(c.data)}</td><td>${c.hora || '--:--'}</td><td><input type="checkbox" data-conv-done="${c.id}" ${c.concluido ? 'checked' : ''} /></td><td><button data-edit-conv="${c.id}">EDITAR</button> <button data-del-conv="${c.id}">EXCLUIR</button></td></tr>`).join('')
+    rows.map((c) => `<tr><td>${escapeHtml(c.nome || '-')}</td><td>${fmtDateOnly(c.data)}</td><td>${fmtTimeNoSeconds(c.hora)}</td><td><input type="checkbox" data-conv-done="${c.id}" ${c.concluido ? 'checked' : ''} /></td><td><button data-edit-conv="${c.id}">EDITAR</button> <button data-del-conv="${c.id}">EXCLUIR</button></td></tr>`).join('')
   }</tbody>`;
   t.querySelectorAll('[data-edit-conv]').forEach((b) => b.addEventListener('click', () => openEditModal('convidado', b.dataset.editConv)));
   t.querySelectorAll('[data-del-conv]').forEach((b) => b.addEventListener('click', async () => deleteConvidado(b.dataset.delConv)));
@@ -661,7 +670,7 @@ function renderConvidadosCards(dashboardDate) {
   if (convidadoCarouselStart > maxStart) convidadoCarouselStart = maxStart;
   const items = source.slice(convidadoCarouselStart, convidadoCarouselStart + pageSize);
   box.innerHTML = items.length ? items.map((c) => {
-    const subtitulo = `${fmtDayMonth(c.data)} às ${c.hora || '--:--'}`;
+    const subtitulo = `${fmtDayMonth(c.data)} às ${fmtTimeNoSeconds(c.hora)}`;
     return `<button class="card prioridade-card convidado-card" data-conv-card="${c.id}" type="button"><div class="convidado-thumb-wrap">${c.imagemUrl ? `<img src="${c.imagemUrl}" alt="Convidado" class="convidado-thumb" />` : '<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}<div class="convidado-overlay"><strong>${escapeHtml(c.nome || 'CONVIDADO')}</strong><small>${escapeHtml(subtitulo)}</small></div></div></button>`;
   }).join('') : `<div class="card"><strong>SEM CONVIDADOS FUTUROS.</strong></div>`;
   box.querySelectorAll('[data-conv-card]').forEach((el) => el.addEventListener('click', () => showConvidadoDetalhe(el.dataset.convCard)));
@@ -709,7 +718,7 @@ function showPrioridadeDetalhe(idPrio){
 function showConvidadoDetalhe(idConvidado) {
   const c = state.convidados.find((x) => x.id === idConvidado);
   if (!c) return;
-  document.getElementById('convidado-modal-title').textContent = `${c.nome || 'CONVIDADO'} • ${fmtDateOnly(c.data)} ${c.hora || ''}`;
+  document.getElementById('convidado-modal-title').textContent = `${c.nome || 'CONVIDADO'} • ${fmtDateOnly(c.data)} ${fmtTimeNoSeconds(c.hora)}`;
   document.getElementById('convidado-modal-body').innerHTML = `<div class="prioridade-hero">${c.imagemUrl ? `<img src="${c.imagemUrl}" alt="Imagem convidado" class="prioridade-modal-img" />` : '<div class="prioridade-modal-noimg">SEM IMAGEM</div>'}</div><div class="prioridade-texto"><strong>MINI PAUTA</strong><div class="rich-render">${renderRichText(c.miniPautaHtml || '-')}</div></div>`;
   document.getElementById('convidado-modal').classList.remove('hidden');
 }
