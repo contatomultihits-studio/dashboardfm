@@ -7,10 +7,11 @@ let showAllParticipacoes = false;
 let hasGanhadorTelefoneColumn = true;
 let prioridadeCarouselStart = 0;
 let convidadoCarouselStart = 0;
+let eventoCarouselStart = 0;
 const editModalState = { tipo: null, id: null };
 let dashboardRefreshInterval = null;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
-const state = { programas: [], premios: [], participacoes: [], prioridades: [], convidados: [] };
+const state = { programas: [], premios: [], participacoes: [], prioridades: [], convidados: [], eventos: [] };
 
 init();
 
@@ -70,15 +71,16 @@ function wireConfigButton() {
 
 async function loadInitialData() {
   if (hasSupabase) {
-    const [p1, p2, p3, p4, p5] = await Promise.all([
+    const [p1, p2, p3, p4, p5, p6] = await Promise.all([
       sb.from('programas').select('id,nome,cor_hex,ativo').order('nome'),
       sb.from('premios').select('*').order('inicio_vigencia', { ascending: true }),
       sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro').order('data_referencia', { ascending: false }),
       sb.from('prioridades_ar').select('*').order('data', { ascending: false }),
-      sb.from('gestao_convidados').select('*').order('data_visita', { ascending: true }).order('horario_visita', { ascending: true })
+      sb.from('gestao_convidados').select('*').order('data_visita', { ascending: true }).order('horario_visita', { ascending: true }),
+      sb.from('gestao_eventos').select('*').order('data_evento', { ascending: true })
     ]);
-    if (p1.error || p2.error || p3.error || p4.error || p5.error) {
-      toast(`ERRO SUPABASE: ${(p1.error || p2.error || p3.error || p4.error || p5.error).message}`);
+    if (p1.error || p2.error || p3.error || p4.error || p5.error || p6.error) {
+      toast(`ERRO SUPABASE: ${(p1.error || p2.error || p3.error || p4.error || p5.error || p6.error).message}`);
       return;
     }
     state.programas = (p1.data || []).map((x) => ({ id: x.id, nome: x.nome, cor: x.cor_hex || '#2563eb', ativo: x.ativo }));
@@ -94,10 +96,11 @@ async function loadInitialData() {
     state.participacoes = (p3.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
     state.prioridades = (p4.data || []).map((x) => ({ id: x.id, data: x.data, programaId: x.programa_id, conteudo: x.conteudo, concluido: Boolean(x.concluido), imagemUrl: x.imagem_url || '' }));
     state.convidados = (p5.data || []).map((x) => ({ id: x.id, nome: x.nome_convidado || '', data: x.data_visita || '', hora: x.horario_visita || '', miniPautaHtml: x.mini_pauta_html || '', imagemUrl: x.imagem_url || '', concluido: Boolean(x.concluido) }));
+    state.eventos = (p6.data || []).map((x) => ({ id: x.id, nome: x.nome_evento || '', data: x.data_evento || '', local: x.local_evento || '', vinculo: x.vinculo || 'APOIO', descricaoHtml: x.descricao_html || '', imagemUrl: x.imagem_url || '' }));
     return;
   }
 
-  const local = JSON.parse(localStorage.getItem(dbKey) || '{"programas":[],"premios":[],"participacoes":[],"prioridades":[],"convidados":[]}');
+  const local = JSON.parse(localStorage.getItem(dbKey) || '{"programas":[],"premios":[],"participacoes":[],"prioridades":[],"convidados":[],"eventos":[]}');
   Object.assign(state, local);
 }
 
@@ -216,6 +219,31 @@ function wireForms() {
     document.getElementById('conv-data').value = todayISO();
     renderAll();
   });
+
+  document.getElementById('form-evento').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const descricaoHtml = getEditorHtml('evt-editor');
+    if (!stripHtml(descricaoHtml).trim()) return toast('DESCRIÇÃO É OBRIGATÓRIA');
+    const file = document.getElementById('evt-imagem')?.files?.[0] || null;
+    let imagemUrl = null;
+    if (hasSupabase && file) {
+      const upload = await uploadPrioridadeImageSupabase(file, 'eventos');
+      if (upload.error) return toast(`ERRO UPLOAD: ${upload.error.message}`);
+      imagemUrl = upload.url || null;
+    }
+    if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('evt-imagem');
+    const payload = { nome: val('evt-nome'), data: val('evt-data'), local: val('evt-local'), vinculo: val('evt-vinculo'), descricaoHtml, imagemUrl: imagemUrl || null };
+    if (hasSupabase) {
+      const { data, error } = await insertEventoSupabase(payload);
+      if (error) return toast(`ERRO: ${error.message}`);
+      if (!data?.id) return toast('SEM PERMISSÃO PARA CRIAR EVENTO (RLS).');
+      await syncAfterMutation();
+    } else { state.eventos.push({ id: id(), ...payload }); persistLocal(); }
+    e.target.reset();
+    setEditorHtml('evt-editor', '');
+    document.getElementById('evt-data').value = todayISO();
+    renderAll();
+  });
 }
 
 function wireEditModal() {
@@ -238,10 +266,14 @@ function wireFilters() {
   document.getElementById('prioridade-modal').addEventListener('click', (e) => { if (e.target.id === 'prioridade-modal') document.getElementById('prioridade-modal').classList.add('hidden'); });
   document.getElementById('btn-close-convidado-modal').addEventListener('click', () => document.getElementById('convidado-modal').classList.add('hidden'));
   document.getElementById('convidado-modal').addEventListener('click', (e) => { if (e.target.id === 'convidado-modal') document.getElementById('convidado-modal').classList.add('hidden'); });
+  document.getElementById('btn-close-evento-modal').addEventListener('click', () => document.getElementById('evento-modal').classList.add('hidden'));
+  document.getElementById('evento-modal').addEventListener('click', (e) => { if (e.target.id === 'evento-modal') document.getElementById('evento-modal').classList.add('hidden'); });
   document.getElementById('btn-prio-prev')?.addEventListener('click', () => shiftPrioridadesDashboard(-1));
   document.getElementById('btn-prio-next')?.addEventListener('click', () => shiftPrioridadesDashboard(1));
   document.getElementById('btn-conv-prev')?.addEventListener('click', () => shiftConvidadosDashboard(-1));
   document.getElementById('btn-conv-next')?.addEventListener('click', () => shiftConvidadosDashboard(1));
+  document.getElementById('btn-evt-prev')?.addEventListener('click', () => shiftEventosDashboard(-1));
+  document.getElementById('btn-evt-next')?.addEventListener('click', () => shiftEventosDashboard(1));
 }
 
 function initDefaultDates() {
@@ -251,8 +283,10 @@ function initDefaultDates() {
   document.getElementById('gmt-date').value = end;
   document.getElementById('ar-data').value = end;
   document.getElementById('conv-data').value = end;
+  document.getElementById('evt-data').value = end;
   setEditorHtml('ar-editor', '');
   setEditorHtml('conv-editor', '');
+  setEditorHtml('evt-editor', '');
   presetPremioFormDateTime();
 }
 
@@ -264,6 +298,7 @@ function renderAll() {
   renderParticipacoes();
   renderPrioridadesAr();
   renderConvidadosGestao();
+  renderEventosGestao();
   renderDashboard();
 }
 
@@ -369,6 +404,7 @@ function renderDashboard() {
   document.getElementById('periodo-label').textContent = `DADOS: ${new Date(`${dashboardDate}T00:00:00`).toLocaleDateString('pt-BR')}`;
   renderPrioridadesCards(dashboardDate);
   renderConvidadosCards(dashboardDate);
+  renderEventosCards(dashboardDate);
 
   const de = firstDayOfMonthISOFrom(dashboardDate);
   const ate = lastDayOfMonthISOFrom(dashboardDate);
@@ -442,6 +478,17 @@ function renderConvidadosGestao() {
   t.querySelectorAll('[data-conv-done]').forEach((el) => el.addEventListener('change', async () => toggleConvidadoConcluido(el.dataset.convDone, el.checked)));
 }
 
+function renderEventosGestao() {
+  const t = document.getElementById('tabela-eventos');
+  if (!t) return;
+  const rows = [...state.eventos].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+  t.innerHTML = `<thead><tr><th>EVENTO</th><th>DATA</th><th>LOCAL</th><th>VÍNCULO</th><th>AÇÕES</th></tr></thead><tbody>${
+    rows.map((e) => `<tr><td>${escapeHtml(e.nome || '-')}</td><td>${fmtDateOnly(e.data)}</td><td>${escapeHtml(e.local || '-')}</td><td>${escapeHtml(e.vinculo || '-')}</td><td><button data-edit-evt="${e.id}">EDITAR</button> <button data-del-evt="${e.id}">EXCLUIR</button></td></tr>`).join('')
+  }</tbody>`;
+  t.querySelectorAll('[data-edit-evt]').forEach((b) => b.addEventListener('click', () => openEditModal('evento', b.dataset.editEvt)));
+  t.querySelectorAll('[data-del-evt]').forEach((b) => b.addEventListener('click', async () => deleteEvento(b.dataset.delEvt)));
+}
+
 async function fileInputToDataUrl(idInput) {
   const input = document.getElementById(idInput);
   const file = input?.files?.[0];
@@ -481,6 +528,28 @@ async function updateConvidadoSupabase(idConvidado, payload) {
     imagem_url: payload.imagemUrl || null,
     concluido: Boolean(payload.concluido)
   }).eq('id', idConvidado).select('id').maybeSingle();
+}
+
+async function insertEventoSupabase(payload) {
+  return sb.from('gestao_eventos').insert({
+    nome_evento: payload.nome,
+    data_evento: payload.data,
+    local_evento: payload.local,
+    vinculo: payload.vinculo,
+    descricao_html: payload.descricaoHtml,
+    imagem_url: payload.imagemUrl || null
+  }).select('id').maybeSingle();
+}
+
+async function updateEventoSupabase(idEvento, payload) {
+  return sb.from('gestao_eventos').update({
+    nome_evento: payload.nome,
+    data_evento: payload.data,
+    local_evento: payload.local,
+    vinculo: payload.vinculo,
+    descricao_html: payload.descricaoHtml,
+    imagem_url: payload.imagemUrl || null
+  }).eq('id', idEvento).select('id').maybeSingle();
 }
 
 async function deletePrioridade(idPrio) {
@@ -524,9 +593,24 @@ async function toggleConvidadoConcluido(idConvidado, concluido) {
   renderAll();
 }
 
-async function uploadPrioridadeImageSupabase(file) {
+async function deleteEvento(idEvento) {
+  if (!confirm('EXCLUIR EVENTO?')) return;
+  if (hasSupabase) {
+    const { data, error } = await sb.from('gestao_eventos').delete().eq('id', idEvento).select('id').maybeSingle();
+    if (error) return toast(`ERRO: ${error.message}`);
+    if (!data?.id) return toast('SEM PERMISSÃO PARA EXCLUIR ESTE EVENTO (RLS).');
+    await syncAfterMutation();
+  } else {
+    state.eventos = state.eventos.filter((x) => x.id !== idEvento);
+    persistLocal();
+  }
+  renderAll();
+}
+
+async function uploadPrioridadeImageSupabase(file, prefix = '') {
   const safeName = String(file.name || 'imagem').replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `${todayISO()}/${Date.now()}-${safeName}`;
+  const pathPrefix = prefix ? `${prefix}/` : '';
+  const path = `${pathPrefix}${todayISO()}/${Date.now()}-${safeName}`;
   const storage = sb.storage.from('prioridades');
   const up = await storage.upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type || 'image/jpeg' });
   if (up.error) return { error: up.error };
@@ -541,6 +625,7 @@ function fmtDateTime(iso){if(!iso)return '--';return new Date(iso).toLocaleStrin
 function shiftDashboardDate(days){const el=document.getElementById('dashboard-date');const d=new Date(`${el.value||todayISO()}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);renderDashboard();}
 function shiftPrioridadesDashboard(step){prioridadeCarouselStart=Math.max(0, prioridadeCarouselStart+step);renderDashboard();}
 function shiftConvidadosDashboard(step){convidadoCarouselStart=Math.max(0, convidadoCarouselStart+step);renderDashboard();}
+function shiftEventosDashboard(step){eventoCarouselStart=Math.max(0, eventoCarouselStart+step);renderDashboard();}
 
 function renderPrioridadesCards(dashboardDate){
   const box = document.getElementById('prioridades-cards');
@@ -588,6 +673,31 @@ function renderConvidadosCards(dashboardDate) {
   if (nextBtn) nextBtn.disabled = convidadoCarouselStart >= maxStart;
 }
 
+function renderEventosCards(dashboardDate) {
+  const box = document.getElementById('eventos-cards');
+  if (!box) return;
+  const hoje = todayISO();
+  const source = state.eventos
+    .filter((e) => (e.data || '') >= hoje)
+    .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+  const pageSize = 3;
+  const maxStart = Math.max(0, source.length - pageSize);
+  if (eventoCarouselStart > maxStart) eventoCarouselStart = maxStart;
+  const items = source.slice(eventoCarouselStart, eventoCarouselStart + pageSize);
+  box.innerHTML = items.length ? items.map((e) => {
+    const subtitulo = `${fmtDayMonth(e.data)} • ${e.local || '-'}`;
+    const badgeClass = (e.vinculo || '').toUpperCase() === 'RÁDIO OFICIAL' ? 'tag-oficial' : 'tag-apoio';
+    return `<button class="card prioridade-card convidado-card" data-evt-card="${e.id}" type="button"><div class="convidado-thumb-wrap">${e.imagemUrl ? `<img src="${e.imagemUrl}" alt="Evento" class="convidado-thumb" />` : '<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}<div class="convidado-overlay"><span class="evento-tag ${badgeClass}">${escapeHtml(e.vinculo || 'APOIO')}</span><strong>${escapeHtml(e.nome || 'EVENTO')}</strong><small>${escapeHtml(subtitulo)}</small></div></div></button>`;
+  }).join('') : `<div class="card"><strong>SEM EVENTOS FUTUROS.</strong></div>`;
+  box.querySelectorAll('[data-evt-card]').forEach((el) => el.addEventListener('click', () => showEventoDetalhe(el.dataset.evtCard)));
+  const info = document.getElementById('eventos-page-info');
+  if (info) info.textContent = source.length ? `${eventoCarouselStart + 1}-${Math.min(source.length, eventoCarouselStart + pageSize)} de ${source.length}` : '0 de 0';
+  const prevBtn = document.getElementById('btn-evt-prev');
+  const nextBtn = document.getElementById('btn-evt-next');
+  if (prevBtn) prevBtn.disabled = eventoCarouselStart <= 0;
+  if (nextBtn) nextBtn.disabled = eventoCarouselStart >= maxStart;
+}
+
 function showPrioridadeDetalhe(idPrio){
   const p = state.prioridades.find((x)=>x.id===idPrio);
   if(!p) return;
@@ -602,6 +712,14 @@ function showConvidadoDetalhe(idConvidado) {
   document.getElementById('convidado-modal-title').textContent = `${c.nome || 'CONVIDADO'} • ${fmtDateOnly(c.data)} ${c.hora || ''}`;
   document.getElementById('convidado-modal-body').innerHTML = `<div class="prioridade-hero">${c.imagemUrl ? `<img src="${c.imagemUrl}" alt="Imagem convidado" class="prioridade-modal-img" />` : '<div class="prioridade-modal-noimg">SEM IMAGEM</div>'}</div><div class="prioridade-texto"><strong>MINI PAUTA</strong><div class="rich-render">${renderRichText(c.miniPautaHtml || '-')}</div></div>`;
   document.getElementById('convidado-modal').classList.remove('hidden');
+}
+
+function showEventoDetalhe(idEvento) {
+  const e = state.eventos.find((x) => x.id === idEvento);
+  if (!e) return;
+  document.getElementById('evento-modal-title').textContent = `${e.nome || 'EVENTO'} • ${fmtDateOnly(e.data)}`;
+  document.getElementById('evento-modal-body').innerHTML = `<div class="prioridade-hero">${e.imagemUrl ? `<img src="${e.imagemUrl}" alt="Imagem evento" class="prioridade-modal-img" />` : '<div class="prioridade-modal-noimg">SEM IMAGEM</div>'}</div><div class="prioridade-texto"><strong>${escapeHtml(e.vinculo || 'APOIO')} • ${escapeHtml(e.local || '-')}</strong><div class="rich-render">${renderRichText(e.descricaoHtml || '-')}</div></div>`;
+  document.getElementById('evento-modal').classList.remove('hidden');
 }
 
 async function insertPremioSupabase(payload){
@@ -729,6 +847,20 @@ function openEditModal(tipo, itemId) {
     setEditorHtml('e-conv-editor', item.miniPautaHtml || '');
   }
 
+  if (tipo === 'evento') {
+    const item = state.eventos.find((x) => x.id === itemId);
+    if (!item) return;
+    title.textContent = 'EDITAR EVENTO';
+    setEditGroupState('edit-fields-evento', true);
+    document.getElementById('e-evt-nome').value = item.nome || '';
+    document.getElementById('e-evt-data').value = item.data || '';
+    document.getElementById('e-evt-local').value = item.local || '';
+    document.getElementById('e-evt-vinculo').value = item.vinculo || 'APOIO';
+    document.getElementById('e-evt-imagem-url').value = item.imagemUrl || '';
+    document.getElementById('e-evt-imagem-file').value = '';
+    setEditorHtml('e-evt-editor', item.descricaoHtml || '');
+  }
+
   modal.classList.remove('hidden');
 }
 
@@ -744,6 +876,7 @@ function hideEditGroups() {
   setEditGroupState('edit-fields-participacao', false);
   setEditGroupState('edit-fields-prioridade', false);
   setEditGroupState('edit-fields-convidado', false);
+  setEditGroupState('edit-fields-evento', false);
 }
 
 function setEditGroupState(groupId, active) {
@@ -880,6 +1013,37 @@ async function submitEditModal(e) {
     } else persistLocal();
   }
 
+  if (editModalState.tipo === 'evento') {
+    const item = state.eventos.find((x) => x.id === editModalState.id);
+    if (!item) return;
+    const nome = document.getElementById('e-evt-nome').value.trim();
+    const data = document.getElementById('e-evt-data').value;
+    const local = document.getElementById('e-evt-local').value.trim();
+    const vinculo = document.getElementById('e-evt-vinculo').value;
+    const descricaoHtml = getEditorHtml('e-evt-editor');
+    const imagemUrlInput = document.getElementById('e-evt-imagem-url').value.trim();
+    const file = document.getElementById('e-evt-imagem-file')?.files?.[0] || null;
+    if (!nome) return toast('NOME DO EVENTO É OBRIGATÓRIO');
+    if (!stripHtml(descricaoHtml).trim()) return toast('DESCRIÇÃO É OBRIGATÓRIA');
+    let imagemUrlFinal = imagemUrlInput || item.imagemUrl || '';
+    if (file) {
+      if (hasSupabase) {
+        const upload = await uploadPrioridadeImageSupabase(file, 'eventos');
+        if (upload.error) return toast(`ERRO UPLOAD: ${upload.error.message}`);
+        imagemUrlFinal = upload.url || imagemUrlFinal;
+      } else {
+        imagemUrlFinal = await fileInputToDataUrl('e-evt-imagem-file');
+      }
+    }
+    Object.assign(item, { nome, data, local, vinculo, descricaoHtml, imagemUrl: imagemUrlFinal });
+    if (hasSupabase) {
+      const { data: upData, error } = await updateEventoSupabase(item.id, { nome, data, local, vinculo, descricaoHtml, imagemUrl: imagemUrlFinal });
+      if (error) return toast(`ERRO: ${error.message}`);
+      if (!upData?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTE EVENTO (RLS).');
+      await syncAfterMutation();
+    } else persistLocal();
+  }
+
   closeEditModal();
   renderAll();
 }
@@ -939,6 +1103,8 @@ function getEditorHtml(idEditor) {
     : idEditor === 'e-prio-editor' ? 'e-prio-conteudo'
     : idEditor === 'conv-editor' ? 'conv-pauta'
     : idEditor === 'e-conv-editor' ? 'e-conv-pauta'
+    : idEditor === 'evt-editor' ? 'evt-descricao'
+    : idEditor === 'e-evt-editor' ? 'e-evt-descricao'
     : '';
   if (hiddenInputId) document.getElementById(hiddenInputId).value = clean;
   return clean;

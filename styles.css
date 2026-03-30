@@ -141,6 +141,7 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
 .prioridades-nav button:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: 0 3px 0 #111; }
 #prioridades-page-info { font-weight: 800; text-transform: uppercase; color: #111; }
 #convidados-page-info { font-weight: 800; text-transform: uppercase; color: #111; }
+#eventos-page-info { font-weight: 800; text-transform: uppercase; color: #111; }
 .convidados-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 260px)); justify-content: start; }
 .convidado-card { padding: .55rem; width: 260px; max-width: 100%; }
 .convidado-thumb-wrap { width: 100%; aspect-ratio: 1 / 1; border-radius: 14px; overflow: hidden; position: relative; border: 3px solid #46ff9f; box-shadow: 0 4px 0 #111; background: #e5e7eb; }
@@ -171,6 +172,18 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
   font-weight: 800;
   text-shadow: 1px 1px 2px #000000;
 }
+.evento-tag {
+  display: inline-block;
+  margin-bottom: .3rem;
+  padding: .14rem .45rem;
+  border-radius: 999px;
+  font-size: .7rem;
+  font-weight: 900;
+  border: 1px solid #fff;
+  text-shadow: none;
+}
+.tag-oficial { background: #46ff9f; color: #111; border-color: #111; }
+.tag-apoio { background: #93c5fd; color: #111; border-color: #111; }
 
 .rich-editor-wrap { border: 2px solid #111; border-radius: 14px; padding: .5rem; background: #fff; }
 .rich-toolbar { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .45rem; }

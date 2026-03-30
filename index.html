@@ -82,6 +82,18 @@
           <div class="grid cols-3 convidados-grid" id="convidados-cards"></div>
         </div>
 
+        <div class="card">
+          <div class="prioridades-head">
+            <h3 style="margin:0">AGENDA DE EVENTOS</h3>
+            <div class="prioridades-nav">
+              <button id="btn-evt-prev" type="button" aria-label="Evento anterior">◀</button>
+              <small id="eventos-page-info">0 de 0</small>
+              <button id="btn-evt-next" type="button" aria-label="Próximo evento">▶</button>
+            </div>
+          </div>
+          <div class="grid cols-3 convidados-grid" id="eventos-cards"></div>
+        </div>
+
         <div class="grid cols-3" id="kpis"></div>
         <div class="card"><h3>PARTICIPAÇÕES POR PROGRAMA</h3><div id="bars"></div></div>
         <div class="card"><h3>HISTÓRICO DE PRÊMIOS ENCERRADOS</h3><table id="tabela-historico-premios" class="table"></table></div>
@@ -245,6 +257,55 @@
           <h3>LISTA DE CONVIDADOS</h3>
           <table id="tabela-convidados" class="table"></table>
         </div>
+
+        <div class="grid cols-2">
+          <form id="form-evento" class="card form">
+            <h3>GESTÃO DE EVENTOS</h3>
+            <label>NOME DO EVENTO</label>
+            <input id="evt-nome" required />
+            <label>DATA</label>
+            <input id="evt-data" type="date" required />
+            <label>LOCAL</label>
+            <input id="evt-local" required />
+            <label>VÍNCULO</label>
+            <select id="evt-vinculo" required>
+              <option value="RÁDIO OFICIAL">RÁDIO OFICIAL</option>
+              <option value="APOIO">APOIO</option>
+            </select>
+            <label>DESCRIÇÃO (MINI PAUTA)</label>
+            <div class="rich-editor-wrap">
+              <div class="rich-toolbar" data-editor="evt-editor">
+                <button type="button" class="btn-ghost" data-cmd="bold">Negrito</button>
+                <button type="button" class="btn-ghost" data-cmd="italic">Itálico</button>
+                <button type="button" class="btn-ghost" data-cmd="underline">Subl.</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontUp">A+</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontDown">A-</button>
+                <button type="button" class="btn-ghost" data-style-preset="textRed">Vermelho</button>
+                <button type="button" class="btn-ghost" data-style-preset="textBlack">Preto</button>
+                <button type="button" class="btn-ghost" data-style-preset="bgYellow">Fundo amarelo</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyLeft">Esq</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyCenter">Centro</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyRight">Dir</button>
+                <select data-font-target="evt-editor" class="font-picker">
+                  <option value="Arial">Arial</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Trebuchet MS">Trebuchet</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+              <div id="evt-editor" class="rich-editor" contenteditable="true" aria-label="Descrição do evento"></div>
+            </div>
+            <input id="evt-descricao" type="hidden" />
+            <label>IMAGEM (UPLOAD)</label>
+            <input id="evt-imagem" type="file" accept="image/*" />
+            <button type="submit">SALVAR EVENTO</button>
+          </form>
+        </div>
+        <div class="card">
+          <h3>LISTA DE EVENTOS</h3>
+          <table id="tabela-eventos" class="table"></table>
+        </div>
       </section>
     </main>
 
@@ -360,6 +421,49 @@
             <label class="inline full-row"><input id="e-conv-concluido" type="checkbox" /> CONCLUÍDO</label>
           </div>
 
+          <div id="edit-fields-evento" class="edit-group hidden">
+            <label>NOME DO EVENTO</label>
+            <input id="e-evt-nome" required />
+            <label>DATA</label>
+            <input id="e-evt-data" type="date" required />
+            <label>LOCAL</label>
+            <input id="e-evt-local" required />
+            <label>VÍNCULO</label>
+            <select id="e-evt-vinculo" required>
+              <option value="RÁDIO OFICIAL">RÁDIO OFICIAL</option>
+              <option value="APOIO">APOIO</option>
+            </select>
+            <label>IMAGEM URL (OPCIONAL)</label>
+            <input id="e-evt-imagem-url" placeholder="https://..." />
+            <label class="full-row">TROCAR IMAGEM (UPLOAD)</label>
+            <input id="e-evt-imagem-file" type="file" accept="image/*" class="full-row" />
+            <label class="full-row">DESCRIÇÃO</label>
+            <div class="rich-editor-wrap full-row">
+              <div class="rich-toolbar" data-editor="e-evt-editor">
+                <button type="button" class="btn-ghost" data-cmd="bold">Negrito</button>
+                <button type="button" class="btn-ghost" data-cmd="italic">Itálico</button>
+                <button type="button" class="btn-ghost" data-cmd="underline">Subl.</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontUp">A+</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontDown">A-</button>
+                <button type="button" class="btn-ghost" data-style-preset="textRed">Vermelho</button>
+                <button type="button" class="btn-ghost" data-style-preset="textBlack">Preto</button>
+                <button type="button" class="btn-ghost" data-style-preset="bgYellow">Fundo amarelo</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyLeft">Esq</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyCenter">Centro</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyRight">Dir</button>
+                <select data-font-target="e-evt-editor" class="font-picker">
+                  <option value="Arial">Arial</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Trebuchet MS">Trebuchet</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+              <div id="e-evt-editor" class="rich-editor" contenteditable="true" aria-label="Descrição do evento"></div>
+            </div>
+            <input id="e-evt-descricao" type="hidden" />
+          </div>
+
           <button type="submit">SALVAR ALTERAÇÕES</button>
         </form>
       </div>
@@ -392,6 +496,16 @@
           <button id="btn-close-convidado-modal" type="button" class="btn-ghost">FECHAR</button>
         </div>
         <div id="convidado-modal-body"></div>
+      </div>
+    </div>
+
+    <div id="evento-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+      <div class="modal-card prioridade-detalhe">
+        <div class="modal-head">
+          <h3 id="evento-modal-title">DETALHES DO EVENTO</h3>
+          <button id="btn-close-evento-modal" type="button" class="btn-ghost">FECHAR</button>
+        </div>
+        <div id="evento-modal-body"></div>
       </div>
     </div>
 
