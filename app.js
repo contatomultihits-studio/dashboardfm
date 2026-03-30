@@ -418,6 +418,7 @@ function lastDayOfMonthISOFrom(baseISO){const d=new Date(`${baseISO}T00:00:00`);
 function currentClockOnDate(baseISO){const now=new Date();const d=new Date(`${baseISO}T00:00:00`);d.setHours(now.getHours(),now.getMinutes(),now.getSeconds(),0);return d;}
 function shiftDateInput(idInput, days){const el=document.getElementById(idInput);const d=new Date(`${(el.value||todayISO())}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);if(idInput==='gmt-date')renderPremiosGerenciamento();if(idInput==='dashboard-date')renderDashboard();}
 function fmtDateOnly(iso){if(!iso)return '--';return new Date(iso).toLocaleDateString('pt-BR');}
+function fmtDayMonth(iso){if(!iso)return '--/--';return new Date(`${iso}T00:00:00`).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});}
 function filterPremiosByDay(premios, dayISO){const start=`${dayISO}T00:00:00.000Z`;const end=`${dayISO}T23:59:59.999Z`;return premios.filter((p)=>{const i=p.inicio||start;const f=p.fim||end;return i<=end&&f>=start;});}
 function val(idEl){return document.getElementById(idEl).value;}
 
@@ -575,7 +576,7 @@ function renderConvidadosCards(dashboardDate) {
   if (convidadoCarouselStart > maxStart) convidadoCarouselStart = maxStart;
   const items = source.slice(convidadoCarouselStart, convidadoCarouselStart + pageSize);
   box.innerHTML = items.length ? items.map((c) => {
-    const subtitulo = `${fmtDateOnly(c.data)} às ${c.hora || '--:--'}`;
+    const subtitulo = `${fmtDayMonth(c.data)} às ${c.hora || '--:--'}`;
     return `<button class="card prioridade-card convidado-card" data-conv-card="${c.id}" type="button"><div class="convidado-thumb-wrap">${c.imagemUrl ? `<img src="${c.imagemUrl}" alt="Convidado" class="convidado-thumb" />` : '<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}<div class="convidado-overlay"><strong>${escapeHtml(c.nome || 'CONVIDADO')}</strong><small>${escapeHtml(subtitulo)}</small></div></div></button>`;
   }).join('') : `<div class="card"><strong>SEM CONVIDADOS FUTUROS.</strong></div>`;
   box.querySelectorAll('[data-conv-card]').forEach((el) => el.addEventListener('click', () => showConvidadoDetalhe(el.dataset.convCard)));

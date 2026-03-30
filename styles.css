@@ -143,20 +143,19 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
 #convidados-page-info { font-weight: 800; text-transform: uppercase; color: #111; }
 .convidados-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 260px)); justify-content: start; }
 .convidado-card { padding: .55rem; width: 260px; max-width: 100%; }
-.convidado-thumb-wrap { width: 100%; aspect-ratio: 1 / 1; border-radius: 14px; overflow: hidden; position: relative; border: 2px solid #111; background: #e5e7eb; }
+.convidado-thumb-wrap { width: 100%; aspect-ratio: 1 / 1; border-radius: 14px; overflow: hidden; position: relative; border: 3px solid #46ff9f; box-shadow: 0 4px 0 #111; background: #e5e7eb; }
 .convidado-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
 .convidado-overlay {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: .45rem .55rem;
-  background: rgba(17,17,17,.62);
-  color: #fff;
+  padding: .55rem .6rem;
+  background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.62) 45%, rgba(0,0,0,0) 100%);
   text-align: left;
 }
-.convidado-overlay strong { display: block; font-size: .98rem; line-height: 1.15; }
-.convidado-overlay small { display: block; font-size: .82rem; margin-top: .12rem; opacity: .95; }
+.convidado-overlay strong { display: block; font-size: 1rem; line-height: 1.15; color: #fff06a; font-weight: 900; }
+.convidado-overlay small { display: block; font-size: .82rem; margin-top: .16rem; color: #b9ffd7; font-weight: 800; }
 
 .rich-editor-wrap { border: 2px solid #111; border-radius: 14px; padding: .5rem; background: #fff; }
 .rich-toolbar { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .45rem; }
