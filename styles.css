@@ -151,11 +151,26 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
   right: 0;
   bottom: 0;
   padding: .55rem .6rem;
-  background: linear-gradient(to top, rgba(0,0,0,.82) 0%, rgba(0,0,0,.62) 45%, rgba(0,0,0,0) 100%);
+  background: linear-gradient(to top, rgba(0,0,0,.8) 0%, rgba(0,0,0,0) 100%);
   text-align: left;
+  color: #e0ffe0 !important;
 }
-.convidado-overlay strong { display: block; font-size: 1rem; line-height: 1.15; color: #fff06a; font-weight: 900; }
-.convidado-overlay small { display: block; font-size: .82rem; margin-top: .16rem; color: #b9ffd7; font-weight: 800; }
+.dashboard-upper .convidado-overlay strong {
+  display: block;
+  font-size: 1rem;
+  line-height: 1.15;
+  color: #ffd700 !important;
+  font-weight: 900;
+  text-shadow: 1px 1px 2px #000000;
+}
+.dashboard-upper .convidado-overlay small {
+  display: block;
+  font-size: .82rem;
+  margin-top: .16rem;
+  color: #e0ffe0 !important;
+  font-weight: 800;
+  text-shadow: 1px 1px 2px #000000;
+}
 
 .rich-editor-wrap { border: 2px solid #111; border-radius: 14px; padding: .5rem; background: #fff; }
 .rich-toolbar { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .45rem; }
