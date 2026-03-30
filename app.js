@@ -576,7 +576,7 @@ function renderConvidadosCards(dashboardDate) {
   const items = source.slice(convidadoCarouselStart, convidadoCarouselStart + pageSize);
   box.innerHTML = items.length ? items.map((c) => {
     const subtitulo = `${fmtDateOnly(c.data)} às ${c.hora || '--:--'}`;
-    return `<button class="card prioridade-card" data-conv-card="${c.id}" type="button"><div class="prioridade-thumb-wrap">${c.imagemUrl ? `<img src="${c.imagemUrl}" alt="Convidado" class="prioridade-thumb" />` : '<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}</div><div class="prioridade-title">${escapeHtml(c.nome || 'CONVIDADO')}</div><small>${escapeHtml(subtitulo)}</small></button>`;
+    return `<button class="card prioridade-card convidado-card" data-conv-card="${c.id}" type="button"><div class="convidado-thumb-wrap">${c.imagemUrl ? `<img src="${c.imagemUrl}" alt="Convidado" class="convidado-thumb" />` : '<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}<div class="convidado-overlay"><strong>${escapeHtml(c.nome || 'CONVIDADO')}</strong><small>${escapeHtml(subtitulo)}</small></div></div></button>`;
   }).join('') : `<div class="card"><strong>SEM CONVIDADOS FUTUROS.</strong></div>`;
   box.querySelectorAll('[data-conv-card]').forEach((el) => el.addEventListener('click', () => showConvidadoDetalhe(el.dataset.convCard)));
   const info = document.getElementById('convidados-page-info');
