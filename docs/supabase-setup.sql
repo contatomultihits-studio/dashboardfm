@@ -6,12 +6,14 @@ grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on table public.programas to anon, authenticated;
 grant select, insert, update, delete on table public.participacoes to anon, authenticated;
 grant select, insert, update, delete on table public.prioridades_ar to anon, authenticated;
+grant select, insert, update, delete on table public.gestao_convidados to anon, authenticated;
 grant select, insert, update, delete on table public.premios to anon, authenticated;
 grant select on table public.resumo_participacoes to anon, authenticated;
 
 alter table public.programas enable row level security;
 alter table public.participacoes enable row level security;
 alter table public.prioridades_ar enable row level security;
+alter table public.gestao_convidados enable row level security;
 alter table public.premios enable row level security;
 
 -- Programas
@@ -62,6 +64,28 @@ with check (true);
 DROP POLICY IF EXISTS prioridades_delete_public ON public.prioridades_ar;
 create policy prioridades_delete_public
 on public.prioridades_ar for delete to anon, authenticated
+using (true);
+
+-- Gestão de convidados
+DROP POLICY IF EXISTS convidados_select_public ON public.gestao_convidados;
+create policy convidados_select_public
+on public.gestao_convidados for select to anon, authenticated
+using (true);
+
+DROP POLICY IF EXISTS convidados_insert_public ON public.gestao_convidados;
+create policy convidados_insert_public
+on public.gestao_convidados for insert to anon, authenticated
+with check (true);
+
+DROP POLICY IF EXISTS convidados_update_public ON public.gestao_convidados;
+create policy convidados_update_public
+on public.gestao_convidados for update to anon, authenticated
+using (true)
+with check (true);
+
+DROP POLICY IF EXISTS convidados_delete_public ON public.gestao_convidados;
+create policy convidados_delete_public
+on public.gestao_convidados for delete to anon, authenticated
 using (true);
 
 -- Prêmios

@@ -23,6 +23,7 @@ Se houver erro de permissão execute:
 ## Config ideal para prêmio por hora
 Execute:
 - `docs/premios-hora-migration.sql`
+- `docs/add-gestao-convidados.sql` (novo ecossistema de convidados)
 
 A tabela `premios` passa a ter:
 - `inicio_vigencia`

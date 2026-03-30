@@ -6,10 +6,11 @@ let sb = null;
 let showAllParticipacoes = false;
 let hasGanhadorTelefoneColumn = true;
 let prioridadeCarouselStart = 0;
+let convidadoCarouselStart = 0;
 const editModalState = { tipo: null, id: null };
 let dashboardRefreshInterval = null;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
-const state = { programas: [], premios: [], participacoes: [], prioridades: [] };
+const state = { programas: [], premios: [], participacoes: [], prioridades: [], convidados: [] };
 
 init();
 
@@ -69,14 +70,15 @@ function wireConfigButton() {
 
 async function loadInitialData() {
   if (hasSupabase) {
-    const [p1, p2, p3, p4] = await Promise.all([
+    const [p1, p2, p3, p4, p5] = await Promise.all([
       sb.from('programas').select('id,nome,cor_hex,ativo').order('nome'),
       sb.from('premios').select('*').order('inicio_vigencia', { ascending: true }),
       sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro').order('data_referencia', { ascending: false }),
-      sb.from('prioridades_ar').select('*').order('data', { ascending: false })
+      sb.from('prioridades_ar').select('*').order('data', { ascending: false }),
+      sb.from('gestao_convidados').select('*').order('data_visita', { ascending: true }).order('horario_visita', { ascending: true })
     ]);
-    if (p1.error || p2.error || p3.error || p4.error) {
-      toast(`ERRO SUPABASE: ${(p1.error || p2.error || p3.error || p4.error).message}`);
+    if (p1.error || p2.error || p3.error || p4.error || p5.error) {
+      toast(`ERRO SUPABASE: ${(p1.error || p2.error || p3.error || p4.error || p5.error).message}`);
       return;
     }
     state.programas = (p1.data || []).map((x) => ({ id: x.id, nome: x.nome, cor: x.cor_hex || '#2563eb', ativo: x.ativo }));
@@ -91,10 +93,11 @@ async function loadInitialData() {
     }));
     state.participacoes = (p3.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
     state.prioridades = (p4.data || []).map((x) => ({ id: x.id, data: x.data, programaId: x.programa_id, conteudo: x.conteudo, concluido: Boolean(x.concluido), imagemUrl: x.imagem_url || '' }));
+    state.convidados = (p5.data || []).map((x) => ({ id: x.id, nome: x.nome_convidado || '', data: x.data_visita || '', hora: x.horario_visita || '', miniPautaHtml: x.mini_pauta_html || '', imagemUrl: x.imagem_url || '', concluido: Boolean(x.concluido) }));
     return;
   }
 
-  const local = JSON.parse(localStorage.getItem(dbKey) || '{"programas":[],"premios":[],"participacoes":[],"prioridades":[]}');
+  const local = JSON.parse(localStorage.getItem(dbKey) || '{"programas":[],"premios":[],"participacoes":[],"prioridades":[],"convidados":[]}');
   Object.assign(state, local);
 }
 
@@ -188,6 +191,31 @@ function wireForms() {
     document.getElementById('ar-data').value = todayISO();
     renderAll();
   });
+
+  document.getElementById('form-convidado').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const miniPautaHtml = getEditorHtml('conv-editor');
+    if (!stripHtml(miniPautaHtml).trim()) return toast('MINI PAUTA É OBRIGATÓRIA');
+    const file = document.getElementById('conv-imagem')?.files?.[0] || null;
+    let imagemUrl = null;
+    if (hasSupabase && file) {
+      const upload = await uploadPrioridadeImageSupabase(file);
+      if (upload.error) return toast(`ERRO UPLOAD: ${upload.error.message}`);
+      imagemUrl = upload.url || null;
+    }
+    if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('conv-imagem');
+    const payload = { nome: val('conv-nome'), data: val('conv-data'), hora: val('conv-hora'), miniPautaHtml, imagemUrl: imagemUrl || null, concluido: false };
+    if (hasSupabase) {
+      const { data, error } = await insertConvidadoSupabase(payload);
+      if (error) return toast(`ERRO: ${error.message}`);
+      if (!data?.id) return toast('SEM PERMISSÃO PARA CRIAR CONVIDADO (RLS).');
+      await syncAfterMutation();
+    } else { state.convidados.push({ id: id(), ...payload }); persistLocal(); }
+    e.target.reset();
+    setEditorHtml('conv-editor', '');
+    document.getElementById('conv-data').value = todayISO();
+    renderAll();
+  });
 }
 
 function wireEditModal() {
@@ -208,8 +236,12 @@ function wireFilters() {
   document.getElementById('premio-modal').addEventListener('click', (e) => { if (e.target.id === 'premio-modal') document.getElementById('premio-modal').classList.add('hidden'); });
   document.getElementById('btn-close-prioridade-modal').addEventListener('click', () => document.getElementById('prioridade-modal').classList.add('hidden'));
   document.getElementById('prioridade-modal').addEventListener('click', (e) => { if (e.target.id === 'prioridade-modal') document.getElementById('prioridade-modal').classList.add('hidden'); });
+  document.getElementById('btn-close-convidado-modal').addEventListener('click', () => document.getElementById('convidado-modal').classList.add('hidden'));
+  document.getElementById('convidado-modal').addEventListener('click', (e) => { if (e.target.id === 'convidado-modal') document.getElementById('convidado-modal').classList.add('hidden'); });
   document.getElementById('btn-prio-prev')?.addEventListener('click', () => shiftPrioridadesDashboard(-1));
   document.getElementById('btn-prio-next')?.addEventListener('click', () => shiftPrioridadesDashboard(1));
+  document.getElementById('btn-conv-prev')?.addEventListener('click', () => shiftConvidadosDashboard(-1));
+  document.getElementById('btn-conv-next')?.addEventListener('click', () => shiftConvidadosDashboard(1));
 }
 
 function initDefaultDates() {
@@ -218,7 +250,9 @@ function initDefaultDates() {
   document.getElementById('dashboard-date').value = end;
   document.getElementById('gmt-date').value = end;
   document.getElementById('ar-data').value = end;
+  document.getElementById('conv-data').value = end;
   setEditorHtml('ar-editor', '');
+  setEditorHtml('conv-editor', '');
   presetPremioFormDateTime();
 }
 
@@ -229,6 +263,7 @@ function renderAll() {
   renderWinnerSearch();
   renderParticipacoes();
   renderPrioridadesAr();
+  renderConvidadosGestao();
   renderDashboard();
 }
 
@@ -333,6 +368,7 @@ function renderDashboard() {
   const dashboardDate = document.getElementById('dashboard-date').value || todayISO();
   document.getElementById('periodo-label').textContent = `DADOS: ${new Date(`${dashboardDate}T00:00:00`).toLocaleDateString('pt-BR')}`;
   renderPrioridadesCards(dashboardDate);
+  renderConvidadosCards(dashboardDate);
 
   const de = firstDayOfMonthISOFrom(dashboardDate);
   const ate = lastDayOfMonthISOFrom(dashboardDate);
@@ -393,6 +429,18 @@ function renderPrioridadesAr() {
   t.querySelectorAll('[data-del-prio]').forEach((b)=>b.addEventListener('click', async()=>deletePrioridade(b.dataset.delPrio)));
 }
 
+function renderConvidadosGestao() {
+  const t = document.getElementById('tabela-convidados');
+  if (!t) return;
+  const rows = [...state.convidados].sort((a, b) => `${a.data}T${a.hora}`.localeCompare(`${b.data}T${b.hora}`));
+  t.innerHTML = `<thead><tr><th>NOME</th><th>DATA</th><th>HORA</th><th>CONCLUÍDO</th><th>AÇÕES</th></tr></thead><tbody>${
+    rows.map((c) => `<tr><td>${escapeHtml(c.nome || '-')}</td><td>${fmtDateOnly(c.data)}</td><td>${c.hora || '--:--'}</td><td><input type="checkbox" data-conv-done="${c.id}" ${c.concluido ? 'checked' : ''} /></td><td><button data-edit-conv="${c.id}">EDITAR</button> <button data-del-conv="${c.id}">EXCLUIR</button></td></tr>`).join('')
+  }</tbody>`;
+  t.querySelectorAll('[data-edit-conv]').forEach((b) => b.addEventListener('click', () => openEditModal('convidado', b.dataset.editConv)));
+  t.querySelectorAll('[data-del-conv]').forEach((b) => b.addEventListener('click', async () => deleteConvidado(b.dataset.delConv)));
+  t.querySelectorAll('[data-conv-done]').forEach((el) => el.addEventListener('change', async () => toggleConvidadoConcluido(el.dataset.convDone, el.checked)));
+}
+
 async function fileInputToDataUrl(idInput) {
   const input = document.getElementById(idInput);
   const file = input?.files?.[0];
@@ -412,6 +460,28 @@ async function insertPrioridadeSupabase(payload) {
   return sb.from('prioridades_ar').insert(base).select('id').maybeSingle();
 }
 
+async function insertConvidadoSupabase(payload) {
+  return sb.from('gestao_convidados').insert({
+    nome_convidado: payload.nome,
+    data_visita: payload.data,
+    horario_visita: payload.hora,
+    mini_pauta_html: payload.miniPautaHtml,
+    imagem_url: payload.imagemUrl || null,
+    concluido: Boolean(payload.concluido)
+  }).select('id').maybeSingle();
+}
+
+async function updateConvidadoSupabase(idConvidado, payload) {
+  return sb.from('gestao_convidados').update({
+    nome_convidado: payload.nome,
+    data_visita: payload.data,
+    horario_visita: payload.hora,
+    mini_pauta_html: payload.miniPautaHtml,
+    imagem_url: payload.imagemUrl || null,
+    concluido: Boolean(payload.concluido)
+  }).eq('id', idConvidado).select('id').maybeSingle();
+}
+
 async function deletePrioridade(idPrio) {
   if(!confirm('EXCLUIR PRIORIDADE DO AR?')) return;
   if (hasSupabase) {
@@ -423,6 +493,33 @@ async function deletePrioridade(idPrio) {
     state.prioridades = state.prioridades.filter((x)=>x.id!==idPrio);
     persistLocal();
   }
+  renderAll();
+}
+
+async function deleteConvidado(idConvidado) {
+  if (!confirm('EXCLUIR CONVIDADO?')) return;
+  if (hasSupabase) {
+    const { data, error } = await sb.from('gestao_convidados').delete().eq('id', idConvidado).select('id').maybeSingle();
+    if (error) return toast(`ERRO: ${error.message}`);
+    if (!data?.id) return toast('SEM PERMISSÃO PARA EXCLUIR ESTE CONVIDADO (RLS).');
+    await syncAfterMutation();
+  } else {
+    state.convidados = state.convidados.filter((x) => x.id !== idConvidado);
+    persistLocal();
+  }
+  renderAll();
+}
+
+async function toggleConvidadoConcluido(idConvidado, concluido) {
+  const item = state.convidados.find((x) => x.id === idConvidado);
+  if (!item) return;
+  item.concluido = Boolean(concluido);
+  if (hasSupabase) {
+    const { data, error } = await sb.from('gestao_convidados').update({ concluido: item.concluido }).eq('id', idConvidado).select('id').maybeSingle();
+    if (error) return toast(`ERRO: ${error.message}`);
+    if (!data?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTE CONVIDADO (RLS).');
+    await syncAfterMutation();
+  } else persistLocal();
   renderAll();
 }
 
@@ -442,6 +539,7 @@ function escapeHtml(v){return String(v).replace(/[&<>"']/g,(m)=>({ '&':'&amp;','
 function fmtDateTime(iso){if(!iso)return '--';return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function shiftDashboardDate(days){const el=document.getElementById('dashboard-date');const d=new Date(`${el.value||todayISO()}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);renderDashboard();}
 function shiftPrioridadesDashboard(step){prioridadeCarouselStart=Math.max(0, prioridadeCarouselStart+step);renderDashboard();}
+function shiftConvidadosDashboard(step){convidadoCarouselStart=Math.max(0, convidadoCarouselStart+step);renderDashboard();}
 
 function renderPrioridadesCards(dashboardDate){
   const box = document.getElementById('prioridades-cards');
@@ -465,12 +563,44 @@ function renderPrioridadesCards(dashboardDate){
   if (nextBtn) nextBtn.disabled = prioridadeCarouselStart >= maxStart;
 }
 
+function renderConvidadosCards(dashboardDate) {
+  const box = document.getElementById('convidados-cards');
+  if (!box) return;
+  const hoje = todayISO();
+  const source = state.convidados
+    .filter((c) => (c.data || '') >= hoje && !c.concluido)
+    .sort((a, b) => `${a.data}T${a.hora}`.localeCompare(`${b.data}T${b.hora}`));
+  const pageSize = 3;
+  const maxStart = Math.max(0, source.length - pageSize);
+  if (convidadoCarouselStart > maxStart) convidadoCarouselStart = maxStart;
+  const items = source.slice(convidadoCarouselStart, convidadoCarouselStart + pageSize);
+  box.innerHTML = items.length ? items.map((c) => {
+    const subtitulo = `${fmtDateOnly(c.data)} às ${c.hora || '--:--'}`;
+    return `<button class="card prioridade-card" data-conv-card="${c.id}" type="button"><div class="prioridade-thumb-wrap">${c.imagemUrl ? `<img src="${c.imagemUrl}" alt="Convidado" class="prioridade-thumb" />` : '<div class="prioridade-thumb-placeholder">SEM IMAGEM</div>'}</div><div class="prioridade-title">${escapeHtml(c.nome || 'CONVIDADO')}</div><small>${escapeHtml(subtitulo)}</small></button>`;
+  }).join('') : `<div class="card"><strong>SEM CONVIDADOS FUTUROS.</strong></div>`;
+  box.querySelectorAll('[data-conv-card]').forEach((el) => el.addEventListener('click', () => showConvidadoDetalhe(el.dataset.convCard)));
+  const info = document.getElementById('convidados-page-info');
+  if (info) info.textContent = source.length ? `${convidadoCarouselStart + 1}-${Math.min(source.length, convidadoCarouselStart + pageSize)} de ${source.length}` : '0 de 0';
+  const prevBtn = document.getElementById('btn-conv-prev');
+  const nextBtn = document.getElementById('btn-conv-next');
+  if (prevBtn) prevBtn.disabled = convidadoCarouselStart <= 0;
+  if (nextBtn) nextBtn.disabled = convidadoCarouselStart >= maxStart;
+}
+
 function showPrioridadeDetalhe(idPrio){
   const p = state.prioridades.find((x)=>x.id===idPrio);
   if(!p) return;
   document.getElementById('prioridade-modal-title').textContent = `PRIORIDADE DO AR • ${fmtDateOnly(p.data)}`;
   document.getElementById('prioridade-modal-body').innerHTML = `<div class="prioridade-hero">${p.imagemUrl?`<img src="${p.imagemUrl}" alt="Imagem prioridade" class="prioridade-modal-img" />`:'<div class="prioridade-modal-noimg">SEM IMAGEM</div>'}</div><div class="prioridade-texto"><strong>CONTEÚDO</strong><div class="rich-render">${renderRichText(p.conteudo||'-')}</div></div>`;
   document.getElementById('prioridade-modal').classList.remove('hidden');
+}
+
+function showConvidadoDetalhe(idConvidado) {
+  const c = state.convidados.find((x) => x.id === idConvidado);
+  if (!c) return;
+  document.getElementById('convidado-modal-title').textContent = `${c.nome || 'CONVIDADO'} • ${fmtDateOnly(c.data)} ${c.hora || ''}`;
+  document.getElementById('convidado-modal-body').innerHTML = `<div class="prioridade-hero">${c.imagemUrl ? `<img src="${c.imagemUrl}" alt="Imagem convidado" class="prioridade-modal-img" />` : '<div class="prioridade-modal-noimg">SEM IMAGEM</div>'}</div><div class="prioridade-texto"><strong>MINI PAUTA</strong><div class="rich-render">${renderRichText(c.miniPautaHtml || '-')}</div></div>`;
+  document.getElementById('convidado-modal').classList.remove('hidden');
 }
 
 async function insertPremioSupabase(payload){
@@ -584,6 +714,20 @@ function openEditModal(tipo, itemId) {
     setEditorHtml('e-prio-editor', item.conteudo || '');
   }
 
+  if (tipo === 'convidado') {
+    const item = state.convidados.find((x) => x.id === itemId);
+    if (!item) return;
+    title.textContent = 'EDITAR CONVIDADO';
+    setEditGroupState('edit-fields-convidado', true);
+    document.getElementById('e-conv-nome').value = item.nome || '';
+    document.getElementById('e-conv-data').value = item.data || '';
+    document.getElementById('e-conv-hora').value = item.hora || '';
+    document.getElementById('e-conv-imagem-url').value = item.imagemUrl || '';
+    document.getElementById('e-conv-imagem-file').value = '';
+    document.getElementById('e-conv-concluido').checked = Boolean(item.concluido);
+    setEditorHtml('e-conv-editor', item.miniPautaHtml || '');
+  }
+
   modal.classList.remove('hidden');
 }
 
@@ -598,6 +742,7 @@ function hideEditGroups() {
   setEditGroupState('edit-fields-premio', false);
   setEditGroupState('edit-fields-participacao', false);
   setEditGroupState('edit-fields-prioridade', false);
+  setEditGroupState('edit-fields-convidado', false);
 }
 
 function setEditGroupState(groupId, active) {
@@ -703,6 +848,37 @@ async function submitEditModal(e) {
     } else persistLocal();
   }
 
+  if (editModalState.tipo === 'convidado') {
+    const item = state.convidados.find((x) => x.id === editModalState.id);
+    if (!item) return;
+    const nome = document.getElementById('e-conv-nome').value.trim();
+    const data = document.getElementById('e-conv-data').value;
+    const hora = document.getElementById('e-conv-hora').value;
+    const miniPautaHtml = getEditorHtml('e-conv-editor');
+    const imagemUrlInput = document.getElementById('e-conv-imagem-url').value.trim();
+    const concluido = document.getElementById('e-conv-concluido').checked;
+    const file = document.getElementById('e-conv-imagem-file')?.files?.[0] || null;
+    if (!nome) return toast('NOME DO CONVIDADO É OBRIGATÓRIO');
+    if (!stripHtml(miniPautaHtml).trim()) return toast('MINI PAUTA É OBRIGATÓRIA');
+    let imagemUrlFinal = imagemUrlInput || item.imagemUrl || '';
+    if (file) {
+      if (hasSupabase) {
+        const upload = await uploadPrioridadeImageSupabase(file);
+        if (upload.error) return toast(`ERRO UPLOAD: ${upload.error.message}`);
+        imagemUrlFinal = upload.url || imagemUrlFinal;
+      } else {
+        imagemUrlFinal = await fileInputToDataUrl('e-conv-imagem-file');
+      }
+    }
+    Object.assign(item, { nome, data, hora, miniPautaHtml, imagemUrl: imagemUrlFinal, concluido });
+    if (hasSupabase) {
+      const { data: upData, error } = await updateConvidadoSupabase(item.id, { nome, data, hora, miniPautaHtml, imagemUrl: imagemUrlFinal, concluido });
+      if (error) return toast(`ERRO: ${error.message}`);
+      if (!upData?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTE CONVIDADO (RLS).');
+      await syncAfterMutation();
+    } else persistLocal();
+  }
+
   closeEditModal();
   renderAll();
 }
@@ -758,7 +934,11 @@ function getEditorHtml(idEditor) {
   const editor = document.getElementById(idEditor);
   if (!editor) return '';
   const clean = sanitizeRichText(editor.innerHTML || '');
-  const hiddenInputId = idEditor === 'ar-editor' ? 'ar-conteudo' : (idEditor === 'e-prio-editor' ? 'e-prio-conteudo' : '');
+  const hiddenInputId = idEditor === 'ar-editor' ? 'ar-conteudo'
+    : idEditor === 'e-prio-editor' ? 'e-prio-conteudo'
+    : idEditor === 'conv-editor' ? 'conv-pauta'
+    : idEditor === 'e-conv-editor' ? 'e-conv-pauta'
+    : '';
   if (hiddenInputId) document.getElementById(hiddenInputId).value = clean;
   return clean;
 }
