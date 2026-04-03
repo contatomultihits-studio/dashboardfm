@@ -6,6 +6,7 @@ let sb = null;
 let showAllParticipacoes = false;
 let hasGanhadorTelefoneColumn = true;
 let hasPremioEstoqueIdColumn = true;
+let hasEstoqueDescricaoColumn = true;
 let prioridadeCarouselStart = 0;
 let convidadoCarouselStart = 0;
 let eventoCarouselStart = 0;
@@ -99,7 +100,7 @@ async function loadInitialData() {
     state.prioridades = (p4.data || []).map((x) => ({ id: x.id, data: x.data, programaId: x.programa_id, conteudo: x.conteudo, concluido: Boolean(x.concluido), ativo: x.ativo !== false, imagemUrl: x.imagem_url || '' }));
     state.convidados = (p5.data || []).map((x) => ({ id: x.id, nome: x.nome_convidado || '', data: x.data_visita || '', hora: x.horario_visita || '', miniPautaHtml: x.mini_pauta_html || '', imagemUrl: x.imagem_url || '', concluido: Boolean(x.concluido), ativo: x.ativo !== false }));
     state.eventos = (p6.data || []).map((x) => ({ id: x.id, nome: x.nome_evento || '', data: x.data_evento || '', local: x.local_evento || '', vinculo: x.vinculo || 'APOIO', descricaoHtml: x.descricao_html || '', imagemUrl: x.imagem_url || '', ativo: x.ativo !== false }));
-    state.estoque = (p7.data || []).map((x) => ({ id: x.id, nome: x.nome_item || x.nome || '', quantidadeTotal: Number(x.quantidade_total || 0), quantidadeAtual: Number(x.quantidade_atual || 0) }));
+    state.estoque = (p7.data || []).map((x) => ({ id: x.id, nome: x.nome_item || x.nome || '', descricaoHtml: x.descricao_premio_html || x.descricao_html || x.descricao || '', quantidadeTotal: Number(x.quantidade_total || 0), quantidadeAtual: Number(x.quantidade_atual || 0) }));
     return;
   }
 
@@ -136,6 +137,7 @@ function wireForms() {
     const estoqueId = val('select_estoque');
     const itemEstoque = state.estoque.find((x) => String(x.id) === String(estoqueId));
     const qtdEntregue = Number(val('input_qtd_entregue') || 1);
+    const descricaoHtml = getEditorHtml('g-premio-editor');
     const dia = val('g-premio-data');
     const hInicio = val('g-premio-inicio-hora');
     const hFim = val('g-premio-fim-hora');
@@ -144,10 +146,11 @@ function wireForms() {
     if (!itemEstoque) return toast('SELECIONE UM ITEM DE ESTOQUE');
     if (!Number.isFinite(qtdEntregue) || qtdEntregue <= 0) return toast('QUANTIDADE ENTREGUE INVÁLIDA');
     if (qtdEntregue > Number(itemEstoque.quantidadeAtual || 0)) return toast('QUANTIDADE ENTREGUE MAIOR QUE O SALDO');
+    if (!stripHtml(descricaoHtml).trim()) return toast('DESCRIÇÃO É OBRIGATÓRIA');
     if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) return toast('DATA/HORA INVÁLIDA');
     if (fim <= inicio) return toast('HORA FIM DEVE SER MAIOR QUE INÍCIO');
     const payload = {
-      nome: itemEstoque.nome, estoqueId: itemEstoque.id, descricao: val('g-premio-desc'),
+      nome: itemEstoque.nome, estoqueId: itemEstoque.id, descricao: descricaoHtml,
       inicio: inicio.toISOString(), fim: fim.toISOString(),
       ganhador: val('g-premio-ganhador') || null, telefone: val('g-premio-telefone') || null
     };
@@ -167,6 +170,7 @@ function wireForms() {
     }
     e.target.reset();
     document.getElementById('input_qtd_entregue').value = '1';
+    setEditorHtml('g-premio-editor', '');
     presetPremioFormDateTime();
     renderAll();
   });
@@ -269,8 +273,10 @@ function wireForms() {
   document.getElementById('form-estoque').addEventListener('submit', async (e) => {
     e.preventDefault();
     const quantidadeTotal = Number(val('est-quantidade-total'));
-    const payload = { nome: val('est-nome'), quantidadeTotal, quantidadeAtual: quantidadeTotal };
+    const descricaoHtml = getEditorHtml('est-editor');
+    const payload = { nome: val('est-nome'), descricaoHtml, quantidadeTotal, quantidadeAtual: quantidadeTotal };
     if (!payload.nome) return toast('NOME DO ITEM É OBRIGATÓRIO');
+    if (!stripHtml(descricaoHtml).trim()) return toast('DESCRIÇÃO DO PRÊMIO É OBRIGATÓRIA');
     if (!Number.isFinite(quantidadeTotal) || quantidadeTotal < 0) return toast('QUANTIDADE TOTAL INVÁLIDA');
     if (hasSupabase) {
       const { data, error } = await insertEstoqueSupabase(payload);
@@ -279,7 +285,14 @@ function wireForms() {
       await syncAfterMutation();
     } else { state.estoque.unshift({ id: id(), ...payload }); persistLocal(); }
     e.target.reset();
+    setEditorHtml('est-editor', '');
     renderAll();
+  });
+
+  document.getElementById('select_estoque').addEventListener('change', () => {
+    const estoqueId = val('select_estoque');
+    const itemEstoque = state.estoque.find((x) => String(x.id) === String(estoqueId));
+    setEditorHtml('g-premio-editor', itemEstoque?.descricaoHtml || '');
   });
 }
 
@@ -324,6 +337,8 @@ function initDefaultDates() {
   setEditorHtml('ar-editor', '');
   setEditorHtml('conv-editor', '');
   setEditorHtml('evt-editor', '');
+  setEditorHtml('g-premio-editor', '');
+  setEditorHtml('est-editor', '');
   presetPremioFormDateTime();
 }
 
@@ -349,10 +364,14 @@ function fillProgramSelect(idSel) {
 function fillEstoqueSelect(idSel) {
   const sel = document.getElementById(idSel);
   if (!sel) return;
+  const selectedBefore = sel.value;
   const itensDisponiveis = state.estoque
     .filter((item) => Number(item.quantidadeAtual) > 0)
     .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || '')));
   sel.innerHTML = '<option value="">SELECIONE...</option>' + itensDisponiveis.map((item) => `<option value="${item.id}">${escapeHtml(item.nome || `ITEM ${item.id}`)}</option>`).join('');
+  if (selectedBefore && itensDisponiveis.some((item) => String(item.id) === String(selectedBefore))) {
+    sel.value = String(selectedBefore);
+  }
 }
 
 function renderParticipacoes() {
@@ -550,10 +569,10 @@ function renderEstoque() {
   const t = document.getElementById('tabela-estoque');
   if (!t) return;
   const rows = [...state.estoque].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
-  t.innerHTML = `<thead><tr><th>ITEM</th><th>QUANTIDADE TOTAL</th><th>QUANTIDADE ATUAL</th></tr></thead><tbody>${
+  t.innerHTML = `<thead><tr><th>ITEM</th><th>DESCRIÇÃO</th><th>QUANTIDADE TOTAL</th><th>QUANTIDADE ATUAL</th></tr></thead><tbody>${
     rows.length
-      ? rows.map((r) => `<tr><td>${escapeHtml(r.nome || '-')}</td><td>${r.quantidadeTotal}</td><td class="${Number(r.quantidadeAtual) === 0 ? 'saldo-zero' : ''}">${r.quantidadeAtual}</td></tr>`).join('')
-      : '<tr><td colspan="3">NENHUM ITEM CADASTRADO.</td></tr>'
+      ? rows.map((r) => `<tr><td>${escapeHtml(r.nome || '-')}</td><td>${escapeHtml(stripHtml(r.descricaoHtml || '').slice(0, 140) || '-')}</td><td>${r.quantidadeTotal}</td><td class="${Number(r.quantidadeAtual) === 0 ? 'saldo-zero' : ''}">${r.quantidadeAtual}</td></tr>`).join('')
+      : '<tr><td colspan="4">NENHUM ITEM CADASTRADO.</td></tr>'
   }</tbody>`;
 }
 
@@ -603,11 +622,17 @@ async function insertConvidadoSupabase(payload) {
 }
 
 async function insertEstoqueSupabase(payload) {
-  return sb.from('estoque').insert({
+  const base = {
     nome_item: payload.nome,
     quantidade_total: payload.quantidadeTotal,
     quantidade_atual: payload.quantidadeAtual
-  }).select('id').maybeSingle();
+  };
+  if (hasEstoqueDescricaoColumn) {
+    const firstTry = await sb.from('estoque').insert({ ...base, descricao_premio_html: payload.descricaoHtml || '' }).select('id').maybeSingle();
+    if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('descricao_premio_html')) return firstTry;
+    hasEstoqueDescricaoColumn = false;
+  }
+  return sb.from('estoque').insert(base).select('id').maybeSingle();
 }
 
 async function updateConvidadoSupabase(idConvidado, payload) {

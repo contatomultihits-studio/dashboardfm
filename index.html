@@ -140,7 +140,30 @@
             <label>QUANTIDADE ENTREGUE</label>
             <input id="input_qtd_entregue" type="number" min="1" value="1" required />
             <label>DESCRIÇÃO</label>
-            <textarea id="g-premio-desc" rows="3" required></textarea>
+            <div class="rich-editor-wrap">
+              <div class="rich-toolbar" data-editor="g-premio-editor">
+                <button type="button" class="btn-ghost" data-cmd="bold">Negrito</button>
+                <button type="button" class="btn-ghost" data-cmd="italic">Itálico</button>
+                <button type="button" class="btn-ghost" data-cmd="underline">Subl.</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontUp">A+</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontDown">A-</button>
+                <button type="button" class="btn-ghost" data-style-preset="textRed">Vermelho</button>
+                <button type="button" class="btn-ghost" data-style-preset="textBlack">Preto</button>
+                <button type="button" class="btn-ghost" data-style-preset="bgYellow">Fundo amarelo</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyLeft">Esq</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyCenter">Centro</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyRight">Dir</button>
+                <select data-font-target="g-premio-editor" class="font-picker">
+                  <option value="Arial">Arial</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Trebuchet MS">Trebuchet</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+              <div id="g-premio-editor" class="rich-editor" contenteditable="true" aria-label="Descrição do prêmio"></div>
+            </div>
+            <input id="g-premio-desc" type="hidden" />
             <label>DATA DA PROMOÇÃO</label>
             <input id="g-premio-data" type="date" required />
             <label>HORA INÍCIO</label>
@@ -320,6 +343,31 @@
             <h3>ENTRADA DE INGRESSOS</h3>
             <label>NOME DO ITEM</label>
             <input id="est-nome" required />
+            <label>DESCRIÇÃO DO PRÊMIO</label>
+            <div class="rich-editor-wrap">
+              <div class="rich-toolbar" data-editor="est-editor">
+                <button type="button" class="btn-ghost" data-cmd="bold">Negrito</button>
+                <button type="button" class="btn-ghost" data-cmd="italic">Itálico</button>
+                <button type="button" class="btn-ghost" data-cmd="underline">Subl.</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontUp">A+</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontDown">A-</button>
+                <button type="button" class="btn-ghost" data-style-preset="textRed">Vermelho</button>
+                <button type="button" class="btn-ghost" data-style-preset="textBlack">Preto</button>
+                <button type="button" class="btn-ghost" data-style-preset="bgYellow">Fundo amarelo</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyLeft">Esq</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyCenter">Centro</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyRight">Dir</button>
+                <select data-font-target="est-editor" class="font-picker">
+                  <option value="Arial">Arial</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Trebuchet MS">Trebuchet</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+              <div id="est-editor" class="rich-editor" contenteditable="true" aria-label="Descrição do item do estoque"></div>
+            </div>
+            <input id="est-descricao" type="hidden" />
             <label>QUANTIDADE TOTAL</label>
             <input id="est-quantidade-total" type="number" min="0" required />
             <button type="submit">SALVAR</button>
