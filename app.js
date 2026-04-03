@@ -5,6 +5,7 @@ let hasSupabase = false;
 let sb = null;
 let showAllParticipacoes = false;
 let hasGanhadorTelefoneColumn = true;
+let hasPremioEstoqueIdColumn = true;
 let prioridadeCarouselStart = 0;
 let convidadoCarouselStart = 0;
 let eventoCarouselStart = 0;
@@ -132,15 +133,21 @@ function wireForms() {
 
   document.getElementById('form-premio').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const estoqueId = val('select_estoque');
+    const itemEstoque = state.estoque.find((x) => String(x.id) === String(estoqueId));
+    const qtdEntregue = Number(val('input_qtd_entregue') || 1);
     const dia = val('g-premio-data');
     const hInicio = val('g-premio-inicio-hora');
     const hFim = val('g-premio-fim-hora');
     const inicio = new Date(`${dia}T${hInicio}:00`);
     const fim = new Date(`${dia}T${hFim}:00`);
+    if (!itemEstoque) return toast('SELECIONE UM ITEM DE ESTOQUE');
+    if (!Number.isFinite(qtdEntregue) || qtdEntregue <= 0) return toast('QUANTIDADE ENTREGUE INVÁLIDA');
+    if (qtdEntregue > Number(itemEstoque.quantidadeAtual || 0)) return toast('QUANTIDADE ENTREGUE MAIOR QUE O SALDO');
     if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) return toast('DATA/HORA INVÁLIDA');
     if (fim <= inicio) return toast('HORA FIM DEVE SER MAIOR QUE INÍCIO');
     const payload = {
-      nome: val('g-premio-nome'), descricao: val('g-premio-desc'),
+      nome: itemEstoque.nome, estoqueId: itemEstoque.id, descricao: val('g-premio-desc'),
       inicio: inicio.toISOString(), fim: fim.toISOString(),
       ganhador: val('g-premio-ganhador') || null, telefone: val('g-premio-telefone') || null
     };
@@ -148,9 +155,18 @@ function wireForms() {
       const { data, error } = await insertPremioSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
       if (!data?.id) return toast('ERRO: prêmio não retornou ID');
+      const novoSaldo = Math.max(0, Number(itemEstoque.quantidadeAtual || 0) - qtdEntregue);
+      const { error: estoqueError } = await updateEstoqueQuantidadeSupabase(itemEstoque.id, novoSaldo);
+      if (estoqueError) return toast(`ERRO ESTOQUE: ${estoqueError.message}`);
       await syncAfterMutation();
-    } else { state.premios.push({ id: id(), ...payload }); persistLocal(); }
+    } else {
+      state.premios.push({ id: id(), ...payload });
+      const item = state.estoque.find((x) => String(x.id) === String(itemEstoque.id));
+      if (item) item.quantidadeAtual = Math.max(0, Number(item.quantidadeAtual || 0) - qtdEntregue);
+      persistLocal();
+    }
     e.target.reset();
+    document.getElementById('input_qtd_entregue').value = '1';
     presetPremioFormDateTime();
     renderAll();
   });
@@ -313,6 +329,7 @@ function initDefaultDates() {
 
 function renderAll() {
   fillProgramSelect('p-programa');
+  fillEstoqueSelect('select_estoque');
   renderProgramas();
   renderPremiosGerenciamento();
   renderWinnerSearch();
@@ -327,6 +344,15 @@ function renderAll() {
 function fillProgramSelect(idSel) {
   const sel = document.getElementById(idSel);
   sel.innerHTML = '<option value="">SELECIONE...</option>' + state.programas.map((p) => `<option value="${p.id}">${p.nome}</option>`).join('');
+}
+
+function fillEstoqueSelect(idSel) {
+  const sel = document.getElementById(idSel);
+  if (!sel) return;
+  const itensDisponiveis = state.estoque
+    .filter((item) => Number(item.quantidadeAtual) > 0)
+    .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || '')));
+  sel.innerHTML = '<option value="">SELECIONE...</option>' + itensDisponiveis.map((item) => `<option value="${item.id}">${escapeHtml(item.nome || `ITEM ${item.id}`)}</option>`).join('');
 }
 
 function renderParticipacoes() {
@@ -834,6 +860,26 @@ async function insertPremioSupabase(payload){
     programa_id: null
   };
 
+  if (hasPremioEstoqueIdColumn) {
+    const withEstoque = { ...basePayload, estoque_id: payload.estoqueId || null };
+    if (hasGanhadorTelefoneColumn) {
+      const firstTry = await sb.from('premios').insert({ ...withEstoque, ganhador_telefone: payload.telefone }).select('*').single();
+      if (!firstTry.error) return firstTry;
+      const errMsg = String(firstTry.error?.message || '').toLowerCase();
+      if (errMsg.includes('estoque_id')) {
+        hasPremioEstoqueIdColumn = false;
+      } else if (!isMissingTelefoneColumnError(firstTry.error)) {
+        return firstTry;
+      } else {
+        hasGanhadorTelefoneColumn = false;
+      }
+    } else {
+      const firstTry = await sb.from('premios').insert(withEstoque).select('*').single();
+      if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('estoque_id')) return firstTry;
+      hasPremioEstoqueIdColumn = false;
+    }
+  }
+
   if (hasGanhadorTelefoneColumn) {
     const firstTry = await sb.from('premios').insert({ ...basePayload, ganhador_telefone: payload.telefone }).select('*').single();
     if (!firstTry.error || !isMissingTelefoneColumnError(firstTry.error)) return firstTry;
@@ -841,6 +887,10 @@ async function insertPremioSupabase(payload){
   }
 
   return sb.from('premios').insert(basePayload).select('*').single();
+}
+
+async function updateEstoqueQuantidadeSupabase(idEstoque, quantidadeAtual) {
+  return sb.from('estoque').update({ quantidade_atual: quantidadeAtual }).eq('id', idEstoque).select('id').maybeSingle();
 }
 
 async function updatePremioSupabase(idPremio, payload){

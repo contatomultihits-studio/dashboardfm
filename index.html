@@ -135,8 +135,10 @@
         <div class="grid cols-2">
           <form id="form-premio" class="card form">
             <h3>NOVO PRÊMIO DA HORA</h3>
-            <label>NOME</label>
-            <input id="g-premio-nome" required />
+            <label>NOME (ESTOQUE)</label>
+            <select id="select_estoque" required></select>
+            <label>QUANTIDADE ENTREGUE</label>
+            <input id="input_qtd_entregue" type="number" min="1" value="1" required />
             <label>DESCRIÇÃO</label>
             <textarea id="g-premio-desc" rows="3" required></textarea>
             <label>DATA DA PROMOÇÃO</label>
