@@ -94,9 +94,9 @@ async function loadInitialData() {
       telefone: x.ganhador_telefone || ''
     }));
     state.participacoes = (p3.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
-    state.prioridades = (p4.data || []).map((x) => ({ id: x.id, data: x.data, programaId: x.programa_id, conteudo: x.conteudo, concluido: Boolean(x.concluido), imagemUrl: x.imagem_url || '' }));
-    state.convidados = (p5.data || []).map((x) => ({ id: x.id, nome: x.nome_convidado || '', data: x.data_visita || '', hora: x.horario_visita || '', miniPautaHtml: x.mini_pauta_html || '', imagemUrl: x.imagem_url || '', concluido: Boolean(x.concluido) }));
-    state.eventos = (p6.data || []).map((x) => ({ id: x.id, nome: x.nome_evento || '', data: x.data_evento || '', local: x.local_evento || '', vinculo: x.vinculo || 'APOIO', descricaoHtml: x.descricao_html || '', imagemUrl: x.imagem_url || '' }));
+    state.prioridades = (p4.data || []).map((x) => ({ id: x.id, data: x.data, programaId: x.programa_id, conteudo: x.conteudo, concluido: Boolean(x.concluido), ativo: x.ativo !== false, imagemUrl: x.imagem_url || '' }));
+    state.convidados = (p5.data || []).map((x) => ({ id: x.id, nome: x.nome_convidado || '', data: x.data_visita || '', hora: x.horario_visita || '', miniPautaHtml: x.mini_pauta_html || '', imagemUrl: x.imagem_url || '', concluido: Boolean(x.concluido), ativo: x.ativo !== false }));
+    state.eventos = (p6.data || []).map((x) => ({ id: x.id, nome: x.nome_evento || '', data: x.data_evento || '', local: x.local_evento || '', vinculo: x.vinculo || 'APOIO', descricaoHtml: x.descricao_html || '', imagemUrl: x.imagem_url || '', ativo: x.ativo !== false }));
     return;
   }
 
@@ -182,7 +182,7 @@ function wireForms() {
       imagemUrl = upload.url || null;
     }
     if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('ar-imagem');
-    const payload = { data: val('ar-data'), programaId: null, conteudo: conteudoHtml, concluido: false, imagemUrl: imagemUrl || null };
+    const payload = { data: val('ar-data'), programaId: null, conteudo: conteudoHtml, concluido: false, ativo: true, imagemUrl: imagemUrl || null };
     if (hasSupabase) {
       const { data, error } = await insertPrioridadeSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
@@ -207,7 +207,7 @@ function wireForms() {
       imagemUrl = upload.url || null;
     }
     if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('conv-imagem');
-    const payload = { nome: val('conv-nome'), data: val('conv-data'), hora: val('conv-hora'), miniPautaHtml, imagemUrl: imagemUrl || null, concluido: false };
+    const payload = { nome: val('conv-nome'), data: val('conv-data'), hora: val('conv-hora'), miniPautaHtml, imagemUrl: imagemUrl || null, concluido: false, ativo: true };
     if (hasSupabase) {
       const { data, error } = await insertConvidadoSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
@@ -232,7 +232,7 @@ function wireForms() {
       imagemUrl = upload.url || null;
     }
     if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('evt-imagem');
-    const payload = { nome: val('evt-nome'), data: val('evt-data'), local: val('evt-local'), vinculo: val('evt-vinculo'), descricaoHtml, imagemUrl: imagemUrl || null };
+    const payload = { nome: val('evt-nome'), data: val('evt-data'), local: val('evt-local'), vinculo: val('evt-vinculo'), descricaoHtml, imagemUrl: imagemUrl || null, ativo: true };
     if (hasSupabase) {
       const { data, error } = await insertEventoSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
@@ -470,7 +470,7 @@ function val(idEl){return document.getElementById(idEl).value;}
 function renderPrioridadesAr() {
   const t = document.getElementById('tabela-prioridades-ar');
   if (!t) return;
-  t.innerHTML = `<thead><tr><th>DATA</th><th>CONTEÚDO</th><th>IMAGEM</th><th>AÇÕES</th></tr></thead><tbody>${state.prioridades.map((p)=>`<tr><td>${p.data}</td><td>${escapeHtml(stripHtml(p.conteudo||'').slice(0,140))}</td><td>${p.imagemUrl?`<a href='${p.imagemUrl}' target='_blank' rel='noreferrer'>VER</a>`:'-'}</td><td><button data-edit-prio='${p.id}'>EDITAR</button> <button data-del-prio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
+  t.innerHTML = `<thead><tr><th>DATA</th><th>CONTEÚDO</th><th>IMAGEM</th><th>AÇÕES</th></tr></thead><tbody>${state.prioridades.map((p)=>`<tr class="${p.ativo===false?'archived-row':''}"><td>${p.data} ${p.ativo===false?'<span class="status-tag">[ARQUIVADO]</span>':''}</td><td>${escapeHtml(stripHtml(p.conteudo||'').slice(0,140))}</td><td>${p.imagemUrl?`<a href='${p.imagemUrl}' target='_blank' rel='noreferrer'>VER</a>`:'-'}</td><td><button data-edit-prio='${p.id}'>EDITAR</button> <button data-del-prio='${p.id}'>EXCLUIR</button></td></tr>`).join('')}</tbody>`;
   t.querySelectorAll('[data-edit-prio]').forEach((b)=>b.addEventListener('click', async()=>openEditModal('prioridade', b.dataset.editPrio)));
   t.querySelectorAll('[data-del-prio]').forEach((b)=>b.addEventListener('click', async()=>deletePrioridade(b.dataset.delPrio)));
 }
@@ -480,7 +480,7 @@ function renderConvidadosGestao() {
   if (!t) return;
   const rows = [...state.convidados].sort((a, b) => `${a.data}T${a.hora}`.localeCompare(`${b.data}T${b.hora}`));
   t.innerHTML = `<thead><tr><th>NOME</th><th>DATA</th><th>HORA</th><th>CONCLUÍDO</th><th>AÇÕES</th></tr></thead><tbody>${
-    rows.map((c) => `<tr><td>${escapeHtml(c.nome || '-')}</td><td>${fmtDateOnly(c.data)}</td><td>${fmtTimeNoSeconds(c.hora)}</td><td><input type="checkbox" data-conv-done="${c.id}" ${c.concluido ? 'checked' : ''} /></td><td><button data-edit-conv="${c.id}">EDITAR</button> <button data-del-conv="${c.id}">EXCLUIR</button></td></tr>`).join('')
+    rows.map((c) => `<tr class="${c.ativo===false?'archived-row':''}"><td>${escapeHtml(c.nome || '-')} ${c.ativo===false?'<span class="status-tag">[ARQUIVADO]</span>':''}</td><td>${fmtDateOnly(c.data)}</td><td>${fmtTimeNoSeconds(c.hora)}</td><td><input type="checkbox" data-conv-done="${c.id}" ${c.concluido ? 'checked' : ''} /></td><td><button data-edit-conv="${c.id}">EDITAR</button> <button data-del-conv="${c.id}">EXCLUIR</button></td></tr>`).join('')
   }</tbody>`;
   t.querySelectorAll('[data-edit-conv]').forEach((b) => b.addEventListener('click', () => openEditModal('convidado', b.dataset.editConv)));
   t.querySelectorAll('[data-del-conv]').forEach((b) => b.addEventListener('click', async () => deleteConvidado(b.dataset.delConv)));
@@ -492,7 +492,7 @@ function renderEventosGestao() {
   if (!t) return;
   const rows = [...state.eventos].sort((a, b) => (a.data || '').localeCompare(b.data || ''));
   t.innerHTML = `<thead><tr><th>EVENTO</th><th>DATA</th><th>LOCAL</th><th>VÍNCULO</th><th>AÇÕES</th></tr></thead><tbody>${
-    rows.map((e) => `<tr><td>${escapeHtml(e.nome || '-')}</td><td>${fmtDateOnly(e.data)}</td><td>${escapeHtml(e.local || '-')}</td><td>${escapeHtml(e.vinculo || '-')}</td><td><button data-edit-evt="${e.id}">EDITAR</button> <button data-del-evt="${e.id}">EXCLUIR</button></td></tr>`).join('')
+    rows.map((e) => `<tr class="${e.ativo===false?'archived-row':''}"><td>${escapeHtml(e.nome || '-')} ${e.ativo===false?'<span class="status-tag">[ARQUIVADO]</span>':''}</td><td>${fmtDateOnly(e.data)}</td><td>${escapeHtml(e.local || '-')}</td><td>${escapeHtml(e.vinculo || '-')}</td><td><button data-edit-evt="${e.id}">EDITAR</button> <button data-del-evt="${e.id}">EXCLUIR</button></td></tr>`).join('')
   }</tbody>`;
   t.querySelectorAll('[data-edit-evt]').forEach((b) => b.addEventListener('click', () => openEditModal('evento', b.dataset.editEvt)));
   t.querySelectorAll('[data-del-evt]').forEach((b) => b.addEventListener('click', async () => deleteEvento(b.dataset.delEvt)));
@@ -511,54 +511,105 @@ async function fileInputToDataUrl(idInput) {
 }
 
 async function insertPrioridadeSupabase(payload) {
-  const base = { data: payload.data, programa_id: payload.programaId || null, conteudo: payload.conteudo, concluido: false };
+  const base = { data: payload.data, programa_id: payload.programaId || null, conteudo: payload.conteudo, concluido: false, ativo: payload.ativo !== false };
   const firstTry = await sb.from('prioridades_ar').insert({ ...base, imagem_url: payload.imagemUrl || null }).select('id').maybeSingle();
+  if (firstTry.error && String(firstTry.error?.message || '').toLowerCase().includes('ativo')) {
+    return sb.from('prioridades_ar').insert({ data: payload.data, programa_id: payload.programaId || null, conteudo: payload.conteudo, concluido: false, imagem_url: payload.imagemUrl || null }).select('id').maybeSingle();
+  }
   if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return firstTry;
   return sb.from('prioridades_ar').insert(base).select('id').maybeSingle();
 }
 
 async function insertConvidadoSupabase(payload) {
-  return sb.from('gestao_convidados').insert({
+  const firstTry = await sb.from('gestao_convidados').insert({
     nome_convidado: payload.nome,
     data_visita: payload.data,
     horario_visita: payload.hora,
     mini_pauta_html: payload.miniPautaHtml,
     imagem_url: payload.imagemUrl || null,
-    concluido: Boolean(payload.concluido)
+    concluido: Boolean(payload.concluido),
+    ativo: payload.ativo !== false
   }).select('id').maybeSingle();
+  if (firstTry.error && String(firstTry.error?.message || '').toLowerCase().includes('ativo')) {
+    return sb.from('gestao_convidados').insert({
+      nome_convidado: payload.nome,
+      data_visita: payload.data,
+      horario_visita: payload.hora,
+      mini_pauta_html: payload.miniPautaHtml,
+      imagem_url: payload.imagemUrl || null,
+      concluido: Boolean(payload.concluido)
+    }).select('id').maybeSingle();
+  }
+  return firstTry;
 }
 
 async function updateConvidadoSupabase(idConvidado, payload) {
-  return sb.from('gestao_convidados').update({
+  const firstTry = await sb.from('gestao_convidados').update({
     nome_convidado: payload.nome,
     data_visita: payload.data,
     horario_visita: payload.hora,
     mini_pauta_html: payload.miniPautaHtml,
     imagem_url: payload.imagemUrl || null,
-    concluido: Boolean(payload.concluido)
+    concluido: Boolean(payload.concluido),
+    ativo: payload.ativo !== false
   }).eq('id', idConvidado).select('id').maybeSingle();
+  if (firstTry.error && String(firstTry.error?.message || '').toLowerCase().includes('ativo')) {
+    return sb.from('gestao_convidados').update({
+      nome_convidado: payload.nome,
+      data_visita: payload.data,
+      horario_visita: payload.hora,
+      mini_pauta_html: payload.miniPautaHtml,
+      imagem_url: payload.imagemUrl || null,
+      concluido: Boolean(payload.concluido)
+    }).eq('id', idConvidado).select('id').maybeSingle();
+  }
+  return firstTry;
 }
 
 async function insertEventoSupabase(payload) {
-  return sb.from('gestao_eventos').insert({
+  const firstTry = await sb.from('gestao_eventos').insert({
     nome_evento: payload.nome,
     data_evento: payload.data,
     local_evento: payload.local,
     vinculo: payload.vinculo,
     descricao_html: payload.descricaoHtml,
-    imagem_url: payload.imagemUrl || null
+    imagem_url: payload.imagemUrl || null,
+    ativo: payload.ativo !== false
   }).select('id').maybeSingle();
+  if (firstTry.error && String(firstTry.error?.message || '').toLowerCase().includes('ativo')) {
+    return sb.from('gestao_eventos').insert({
+      nome_evento: payload.nome,
+      data_evento: payload.data,
+      local_evento: payload.local,
+      vinculo: payload.vinculo,
+      descricao_html: payload.descricaoHtml,
+      imagem_url: payload.imagemUrl || null
+    }).select('id').maybeSingle();
+  }
+  return firstTry;
 }
 
 async function updateEventoSupabase(idEvento, payload) {
-  return sb.from('gestao_eventos').update({
+  const firstTry = await sb.from('gestao_eventos').update({
     nome_evento: payload.nome,
     data_evento: payload.data,
     local_evento: payload.local,
     vinculo: payload.vinculo,
     descricao_html: payload.descricaoHtml,
-    imagem_url: payload.imagemUrl || null
+    imagem_url: payload.imagemUrl || null,
+    ativo: payload.ativo !== false
   }).eq('id', idEvento).select('id').maybeSingle();
+  if (firstTry.error && String(firstTry.error?.message || '').toLowerCase().includes('ativo')) {
+    return sb.from('gestao_eventos').update({
+      nome_evento: payload.nome,
+      data_evento: payload.data,
+      local_evento: payload.local,
+      vinculo: payload.vinculo,
+      descricao_html: payload.descricaoHtml,
+      imagem_url: payload.imagemUrl || null
+    }).eq('id', idEvento).select('id').maybeSingle();
+  }
+  return firstTry;
 }
 
 async function deletePrioridade(idPrio) {
@@ -639,8 +690,9 @@ function shiftEventosDashboard(step){eventoCarouselStart=Math.max(0, eventoCarou
 function renderPrioridadesCards(dashboardDate){
   const box = document.getElementById('prioridades-cards');
   if (!box) return;
-  const doDia = state.prioridades.filter((p)=>p.data===dashboardDate);
-  const source = doDia.length ? doDia : [...state.prioridades];
+  const visiveis = state.prioridades.filter((p) => p.ativo !== false);
+  const doDia = visiveis.filter((p)=>p.data===dashboardDate);
+  const source = doDia.length ? doDia : [...visiveis];
   const pageSize = 3;
   const maxStart = Math.max(0, source.length - pageSize);
   if (prioridadeCarouselStart > maxStart) prioridadeCarouselStart = maxStart;
@@ -663,7 +715,7 @@ function renderConvidadosCards(dashboardDate) {
   if (!box) return;
   const hoje = todayISO();
   const source = state.convidados
-    .filter((c) => (c.data || '') >= hoje && !c.concluido)
+    .filter((c) => (c.data || '') >= hoje && !c.concluido && c.ativo !== false)
     .sort((a, b) => `${a.data}T${a.hora}`.localeCompare(`${b.data}T${b.hora}`));
   const pageSize = 3;
   const maxStart = Math.max(0, source.length - pageSize);
@@ -687,7 +739,7 @@ function renderEventosCards(dashboardDate) {
   if (!box) return;
   const hoje = todayISO();
   const source = state.eventos
-    .filter((e) => (e.data || '') >= hoje)
+    .filter((e) => (e.data || '') >= hoje && e.ativo !== false)
     .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
   const pageSize = 3;
   const maxStart = Math.max(0, source.length - pageSize);
@@ -839,6 +891,7 @@ function openEditModal(tipo, itemId) {
     document.getElementById('e-prio-data').value = item.data || '';
     document.getElementById('e-prio-imagem-url').value = item.imagemUrl || '';
     document.getElementById('e-prio-imagem-file').value = '';
+    document.getElementById('e-prio-ativo').checked = item.ativo !== false;
     setEditorHtml('e-prio-editor', item.conteudo || '');
   }
 
@@ -853,6 +906,7 @@ function openEditModal(tipo, itemId) {
     document.getElementById('e-conv-imagem-url').value = item.imagemUrl || '';
     document.getElementById('e-conv-imagem-file').value = '';
     document.getElementById('e-conv-concluido').checked = Boolean(item.concluido);
+    document.getElementById('e-conv-ativo').checked = item.ativo !== false;
     setEditorHtml('e-conv-editor', item.miniPautaHtml || '');
   }
 
@@ -867,6 +921,7 @@ function openEditModal(tipo, itemId) {
     document.getElementById('e-evt-vinculo').value = item.vinculo || 'APOIO';
     document.getElementById('e-evt-imagem-url').value = item.imagemUrl || '';
     document.getElementById('e-evt-imagem-file').value = '';
+    document.getElementById('e-evt-ativo').checked = item.ativo !== false;
     setEditorHtml('e-evt-editor', item.descricaoHtml || '');
   }
 
@@ -963,6 +1018,7 @@ async function submitEditModal(e) {
     const novaData = document.getElementById('e-prio-data').value;
     const novoConteudo = getEditorHtml('e-prio-editor');
     const imagemUrlInput = document.getElementById('e-prio-imagem-url').value.trim();
+    const ativo = document.getElementById('e-prio-ativo').checked;
     const file = document.getElementById('e-prio-imagem-file')?.files?.[0] || null;
     if (!stripHtml(novoConteudo).trim()) return toast('CONTEÚDO É OBRIGATÓRIO');
     let imagemUrlFinal = imagemUrlInput || item.imagemUrl || '';
@@ -975,10 +1031,19 @@ async function submitEditModal(e) {
         imagemUrlFinal = await fileInputToDataUrl('e-prio-imagem-file');
       }
     }
-    Object.assign(item, { data: novaData, conteudo: novoConteudo, imagemUrl: imagemUrlFinal || '' });
+    Object.assign(item, { data: novaData, conteudo: novoConteudo, imagemUrl: imagemUrlFinal || '', ativo });
     if (hasSupabase) {
-      const base = { data: novaData, conteudo: novoConteudo, programa_id: null };
+      const base = { data: novaData, conteudo: novoConteudo, programa_id: null, ativo };
       const firstTry = await sb.from('prioridades_ar').update({ ...base, imagem_url: imagemUrlFinal || null }).eq('id', item.id).select('id').maybeSingle();
+      if (firstTry.error && String(firstTry.error?.message || '').toLowerCase().includes('ativo')) {
+        const fallbackNoAtivo = await sb.from('prioridades_ar').update({ data: novaData, conteudo: novoConteudo, programa_id: null, imagem_url: imagemUrlFinal || null }).eq('id', item.id).select('id').maybeSingle();
+        if (fallbackNoAtivo.error) return toast(`ERRO: ${fallbackNoAtivo.error.message}`);
+        if (!fallbackNoAtivo.data?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTA PRIORIDADE (RLS).');
+        await syncAfterMutation();
+        closeEditModal();
+        renderAll();
+        return;
+      }
       if (firstTry.error && !String(firstTry.error?.message || '').toLowerCase().includes('imagem_url')) return toast(`ERRO: ${firstTry.error.message}`);
       if (firstTry.error) {
         const fallback = await sb.from('prioridades_ar').update(base).eq('id', item.id).select('id').maybeSingle();
@@ -1000,6 +1065,7 @@ async function submitEditModal(e) {
     const miniPautaHtml = getEditorHtml('e-conv-editor');
     const imagemUrlInput = document.getElementById('e-conv-imagem-url').value.trim();
     const concluido = document.getElementById('e-conv-concluido').checked;
+    const ativo = document.getElementById('e-conv-ativo').checked;
     const file = document.getElementById('e-conv-imagem-file')?.files?.[0] || null;
     if (!nome) return toast('NOME DO CONVIDADO É OBRIGATÓRIO');
     if (!stripHtml(miniPautaHtml).trim()) return toast('MINI PAUTA É OBRIGATÓRIA');
@@ -1013,9 +1079,9 @@ async function submitEditModal(e) {
         imagemUrlFinal = await fileInputToDataUrl('e-conv-imagem-file');
       }
     }
-    Object.assign(item, { nome, data, hora, miniPautaHtml, imagemUrl: imagemUrlFinal, concluido });
+    Object.assign(item, { nome, data, hora, miniPautaHtml, imagemUrl: imagemUrlFinal, concluido, ativo });
     if (hasSupabase) {
-      const { data: upData, error } = await updateConvidadoSupabase(item.id, { nome, data, hora, miniPautaHtml, imagemUrl: imagemUrlFinal, concluido });
+      const { data: upData, error } = await updateConvidadoSupabase(item.id, { nome, data, hora, miniPautaHtml, imagemUrl: imagemUrlFinal, concluido, ativo });
       if (error) return toast(`ERRO: ${error.message}`);
       if (!upData?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTE CONVIDADO (RLS).');
       await syncAfterMutation();
@@ -1029,6 +1095,7 @@ async function submitEditModal(e) {
     const data = document.getElementById('e-evt-data').value;
     const local = document.getElementById('e-evt-local').value.trim();
     const vinculo = document.getElementById('e-evt-vinculo').value;
+    const ativo = document.getElementById('e-evt-ativo').checked;
     const descricaoHtml = getEditorHtml('e-evt-editor');
     const imagemUrlInput = document.getElementById('e-evt-imagem-url').value.trim();
     const file = document.getElementById('e-evt-imagem-file')?.files?.[0] || null;
@@ -1044,9 +1111,9 @@ async function submitEditModal(e) {
         imagemUrlFinal = await fileInputToDataUrl('e-evt-imagem-file');
       }
     }
-    Object.assign(item, { nome, data, local, vinculo, descricaoHtml, imagemUrl: imagemUrlFinal });
+    Object.assign(item, { nome, data, local, vinculo, descricaoHtml, imagemUrl: imagemUrlFinal, ativo });
     if (hasSupabase) {
-      const { data: upData, error } = await updateEventoSupabase(item.id, { nome, data, local, vinculo, descricaoHtml, imagemUrl: imagemUrlFinal });
+      const { data: upData, error } = await updateEventoSupabase(item.id, { nome, data, local, vinculo, descricaoHtml, imagemUrl: imagemUrlFinal, ativo });
       if (error) return toast(`ERRO: ${error.message}`);
       if (!upData?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTE EVENTO (RLS).');
       await syncAfterMutation();

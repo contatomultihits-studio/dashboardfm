@@ -63,6 +63,8 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { border-bottom: 2px solid #111; text-align: left; padding: .65rem; }
 .table th { color: #111; font-size: 1.05rem; background: #f8fafc; }
+.archived-row { opacity: .55; }
+.status-tag { display: inline-block; margin-left: .35rem; padding: .08rem .4rem; border-radius: 999px; border: 1px solid #111; font-size: .72rem; font-weight: 900; background: #e5e7eb; color: #111; }
 .row-click { cursor: pointer; transition: background .15s; }
 .row-click:hover { background: #f3f7ff; }
 #bars { display: grid; gap: .55rem; }
@@ -168,7 +170,7 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
   display: block;
   font-size: .82rem;
   margin-top: .16rem;
-  color: #e0ffe0 !important;
+  color: #ffffff !important;
   font-weight: 800;
   text-shadow: 1px 1px 2px #000000;
 }

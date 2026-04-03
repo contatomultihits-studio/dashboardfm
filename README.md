@@ -25,6 +25,7 @@ Execute:
 - `docs/premios-hora-migration.sql`
 - `docs/add-gestao-convidados.sql` (novo ecossistema de convidados)
 - `docs/add-gestao-eventos.sql` (agenda de eventos)
+- `docs/add-ativo-visibility.sql` (controle Exibir na Dashboard)
 
 A tabela `premios` passa a ter:
 - `inicio_vigencia`
