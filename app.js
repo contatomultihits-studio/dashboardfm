@@ -11,7 +11,7 @@ let eventoCarouselStart = 0;
 const editModalState = { tipo: null, id: null };
 let dashboardRefreshInterval = null;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
-const state = { programas: [], premios: [], participacoes: [], prioridades: [], convidados: [], eventos: [] };
+const state = { programas: [], premios: [], participacoes: [], prioridades: [], convidados: [], eventos: [], estoque: [] };
 
 init();
 
@@ -71,16 +71,17 @@ function wireConfigButton() {
 
 async function loadInitialData() {
   if (hasSupabase) {
-    const [p1, p2, p3, p4, p5, p6] = await Promise.all([
+    const [p1, p2, p3, p4, p5, p6, p7] = await Promise.all([
       sb.from('programas').select('id,nome,cor_hex,ativo').order('nome'),
       sb.from('premios').select('*').order('inicio_vigencia', { ascending: true }),
       sb.from('participacoes').select('id,programa_id,data_referencia,quantidade,tipo_registro').order('data_referencia', { ascending: false }),
       sb.from('prioridades_ar').select('*').order('data', { ascending: false }),
       sb.from('gestao_convidados').select('*').order('data_visita', { ascending: true }).order('horario_visita', { ascending: true }),
-      sb.from('gestao_eventos').select('*').order('data_evento', { ascending: true })
+      sb.from('gestao_eventos').select('*').order('data_evento', { ascending: true }),
+      sb.from('estoque').select('*').order('id', { ascending: false })
     ]);
-    if (p1.error || p2.error || p3.error || p4.error || p5.error || p6.error) {
-      toast(`ERRO SUPABASE: ${(p1.error || p2.error || p3.error || p4.error || p5.error || p6.error).message}`);
+    if (p1.error || p2.error || p3.error || p4.error || p5.error || p6.error || p7.error) {
+      toast(`ERRO SUPABASE: ${(p1.error || p2.error || p3.error || p4.error || p5.error || p6.error || p7.error).message}`);
       return;
     }
     state.programas = (p1.data || []).map((x) => ({ id: x.id, nome: x.nome, cor: x.cor_hex || '#2563eb', ativo: x.ativo }));
@@ -97,10 +98,11 @@ async function loadInitialData() {
     state.prioridades = (p4.data || []).map((x) => ({ id: x.id, data: x.data, programaId: x.programa_id, conteudo: x.conteudo, concluido: Boolean(x.concluido), ativo: x.ativo !== false, imagemUrl: x.imagem_url || '' }));
     state.convidados = (p5.data || []).map((x) => ({ id: x.id, nome: x.nome_convidado || '', data: x.data_visita || '', hora: x.horario_visita || '', miniPautaHtml: x.mini_pauta_html || '', imagemUrl: x.imagem_url || '', concluido: Boolean(x.concluido), ativo: x.ativo !== false }));
     state.eventos = (p6.data || []).map((x) => ({ id: x.id, nome: x.nome_evento || '', data: x.data_evento || '', local: x.local_evento || '', vinculo: x.vinculo || 'APOIO', descricaoHtml: x.descricao_html || '', imagemUrl: x.imagem_url || '', ativo: x.ativo !== false }));
+    state.estoque = (p7.data || []).map((x) => ({ id: x.id, nome: x.nome_item || x.nome || '', quantidadeTotal: Number(x.quantidade_total || 0), quantidadeAtual: Number(x.quantidade_atual || 0) }));
     return;
   }
 
-  const local = JSON.parse(localStorage.getItem(dbKey) || '{"programas":[],"premios":[],"participacoes":[],"prioridades":[],"convidados":[],"eventos":[]}');
+  const local = JSON.parse(localStorage.getItem(dbKey) || '{"programas":[],"premios":[],"participacoes":[],"prioridades":[],"convidados":[],"eventos":[],"estoque":[]}');
   Object.assign(state, local);
 }
 
@@ -247,6 +249,22 @@ function wireForms() {
     document.getElementById('evt-ativo').checked = true;
     renderAll();
   });
+
+  document.getElementById('form-estoque').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const quantidadeTotal = Number(val('est-quantidade-total'));
+    const payload = { nome: val('est-nome'), quantidadeTotal, quantidadeAtual: quantidadeTotal };
+    if (!payload.nome) return toast('NOME DO ITEM É OBRIGATÓRIO');
+    if (!Number.isFinite(quantidadeTotal) || quantidadeTotal < 0) return toast('QUANTIDADE TOTAL INVÁLIDA');
+    if (hasSupabase) {
+      const { data, error } = await insertEstoqueSupabase(payload);
+      if (error) return toast(`ERRO: ${error.message}`);
+      if (!data?.id) return toast('SEM PERMISSÃO PARA CRIAR ITEM DE ESTOQUE (RLS).');
+      await syncAfterMutation();
+    } else { state.estoque.unshift({ id: id(), ...payload }); persistLocal(); }
+    e.target.reset();
+    renderAll();
+  });
 }
 
 function wireEditModal() {
@@ -302,6 +320,7 @@ function renderAll() {
   renderPrioridadesAr();
   renderConvidadosGestao();
   renderEventosGestao();
+  renderEstoque();
   renderDashboard();
 }
 
@@ -501,6 +520,17 @@ function renderEventosGestao() {
   t.querySelectorAll('[data-del-evt]').forEach((b) => b.addEventListener('click', async () => deleteEvento(b.dataset.delEvt)));
 }
 
+function renderEstoque() {
+  const t = document.getElementById('tabela-estoque');
+  if (!t) return;
+  const rows = [...state.estoque].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+  t.innerHTML = `<thead><tr><th>ITEM</th><th>QUANTIDADE TOTAL</th><th>QUANTIDADE ATUAL</th></tr></thead><tbody>${
+    rows.length
+      ? rows.map((r) => `<tr><td>${escapeHtml(r.nome || '-')}</td><td>${r.quantidadeTotal}</td><td class="${Number(r.quantidadeAtual) === 0 ? 'saldo-zero' : ''}">${r.quantidadeAtual}</td></tr>`).join('')
+      : '<tr><td colspan="3">NENHUM ITEM CADASTRADO.</td></tr>'
+  }</tbody>`;
+}
+
 async function fileInputToDataUrl(idInput) {
   const input = document.getElementById(idInput);
   const file = input?.files?.[0];
@@ -544,6 +574,14 @@ async function insertConvidadoSupabase(payload) {
     }).select('id').maybeSingle();
   }
   return firstTry;
+}
+
+async function insertEstoqueSupabase(payload) {
+  return sb.from('estoque').insert({
+    nome_item: payload.nome,
+    quantidade_total: payload.quantidadeTotal,
+    quantidade_atual: payload.quantidadeAtual
+  }).select('id').maybeSingle();
 }
 
 async function updateConvidadoSupabase(idConvidado, payload) {
