@@ -182,7 +182,7 @@ function wireForms() {
       imagemUrl = upload.url || null;
     }
     if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('ar-imagem');
-    const payload = { data: val('ar-data'), programaId: null, conteudo: conteudoHtml, concluido: false, ativo: true, imagemUrl: imagemUrl || null };
+    const payload = { data: val('ar-data'), programaId: null, conteudo: conteudoHtml, concluido: false, ativo: document.getElementById('ar-ativo').checked, imagemUrl: imagemUrl || null };
     if (hasSupabase) {
       const { data, error } = await insertPrioridadeSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
@@ -192,6 +192,7 @@ function wireForms() {
     e.target.reset();
     setEditorHtml('ar-editor', '');
     document.getElementById('ar-data').value = todayISO();
+    document.getElementById('ar-ativo').checked = true;
     renderAll();
   });
 
@@ -207,7 +208,7 @@ function wireForms() {
       imagemUrl = upload.url || null;
     }
     if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('conv-imagem');
-    const payload = { nome: val('conv-nome'), data: val('conv-data'), hora: val('conv-hora'), miniPautaHtml, imagemUrl: imagemUrl || null, concluido: false, ativo: true };
+    const payload = { nome: val('conv-nome'), data: val('conv-data'), hora: val('conv-hora'), miniPautaHtml, imagemUrl: imagemUrl || null, concluido: false, ativo: document.getElementById('conv-ativo').checked };
     if (hasSupabase) {
       const { data, error } = await insertConvidadoSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
@@ -217,6 +218,7 @@ function wireForms() {
     e.target.reset();
     setEditorHtml('conv-editor', '');
     document.getElementById('conv-data').value = todayISO();
+    document.getElementById('conv-ativo').checked = true;
     renderAll();
   });
 
@@ -232,7 +234,7 @@ function wireForms() {
       imagemUrl = upload.url || null;
     }
     if (!hasSupabase && file) imagemUrl = await fileInputToDataUrl('evt-imagem');
-    const payload = { nome: val('evt-nome'), data: val('evt-data'), local: val('evt-local'), vinculo: val('evt-vinculo'), descricaoHtml, imagemUrl: imagemUrl || null, ativo: true };
+    const payload = { nome: val('evt-nome'), data: val('evt-data'), local: val('evt-local'), vinculo: val('evt-vinculo'), descricaoHtml, imagemUrl: imagemUrl || null, ativo: document.getElementById('evt-ativo').checked };
     if (hasSupabase) {
       const { data, error } = await insertEventoSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
@@ -242,6 +244,7 @@ function wireForms() {
     e.target.reset();
     setEditorHtml('evt-editor', '');
     document.getElementById('evt-data').value = todayISO();
+    document.getElementById('evt-ativo').checked = true;
     renderAll();
   });
 }
