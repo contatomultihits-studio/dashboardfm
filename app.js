@@ -7,9 +7,11 @@ let showAllParticipacoes = false;
 let hasGanhadorTelefoneColumn = true;
 let hasPremioEstoqueIdColumn = true;
 let hasEstoqueDescricaoColumn = true;
+let hasPremioRetiradoColumn = true;
 let prioridadeCarouselStart = 0;
 let convidadoCarouselStart = 0;
 let eventoCarouselStart = 0;
+let ganhadoresVisibleCount = 10;
 const editModalState = { tipo: null, id: null };
 let dashboardRefreshInterval = null;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
@@ -28,6 +30,7 @@ async function init() {
   initDefaultDates();
   wireFilters();
   wireGerenciamentoTools();
+  wireGanhadoresTools();
   renderAll();
   updateDashboardAutoRefresh();
 }
@@ -94,7 +97,10 @@ async function loadInitialData() {
       inicio: x.inicio_vigencia,
       fim: x.fim_vigencia,
       ganhador: x.ganhador_nome || '',
-      telefone: x.ganhador_telefone || ''
+      telefone: x.ganhador_telefone || '',
+      programaId: x.programa_id || null,
+      estoqueId: x.estoque_id || null,
+      retirado: Boolean(x.retirado)
     }));
     state.participacoes = (p3.data || []).map((x) => ({ id: x.id, programaId: x.programa_id, data: x.data_referencia, quantidade: x.quantidade, tipo: x.tipo_registro }));
     state.prioridades = (p4.data || []).map((x) => ({ id: x.id, data: x.data, programaId: x.programa_id, conteudo: x.conteudo, concluido: Boolean(x.concluido), ativo: x.ativo !== false, imagemUrl: x.imagem_url || '' }));
@@ -155,7 +161,7 @@ function wireForms() {
     const payload = {
       nome: nomePremio, estoqueId: itemEstoque?.id || null, descricao: descricaoHtml,
       inicio: inicio.toISOString(), fim: fim.toISOString(),
-      ganhador: val('g-premio-ganhador') || null, telefone: val('g-premio-telefone') || null
+      ganhador: val('g-premio-ganhador') || null, telefone: val('g-premio-telefone') || null, retirado: false
     };
     if (hasSupabase) {
       const { data, error } = await insertPremioSupabase(payload);
@@ -298,12 +304,7 @@ function wireForms() {
   });
 
   document.getElementById('select_estoque').addEventListener('change', () => {
-    const estoqueId = val('select_estoque');
-    const itemEstoque = state.estoque.find((x) => String(x.id) === String(estoqueId));
-    if (itemEstoque) {
-      document.getElementById('g-premio-nome').value = itemEstoque.nome || '';
-      setEditorHtml('g-premio-editor', itemEstoque.descricaoHtml || '');
-    }
+    syncPromoFieldsFromSelectedStock();
     updatePromocaoStockSelectionUI();
   });
 }
@@ -357,10 +358,12 @@ function initDefaultDates() {
 function renderAll() {
   fillProgramSelect('p-programa');
   fillEstoqueSelect('select_estoque');
+  syncPromoFieldsFromSelectedStock();
   updatePromocaoStockSelectionUI();
   renderProgramas();
   renderPremiosGerenciamento();
   renderWinnerSearch();
+  renderGanhadores();
   renderParticipacoes();
   renderPrioridadesAr();
   renderConvidadosGestao();
@@ -394,6 +397,14 @@ function updatePromocaoStockSelectionUI() {
   if (!qtdInput) return;
   qtdInput.disabled = !temEstoqueSelecionado;
   if (!temEstoqueSelecionado) qtdInput.value = '1';
+}
+
+function syncPromoFieldsFromSelectedStock() {
+  const estoqueId = val('select_estoque');
+  const itemEstoque = state.estoque.find((x) => String(x.id) === String(estoqueId));
+  if (!itemEstoque) return;
+  document.getElementById('g-premio-nome').value = itemEstoque.nome || '';
+  setEditorHtml('g-premio-editor', itemEstoque.descricaoHtml || '');
 }
 
 function renderParticipacoes() {
@@ -460,6 +471,23 @@ function wireGerenciamentoTools() {
   document.getElementById('winner-search').addEventListener('input', () => renderWinnerSearch());
 }
 
+function wireGanhadoresTools() {
+  const search = document.getElementById('ganhadores-search');
+  const moreBtn = document.getElementById('btn-ganhadores-more');
+  if (search) {
+    search.addEventListener('input', () => {
+      ganhadoresVisibleCount = 10;
+      renderGanhadores();
+    });
+  }
+  if (moreBtn) {
+    moreBtn.addEventListener('click', () => {
+      ganhadoresVisibleCount += 10;
+      renderGanhadores();
+    });
+  }
+}
+
 function renderWinnerSearch() {
   const term = (document.getElementById('winner-search')?.value || '').trim().toLowerCase();
   const table = document.getElementById('tabela-busca-ganhador');
@@ -474,6 +502,57 @@ function renderWinnerSearch() {
   table.innerHTML = `<thead><tr><th>GANHADOR</th><th>PRÊMIO</th><th>DATA</th></tr></thead><tbody>${
     rows.length ? rows.map((p) => `<tr><td>${p.ganhador || '-'}</td><td>${p.nome}</td><td>${fmtDateOnly(p.fim || p.inicio)}</td></tr>`).join('') : '<tr><td colspan="3">NENHUM GANHADOR ENCONTRADO.</td></tr>'
   }</tbody>`;
+}
+
+function renderGanhadores() {
+  const list = document.getElementById('ganhadores-list');
+  const moreBtn = document.getElementById('btn-ganhadores-more');
+  if (!list || !moreBtn) return;
+  const term = (document.getElementById('ganhadores-search')?.value || '').trim().toLowerCase();
+  const rows = state.premios
+    .filter((p) => String(p.ganhador || '').trim())
+    .filter((p) => String(p.ganhador || '').toLowerCase().includes(term))
+    .sort((a, b) => String(b.fim || b.inicio || '').localeCompare(String(a.fim || a.inicio || '')));
+  const visible = rows.slice(0, ganhadoresVisibleCount);
+  list.innerHTML = visible.length
+    ? visible.map((p) => `<div class="winner-item" data-winner-id="${p.id}"><strong>${escapeHtml(p.ganhador || '-')}</strong><br/><small>${escapeHtml(p.nome || '-')} • ${fmtDateOnly(p.fim || p.inicio)}</small></div>`).join('')
+    : '<small>NENHUM GANHADOR ENCONTRADO.</small>';
+  moreBtn.classList.toggle('hidden', ganhadoresVisibleCount >= rows.length);
+  list.querySelectorAll('[data-winner-id]').forEach((el) => el.addEventListener('click', () => showGanhadorDetail(el.dataset.winnerId)));
+}
+
+function showGanhadorDetail(idPremio) {
+  const p = state.premios.find((x) => String(x.id) === String(idPremio));
+  const box = document.getElementById('ganhador-detail');
+  if (!p || !box) return;
+  const programa = state.programas.find((x) => String(x.id) === String(p.programaId));
+  box.innerHTML = `
+    <p><strong>GANHADOR:</strong> ${escapeHtml(p.ganhador || '-')}</p>
+    <p><strong>PRÊMIO:</strong> ${escapeHtml(p.nome || '-')}</p>
+    <p><strong>TELEFONE:</strong> ${escapeHtml(p.telefone || '-')}</p>
+    <p><strong>PROGRAMA:</strong> ${escapeHtml(programa?.nome || '-')}</p>
+    <p><strong>DATA:</strong> ${fmtDateOnly(p.fim || p.inicio)}</p>
+    <p><strong>STATUS:</strong> ${p.retirado ? 'RETIRADO' : 'PENDENTE'}</p>
+    <button id="btn-toggle-retirado" type="button">${p.retirado ? 'MARCAR COMO NÃO RETIRADO' : 'MARCAR COMO RETIRADO'}</button>
+  `;
+  document.getElementById('btn-toggle-retirado')?.addEventListener('click', async () => togglePremioRetirado(p.id));
+}
+
+async function togglePremioRetirado(idPremio) {
+  const item = state.premios.find((x) => String(x.id) === String(idPremio));
+  if (!item) return;
+  const novoStatus = !Boolean(item.retirado);
+  if (hasSupabase) {
+    const { data, error } = await updatePremioRetiradoSupabase(item.id, novoStatus);
+    if (error) return toast(`ERRO: ${error.message}`);
+    if (!data?.id) return toast('SEM PERMISSÃO PARA EDITAR STATUS DE RETIRADA (RLS).');
+    await syncAfterMutation();
+  } else {
+    item.retirado = novoStatus;
+    persistLocal();
+  }
+  renderGanhadores();
+  showGanhadorDetail(idPremio);
 }
 
 function presetPremioFormDateTime() {
@@ -593,10 +672,30 @@ function renderEstoque() {
   const rows = [...state.estoque].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
   t.innerHTML = `<thead><tr><th>ITEM</th><th>DESCRIÇÃO</th><th>QUANTIDADE TOTAL</th><th>QUANTIDADE ATUAL</th><th>AÇÕES</th></tr></thead><tbody>${
     rows.length
-      ? rows.map((r) => `<tr><td>${escapeHtml(r.nome || '-')}</td><td>${escapeHtml(stripHtml(r.descricaoHtml || '').slice(0, 140) || '-')}</td><td>${r.quantidadeTotal}</td><td class="${Number(r.quantidadeAtual) === 0 ? 'saldo-zero' : ''}">${r.quantidadeAtual}</td><td><button data-edit-est="${r.id}">EDITAR</button></td></tr>`).join('')
+      ? rows.map((r) => `<tr><td class="row-click" data-stock-history="${r.id}">${escapeHtml(r.nome || '-')}</td><td>${escapeHtml(stripHtml(r.descricaoHtml || '').slice(0, 140) || '-')}</td><td>${r.quantidadeTotal}</td><td class="${Number(r.quantidadeAtual) === 0 ? 'saldo-zero' : ''}">${r.quantidadeAtual}</td><td><button data-edit-est="${r.id}">EDITAR</button></td></tr>`).join('')
       : '<tr><td colspan="5">NENHUM ITEM CADASTRADO.</td></tr>'
   }</tbody>`;
   t.querySelectorAll('[data-edit-est]').forEach((b) => b.addEventListener('click', () => openEditModal('estoque', b.dataset.editEst)));
+  t.querySelectorAll('[data-stock-history]').forEach((el) => el.addEventListener('click', () => showEstoqueHistory(el.dataset.stockHistory)));
+}
+
+function showEstoqueHistory(idEstoque) {
+  const box = document.getElementById('estoque-history');
+  if (!box) return;
+  const item = state.estoque.find((x) => String(x.id) === String(idEstoque));
+  if (!item) {
+    box.innerHTML = 'ITEM NÃO ENCONTRADO.';
+    return;
+  }
+  const rows = state.premios
+    .filter((p) => String(p.estoqueId || '') === String(idEstoque) || String(p.nome || '').trim().toLowerCase() === String(item.nome || '').trim().toLowerCase())
+    .sort((a, b) => String(b.fim || b.inicio || '').localeCompare(String(a.fim || a.inicio || '')));
+  box.innerHTML = rows.length
+    ? `<strong>${escapeHtml(item.nome || '-')}</strong><ul>${rows.map((p) => {
+      const programa = state.programas.find((x) => String(x.id) === String(p.programaId));
+      return `<li>${fmtDateOnly(p.fim || p.inicio)} • ${escapeHtml(programa?.nome || 'SEM PROGRAMA')} • ${escapeHtml(p.ganhador || 'SEM GANHADOR')}</li>`;
+    }).join('')}</ul>`
+    : `<strong>${escapeHtml(item.nome || '-')}</strong><p>SEM REGISTROS DE USO.</p>`;
 }
 
 async function fileInputToDataUrl(idInput) {
@@ -953,6 +1052,15 @@ async function updateEstoqueSupabase(idEstoque, payload) {
     hasEstoqueDescricaoColumn = false;
   }
   return sb.from('estoque').update(base).eq('id', idEstoque).select('id').maybeSingle();
+}
+
+async function updatePremioRetiradoSupabase(idPremio, retirado) {
+  if (hasPremioRetiradoColumn) {
+    const firstTry = await sb.from('premios').update({ retirado }).eq('id', idPremio).select('id').maybeSingle();
+    if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('retirado')) return firstTry;
+    hasPremioRetiradoColumn = false;
+  }
+  return { data: { id: idPremio }, error: null };
 }
 
 async function updatePremioSupabase(idPremio, payload){

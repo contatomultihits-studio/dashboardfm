@@ -12,6 +12,7 @@
         <h1>🎵 RÁDIO DISNEY <small class="version">v7</small></h1>
         <nav id="tabs" class="tabs">
           <button data-tab="dashboard" class="tab active">DASHBOARD</button>
+          <button data-tab="ganhadores" class="tab">GANHADORES</button>
           <button data-tab="metricas" class="tab">MÉTRICAS</button>
           <button data-tab="gerenciamento" class="tab">PROMOÇÃO</button>
           <button data-tab="artistico" class="tab">ARTÍSTICO</button>
@@ -129,6 +130,22 @@
           <button type="submit">ADICIONAR PROGRAMA</button>
         </form>
         <div class="card"><h3>PROGRAMAS</h3><table id="tabela-programas" class="table"></table></div>
+      </section>
+
+      <section id="ganhadores" class="view">
+        <div class="grid cols-2">
+          <div class="card">
+            <h3>GANHADORES</h3>
+            <label>BUSCAR POR INICIAIS</label>
+            <input id="ganhadores-search" placeholder="Ex.: MAR, ANA, JO..." />
+            <div id="ganhadores-list" class="list-stack"></div>
+            <button id="btn-ganhadores-more" type="button">CARREGAR MAIS</button>
+          </div>
+          <div class="card">
+            <h3>DETALHES DO GANHADOR</h3>
+            <div id="ganhador-detail">SELECIONE UM GANHADOR PARA VER DETALHES.</div>
+          </div>
+        </div>
       </section>
 
       <section id="gerenciamento" class="view">
@@ -378,6 +395,10 @@
         <div class="card">
           <h3>TABELA DE ESTOQUE</h3>
           <table id="tabela-estoque" class="table"></table>
+        </div>
+        <div class="card">
+          <h3>HISTÓRICO DE USO DO ITEM</h3>
+          <div id="estoque-history">CLIQUE EM UM ITEM NA TABELA PARA VER O HISTÓRICO.</div>
         </div>
       </section>
     </main>
