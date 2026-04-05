@@ -600,7 +600,7 @@ function renderDashboard() {
   document.getElementById('premio-vigente-card').classList.toggle('clickable-featured', Boolean(atual));
   document.getElementById('premio-vigente-card').onclick = atual ? () => showPremioHistorico(atual.id) : null;
   document.getElementById('premio-vigente-titulo').textContent=semPremioAgora?'SEM PRÊMIO PROGRAMADO PARA ESSA HORA':atual.nome;
-  document.getElementById('premio-vigente-desc').textContent=semPremioAgora?'SELECIONE OUTRO DIA PARA VER A PROGRAMAÇÃO.':(atual.descricao||'SEM DESCRIÇÃO');
+  document.getElementById('premio-vigente-desc').textContent=semPremioAgora?'SELECIONE OUTRO DIA PARA VER A PROGRAMAÇÃO.':(stripHtml(atual.descricao||'').trim()||'SEM DESCRIÇÃO');
   document.getElementById('premio-vigente-ganhador').textContent=atual?.ganhador||'SEM GANHADOR';
   document.getElementById('premio-vigente-telefone').textContent=phoneMask(atual?.telefone);
 
@@ -911,7 +911,7 @@ async function uploadPrioridadeImageSupabase(file, prefix = '') {
 }
 function id(){return Math.random().toString(36).slice(2,10);}
 function toast(text){const el=document.getElementById('toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),1700);}
-function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===idPremio);if(!p)return;document.getElementById('premio-modal-title').textContent='DETALHES DO PRÊMIO DA HORA';document.getElementById('premio-modal-body').innerHTML=`<div class="premio-hero"><small>🎵 PRÊMIO DA HORA</small><h2>${escapeHtml(p.nome||'-')}</h2><div class="premio-tags"><span class="tag">${fmtDateTime(p.inicio)}</span><span class="tag">${fmtDateTime(p.fim)}</span></div></div><div class="premio-info"><p><strong>DESCRIÇÃO</strong><br/>${escapeHtml(p.descricao||'-')}</p><p><strong>GANHADOR</strong><br/>${escapeHtml(p.ganhador||'-')}</p><p><strong>TELEFONE</strong><br/>${escapeHtml(phoneMask(p.telefone))}</p></div>`;document.getElementById('premio-modal').classList.remove('hidden');}
+function showPremioHistorico(idPremio){const p=state.premios.find((x)=>x.id===idPremio);if(!p)return;document.getElementById('premio-modal-title').textContent='DETALHES DO PRÊMIO DA HORA';document.getElementById('premio-modal-body').innerHTML=`<div class="premio-hero"><small>🎵 PRÊMIO DA HORA</small><h2>${escapeHtml(p.nome||'-')}</h2><div class="premio-tags"><span class="tag">${fmtDateTime(p.inicio)}</span><span class="tag">${fmtDateTime(p.fim)}</span></div></div><div class="premio-info"><div><strong>DESCRIÇÃO</strong><div class="rich-render">${renderRichText(p.descricao||'-')}</div></div><p><strong>GANHADOR</strong><br/>${escapeHtml(p.ganhador||'-')}</p><p><strong>TELEFONE</strong><br/>${escapeHtml(phoneMask(p.telefone))}</p></div>`;document.getElementById('premio-modal').classList.remove('hidden');}
 function escapeHtml(v){return String(v).replace(/[&<>"']/g,(m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
 function fmtDateTime(iso){if(!iso)return '--';return new Date(iso).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
 function shiftDashboardDate(days){const el=document.getElementById('dashboard-date');const d=new Date(`${el.value||todayISO()}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);renderDashboard();}
