@@ -106,7 +106,7 @@ async function loadInitialData() {
     state.prioridades = (p4.data || []).map((x) => ({ id: x.id, data: x.data, programaId: x.programa_id, conteudo: x.conteudo, concluido: Boolean(x.concluido), ativo: x.ativo !== false, imagemUrl: x.imagem_url || '' }));
     state.convidados = (p5.data || []).map((x) => ({ id: x.id, nome: x.nome_convidado || '', data: x.data_visita || '', hora: x.horario_visita || '', miniPautaHtml: x.mini_pauta_html || '', imagemUrl: x.imagem_url || '', concluido: Boolean(x.concluido), ativo: x.ativo !== false }));
     state.eventos = (p6.data || []).map((x) => ({ id: x.id, nome: x.nome_evento || '', data: x.data_evento || '', local: x.local_evento || '', vinculo: x.vinculo || 'APOIO', descricaoHtml: x.descricao_html || '', imagemUrl: x.imagem_url || '', ativo: x.ativo !== false }));
-    state.estoque = (p7.data || []).map((x) => ({ id: x.id, nome: x.nome_item || x.nome || '', descricaoHtml: x.descricao_premio_html || x.descricao_html || x.descricao || '', quantidadeTotal: Number(x.quantidade_total || 0), quantidadeAtual: Number(x.quantidade_atual || 0) }));
+    state.estoque = (p7.data || []).map((x) => ({ id: x.id, nome: x.nome_item || x.nome || '', descricaoHtml: getEstoqueDescricao(x), quantidadeTotal: Number(x.quantidade_total || 0), quantidadeAtual: Number(x.quantidade_atual || 0) }));
     return;
   }
 
@@ -634,6 +634,10 @@ function fmtDayMonth(iso){const p=normalizeDateParts(iso);if(!p)return '--/--';r
 function fmtTimeNoSeconds(value){const raw=String(value||'').trim();if(!raw)return '--:--';const m=raw.match(/^(\d{2}):(\d{2})/);return m?`${m[1]}:${m[2]}`:raw.slice(0,5);}
 function filterPremiosByDay(premios, dayISO){const start=`${dayISO}T00:00:00.000Z`;const end=`${dayISO}T23:59:59.999Z`;return premios.filter((p)=>{const i=p.inicio||start;const f=p.fim||end;return i<=end&&f>=start;});}
 function val(idEl){return document.getElementById(idEl).value;}
+function getEstoqueDescricao(row){
+  if (!row) return '';
+  return row.descricao_premio_html || row.descricao_premio || row.descricao_html || row.descricao || row.descricao_item || '';
+}
 
 function renderPrioridadesAr() {
   const t = document.getElementById('tabela-prioridades-ar');
@@ -749,9 +753,23 @@ async function insertEstoqueSupabase(payload) {
     quantidade_total: payload.quantidadeTotal,
     quantidade_atual: payload.quantidadeAtual
   };
+  const descricao = payload.descricaoHtml || '';
   if (hasEstoqueDescricaoColumn) {
-    const firstTry = await sb.from('estoque').insert({ ...base, descricao_premio_html: payload.descricaoHtml || '' }).select('id').maybeSingle();
-    if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('descricao_premio_html')) return firstTry;
+    const tryHtml = await sb.from('estoque').insert({ ...base, descricao_premio_html: descricao }).select('id').maybeSingle();
+    if (!tryHtml.error) return tryHtml;
+    const msgHtml = String(tryHtml.error?.message || '').toLowerCase();
+    if (!msgHtml.includes('descricao_premio_html')) return tryHtml;
+
+    const tryPremio = await sb.from('estoque').insert({ ...base, descricao_premio: descricao }).select('id').maybeSingle();
+    if (!tryPremio.error) return tryPremio;
+    const msgPremio = String(tryPremio.error?.message || '').toLowerCase();
+    if (!msgPremio.includes('descricao_premio')) return tryPremio;
+
+    const tryDesc = await sb.from('estoque').insert({ ...base, descricao: descricao }).select('id').maybeSingle();
+    if (!tryDesc.error) return tryDesc;
+    const msgDesc = String(tryDesc.error?.message || '').toLowerCase();
+    if (!msgDesc.includes('descricao')) return tryDesc;
+
     hasEstoqueDescricaoColumn = false;
   }
   return sb.from('estoque').insert(base).select('id').maybeSingle();
@@ -1046,9 +1064,23 @@ async function updateEstoqueSupabase(idEstoque, payload) {
     quantidade_total: payload.quantidadeTotal,
     quantidade_atual: payload.quantidadeAtual
   };
+  const descricao = payload.descricaoHtml || '';
   if (hasEstoqueDescricaoColumn) {
-    const firstTry = await sb.from('estoque').update({ ...base, descricao_premio_html: payload.descricaoHtml || '' }).eq('id', idEstoque).select('id').maybeSingle();
-    if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('descricao_premio_html')) return firstTry;
+    const tryHtml = await sb.from('estoque').update({ ...base, descricao_premio_html: descricao }).eq('id', idEstoque).select('id').maybeSingle();
+    if (!tryHtml.error) return tryHtml;
+    const msgHtml = String(tryHtml.error?.message || '').toLowerCase();
+    if (!msgHtml.includes('descricao_premio_html')) return tryHtml;
+
+    const tryPremio = await sb.from('estoque').update({ ...base, descricao_premio: descricao }).eq('id', idEstoque).select('id').maybeSingle();
+    if (!tryPremio.error) return tryPremio;
+    const msgPremio = String(tryPremio.error?.message || '').toLowerCase();
+    if (!msgPremio.includes('descricao_premio')) return tryPremio;
+
+    const tryDesc = await sb.from('estoque').update({ ...base, descricao: descricao }).eq('id', idEstoque).select('id').maybeSingle();
+    if (!tryDesc.error) return tryDesc;
+    const msgDesc = String(tryDesc.error?.message || '').toLowerCase();
+    if (!msgDesc.includes('descricao')) return tryDesc;
+
     hasEstoqueDescricaoColumn = false;
   }
   return sb.from('estoque').update(base).eq('id', idEstoque).select('id').maybeSingle();
