@@ -135,10 +135,12 @@
         <div class="grid cols-2">
           <form id="form-premio" class="card form">
             <h3>NOVO PRÊMIO DA HORA</h3>
-            <label>NOME (ESTOQUE)</label>
-            <select id="select_estoque" required></select>
+            <label>SELECIONAR DO ESTOQUE (OPCIONAL)</label>
+            <select id="select_estoque"></select>
+            <label>NOME DO PRÊMIO</label>
+            <input id="g-premio-nome" required />
             <label>QUANTIDADE ENTREGUE</label>
-            <input id="input_qtd_entregue" type="number" min="1" value="1" required />
+            <input id="input_qtd_entregue" type="number" min="1" value="1" />
             <label>DESCRIÇÃO</label>
             <div class="rich-editor-wrap">
               <div class="rich-toolbar" data-editor="g-premio-editor">
@@ -536,6 +538,39 @@
             </div>
             <input id="e-evt-descricao" type="hidden" />
             <label class="inline full-row"><input id="e-evt-ativo" type="checkbox" checked /> EXIBIR NA DASHBOARD</label>
+          </div>
+
+          <div id="edit-fields-estoque" class="edit-group hidden">
+            <label>NOME DO ITEM</label>
+            <input id="e-est-nome" required />
+            <label>QUANTIDADE TOTAL</label>
+            <input id="e-est-qtd-total" type="number" min="0" required />
+            <label>QUANTIDADE ATUAL</label>
+            <input id="e-est-qtd-atual" type="number" min="0" required />
+            <label class="full-row">DESCRIÇÃO DO PRÊMIO</label>
+            <div class="rich-editor-wrap full-row">
+              <div class="rich-toolbar" data-editor="e-est-editor">
+                <button type="button" class="btn-ghost" data-cmd="bold">Negrito</button>
+                <button type="button" class="btn-ghost" data-cmd="italic">Itálico</button>
+                <button type="button" class="btn-ghost" data-cmd="underline">Subl.</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontUp">A+</button>
+                <button type="button" class="btn-ghost" data-style-preset="fontDown">A-</button>
+                <button type="button" class="btn-ghost" data-style-preset="textRed">Vermelho</button>
+                <button type="button" class="btn-ghost" data-style-preset="textBlack">Preto</button>
+                <button type="button" class="btn-ghost" data-style-preset="bgYellow">Fundo amarelo</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyLeft">Esq</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyCenter">Centro</button>
+                <button type="button" class="btn-ghost" data-cmd="justifyRight">Dir</button>
+                <select data-font-target="e-est-editor" class="font-picker">
+                  <option value="Arial">Arial</option>
+                  <option value="Verdana">Verdana</option>
+                  <option value="Tahoma">Tahoma</option>
+                  <option value="Trebuchet MS">Trebuchet</option>
+                  <option value="Georgia">Georgia</option>
+                </select>
+              </div>
+              <div id="e-est-editor" class="rich-editor" contenteditable="true" aria-label="Descrição do prêmio do estoque"></div>
+            </div>
           </div>
 
           <button type="submit">SALVAR ALTERAÇÕES</button>

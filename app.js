@@ -138,19 +138,22 @@ function wireForms() {
     const itemEstoque = state.estoque.find((x) => String(x.id) === String(estoqueId));
     const qtdEntregue = Number(val('input_qtd_entregue') || 1);
     const descricaoHtml = getEditorHtml('g-premio-editor');
+    const nomePremio = val('g-premio-nome');
     const dia = val('g-premio-data');
     const hInicio = val('g-premio-inicio-hora');
     const hFim = val('g-premio-fim-hora');
     const inicio = new Date(`${dia}T${hInicio}:00`);
     const fim = new Date(`${dia}T${hFim}:00`);
-    if (!itemEstoque) return toast('SELECIONE UM ITEM DE ESTOQUE');
-    if (!Number.isFinite(qtdEntregue) || qtdEntregue <= 0) return toast('QUANTIDADE ENTREGUE INVÁLIDA');
-    if (qtdEntregue > Number(itemEstoque.quantidadeAtual || 0)) return toast('QUANTIDADE ENTREGUE MAIOR QUE O SALDO');
+    if (!nomePremio) return toast('NOME DO PRÊMIO É OBRIGATÓRIO');
+    if (itemEstoque) {
+      if (!Number.isFinite(qtdEntregue) || qtdEntregue <= 0) return toast('QUANTIDADE ENTREGUE INVÁLIDA');
+      if (qtdEntregue > Number(itemEstoque.quantidadeAtual || 0)) return toast('QUANTIDADE ENTREGUE MAIOR QUE O SALDO');
+    }
     if (!stripHtml(descricaoHtml).trim()) return toast('DESCRIÇÃO É OBRIGATÓRIA');
     if (Number.isNaN(inicio.getTime()) || Number.isNaN(fim.getTime())) return toast('DATA/HORA INVÁLIDA');
     if (fim <= inicio) return toast('HORA FIM DEVE SER MAIOR QUE INÍCIO');
     const payload = {
-      nome: itemEstoque.nome, estoqueId: itemEstoque.id, descricao: descricaoHtml,
+      nome: nomePremio, estoqueId: itemEstoque?.id || null, descricao: descricaoHtml,
       inicio: inicio.toISOString(), fim: fim.toISOString(),
       ganhador: val('g-premio-ganhador') || null, telefone: val('g-premio-telefone') || null
     };
@@ -158,18 +161,23 @@ function wireForms() {
       const { data, error } = await insertPremioSupabase(payload);
       if (error) return toast(`ERRO: ${error.message}`);
       if (!data?.id) return toast('ERRO: prêmio não retornou ID');
-      const novoSaldo = Math.max(0, Number(itemEstoque.quantidadeAtual || 0) - qtdEntregue);
-      const { error: estoqueError } = await updateEstoqueQuantidadeSupabase(itemEstoque.id, novoSaldo);
-      if (estoqueError) return toast(`ERRO ESTOQUE: ${estoqueError.message}`);
+      if (itemEstoque) {
+        const novoSaldo = Math.max(0, Number(itemEstoque.quantidadeAtual || 0) - qtdEntregue);
+        const { error: estoqueError } = await updateEstoqueQuantidadeSupabase(itemEstoque.id, novoSaldo);
+        if (estoqueError) return toast(`ERRO ESTOQUE: ${estoqueError.message}`);
+      }
       await syncAfterMutation();
     } else {
       state.premios.push({ id: id(), ...payload });
-      const item = state.estoque.find((x) => String(x.id) === String(itemEstoque.id));
-      if (item) item.quantidadeAtual = Math.max(0, Number(item.quantidadeAtual || 0) - qtdEntregue);
+      if (itemEstoque) {
+        const item = state.estoque.find((x) => String(x.id) === String(itemEstoque.id));
+        if (item) item.quantidadeAtual = Math.max(0, Number(item.quantidadeAtual || 0) - qtdEntregue);
+      }
       persistLocal();
     }
     e.target.reset();
     document.getElementById('input_qtd_entregue').value = '1';
+    document.getElementById('g-premio-nome').value = '';
     setEditorHtml('g-premio-editor', '');
     presetPremioFormDateTime();
     renderAll();
@@ -292,7 +300,11 @@ function wireForms() {
   document.getElementById('select_estoque').addEventListener('change', () => {
     const estoqueId = val('select_estoque');
     const itemEstoque = state.estoque.find((x) => String(x.id) === String(estoqueId));
-    setEditorHtml('g-premio-editor', itemEstoque?.descricaoHtml || '');
+    if (itemEstoque) {
+      document.getElementById('g-premio-nome').value = itemEstoque.nome || '';
+      setEditorHtml('g-premio-editor', itemEstoque.descricaoHtml || '');
+    }
+    updatePromocaoStockSelectionUI();
   });
 }
 
@@ -345,6 +357,7 @@ function initDefaultDates() {
 function renderAll() {
   fillProgramSelect('p-programa');
   fillEstoqueSelect('select_estoque');
+  updatePromocaoStockSelectionUI();
   renderProgramas();
   renderPremiosGerenciamento();
   renderWinnerSearch();
@@ -372,6 +385,15 @@ function fillEstoqueSelect(idSel) {
   if (selectedBefore && itensDisponiveis.some((item) => String(item.id) === String(selectedBefore))) {
     sel.value = String(selectedBefore);
   }
+}
+
+function updatePromocaoStockSelectionUI() {
+  const estoqueId = val('select_estoque');
+  const temEstoqueSelecionado = Boolean(estoqueId);
+  const qtdInput = document.getElementById('input_qtd_entregue');
+  if (!qtdInput) return;
+  qtdInput.disabled = !temEstoqueSelecionado;
+  if (!temEstoqueSelecionado) qtdInput.value = '1';
 }
 
 function renderParticipacoes() {
@@ -569,11 +591,12 @@ function renderEstoque() {
   const t = document.getElementById('tabela-estoque');
   if (!t) return;
   const rows = [...state.estoque].sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
-  t.innerHTML = `<thead><tr><th>ITEM</th><th>DESCRIÇÃO</th><th>QUANTIDADE TOTAL</th><th>QUANTIDADE ATUAL</th></tr></thead><tbody>${
+  t.innerHTML = `<thead><tr><th>ITEM</th><th>DESCRIÇÃO</th><th>QUANTIDADE TOTAL</th><th>QUANTIDADE ATUAL</th><th>AÇÕES</th></tr></thead><tbody>${
     rows.length
-      ? rows.map((r) => `<tr><td>${escapeHtml(r.nome || '-')}</td><td>${escapeHtml(stripHtml(r.descricaoHtml || '').slice(0, 140) || '-')}</td><td>${r.quantidadeTotal}</td><td class="${Number(r.quantidadeAtual) === 0 ? 'saldo-zero' : ''}">${r.quantidadeAtual}</td></tr>`).join('')
-      : '<tr><td colspan="4">NENHUM ITEM CADASTRADO.</td></tr>'
+      ? rows.map((r) => `<tr><td>${escapeHtml(r.nome || '-')}</td><td>${escapeHtml(stripHtml(r.descricaoHtml || '').slice(0, 140) || '-')}</td><td>${r.quantidadeTotal}</td><td class="${Number(r.quantidadeAtual) === 0 ? 'saldo-zero' : ''}">${r.quantidadeAtual}</td><td><button data-edit-est="${r.id}">EDITAR</button></td></tr>`).join('')
+      : '<tr><td colspan="5">NENHUM ITEM CADASTRADO.</td></tr>'
   }</tbody>`;
+  t.querySelectorAll('[data-edit-est]').forEach((b) => b.addEventListener('click', () => openEditModal('estoque', b.dataset.editEst)));
 }
 
 async function fileInputToDataUrl(idInput) {
@@ -918,6 +941,20 @@ async function updateEstoqueQuantidadeSupabase(idEstoque, quantidadeAtual) {
   return sb.from('estoque').update({ quantidade_atual: quantidadeAtual }).eq('id', idEstoque).select('id').maybeSingle();
 }
 
+async function updateEstoqueSupabase(idEstoque, payload) {
+  const base = {
+    nome_item: payload.nome,
+    quantidade_total: payload.quantidadeTotal,
+    quantidade_atual: payload.quantidadeAtual
+  };
+  if (hasEstoqueDescricaoColumn) {
+    const firstTry = await sb.from('estoque').update({ ...base, descricao_premio_html: payload.descricaoHtml || '' }).eq('id', idEstoque).select('id').maybeSingle();
+    if (!firstTry.error || !String(firstTry.error?.message || '').toLowerCase().includes('descricao_premio_html')) return firstTry;
+    hasEstoqueDescricaoColumn = false;
+  }
+  return sb.from('estoque').update(base).eq('id', idEstoque).select('id').maybeSingle();
+}
+
 async function updatePremioSupabase(idPremio, payload){
   const basePayload = {
     nome: payload.nome,
@@ -1041,6 +1078,17 @@ function openEditModal(tipo, itemId) {
     setEditorHtml('e-evt-editor', item.descricaoHtml || '');
   }
 
+  if (tipo === 'estoque') {
+    const item = state.estoque.find((x) => String(x.id) === String(itemId));
+    if (!item) return;
+    title.textContent = 'EDITAR ITEM DE ESTOQUE';
+    setEditGroupState('edit-fields-estoque', true);
+    document.getElementById('e-est-nome').value = item.nome || '';
+    document.getElementById('e-est-qtd-total').value = Number(item.quantidadeTotal || 0);
+    document.getElementById('e-est-qtd-atual').value = Number(item.quantidadeAtual || 0);
+    setEditorHtml('e-est-editor', item.descricaoHtml || '');
+  }
+
   modal.classList.remove('hidden');
 }
 
@@ -1057,6 +1105,7 @@ function hideEditGroups() {
   setEditGroupState('edit-fields-prioridade', false);
   setEditGroupState('edit-fields-convidado', false);
   setEditGroupState('edit-fields-evento', false);
+  setEditGroupState('edit-fields-estoque', false);
 }
 
 function setEditGroupState(groupId, active) {
@@ -1232,6 +1281,26 @@ async function submitEditModal(e) {
       const { data: upData, error } = await updateEventoSupabase(item.id, { nome, data, local, vinculo, descricaoHtml, imagemUrl: imagemUrlFinal, ativo });
       if (error) return toast(`ERRO: ${error.message}`);
       if (!upData?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTE EVENTO (RLS).');
+      await syncAfterMutation();
+    } else persistLocal();
+  }
+
+  if (editModalState.tipo === 'estoque') {
+    const item = state.estoque.find((x) => String(x.id) === String(editModalState.id));
+    if (!item) return;
+    const nome = document.getElementById('e-est-nome').value.trim();
+    const quantidadeTotal = Number(document.getElementById('e-est-qtd-total').value);
+    const quantidadeAtual = Number(document.getElementById('e-est-qtd-atual').value);
+    const descricaoHtml = getEditorHtml('e-est-editor');
+    if (!nome) return toast('NOME DO ITEM É OBRIGATÓRIO');
+    if (!Number.isFinite(quantidadeTotal) || quantidadeTotal < 0) return toast('QUANTIDADE TOTAL INVÁLIDA');
+    if (!Number.isFinite(quantidadeAtual) || quantidadeAtual < 0) return toast('QUANTIDADE ATUAL INVÁLIDA');
+    if (!stripHtml(descricaoHtml).trim()) return toast('DESCRIÇÃO DO PRÊMIO É OBRIGATÓRIA');
+    Object.assign(item, { nome, quantidadeTotal, quantidadeAtual, descricaoHtml });
+    if (hasSupabase) {
+      const { data: upData, error } = await updateEstoqueSupabase(item.id, { nome, quantidadeTotal, quantidadeAtual, descricaoHtml });
+      if (error) return toast(`ERRO: ${error.message}`);
+      if (!upData?.id) return toast('SEM PERMISSÃO PARA EDITAR ESTE ITEM DE ESTOQUE (RLS).');
       await syncAfterMutation();
     } else persistLocal();
   }
