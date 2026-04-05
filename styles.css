@@ -71,6 +71,12 @@ button:hover { transform: translateY(-1px); box-shadow: 0 8px 0 #111; background
 #bars { display: grid; gap: .55rem; }
 .bar-row { display: grid; grid-template-columns: 230px 1fr 70px; gap: .5rem; align-items: center; }
 .bar { height: 14px; border-radius: 999px; background: linear-gradient(90deg, #2563eb, #0ea5e9); }
+.metric-filter-head { display: grid; gap: .5rem; margin-bottom: .65rem; }
+.metric-mode-tabs { display: flex; gap: .45rem; flex-wrap: wrap; }
+.metric-mode-tabs .tab { padding: .35rem .75rem; box-shadow: none; }
+.metric-mode-tabs .tab.active { box-shadow: 0 6px 0 #111; }
+.metric-nav { display: flex; align-items: center; gap: .55rem; }
+.metric-nav button { padding: .4rem .65rem; }
 .kpi-value { font-size: 2rem; margin: .3rem 0; color: #1d4ed8; font-weight: 900; }
 .card h3 { letter-spacing: -.3px; text-transform: uppercase; }
 #toast { position: fixed; right: 16px; bottom: 16px; padding: .8rem 1rem; border-radius: 12px; background: #1d4ed8; color: #fff; opacity: 0; transform: translateY(8px); transition: .2s; }

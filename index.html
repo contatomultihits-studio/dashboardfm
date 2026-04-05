@@ -97,7 +97,23 @@
         </div>
 
         <div class="grid cols-3" id="kpis"></div>
-        <div class="card"><h3>PARTICIPAÇÕES POR PROGRAMA</h3><div id="bars"></div></div>
+        <div class="card">
+          <h3>PARTICIPAÇÕES POR PROGRAMA</h3>
+          <div class="metric-filter-head">
+            <div class="metric-mode-tabs">
+              <button id="btn-metric-dia" type="button" class="tab active">DIA</button>
+              <button id="btn-metric-semana" type="button" class="tab">SEMANA</button>
+              <button id="btn-metric-mes" type="button" class="tab">MÊS</button>
+            </div>
+            <div class="metric-nav">
+              <button id="btn-metric-prev" type="button">◀</button>
+              <small id="metric-period-label">--</small>
+              <button id="btn-metric-next" type="button">▶</button>
+            </div>
+            <small id="metric-total-label">TOTAL: 0</small>
+          </div>
+          <div id="bars"></div>
+        </div>
         <div class="card"><h3>HISTÓRICO DE PRÊMIOS ENCERRADOS</h3><table id="tabela-historico-premios" class="table"></table></div>
       </section>
 

@@ -12,6 +12,8 @@ let prioridadeCarouselStart = 0;
 let convidadoCarouselStart = 0;
 let eventoCarouselStart = 0;
 let ganhadoresVisibleCount = 10;
+let metricMode = 'mes';
+let metricAnchorDate = todayISO();
 const editModalState = { tipo: null, id: null };
 let dashboardRefreshInterval = null;
 const tipoRegistroPadrao = window.APP_CONFIG?.TIPO_REGISTRO_PADRAO || 'DIARIO_REALTIME';
@@ -31,6 +33,7 @@ async function init() {
   wireFilters();
   wireGerenciamentoTools();
   wireGanhadoresTools();
+  wireMetricControls();
   renderAll();
   updateDashboardAutoRefresh();
 }
@@ -339,6 +342,31 @@ function wireFilters() {
   document.getElementById('btn-evt-next')?.addEventListener('click', () => shiftEventosDashboard(1));
 }
 
+function wireMetricControls() {
+  document.getElementById('btn-metric-dia')?.addEventListener('click', () => setMetricMode('dia'));
+  document.getElementById('btn-metric-semana')?.addEventListener('click', () => setMetricMode('semana'));
+  document.getElementById('btn-metric-mes')?.addEventListener('click', () => setMetricMode('mes'));
+  document.getElementById('btn-metric-prev')?.addEventListener('click', () => shiftMetricPeriod(-1));
+  document.getElementById('btn-metric-next')?.addEventListener('click', () => shiftMetricPeriod(1));
+}
+
+function setMetricMode(mode) {
+  metricMode = mode;
+  metricAnchorDate = todayISO();
+  renderMetricHeader();
+  renderDashboard();
+}
+
+function shiftMetricPeriod(step) {
+  const d = new Date(`${metricAnchorDate}T00:00:00`);
+  if (metricMode === 'dia') d.setDate(d.getDate() + step);
+  if (metricMode === 'semana') d.setDate(d.getDate() + (7 * step));
+  if (metricMode === 'mes') d.setMonth(d.getMonth() + step, 1);
+  metricAnchorDate = d.toISOString().slice(0, 10);
+  renderMetricHeader();
+  renderDashboard();
+}
+
 function initDefaultDates() {
   const end = todayISO();
   document.getElementById('p-data').value = end;
@@ -574,14 +602,17 @@ function renderDashboard() {
   renderConvidadosCards(dashboardDate);
   renderEventosCards(dashboardDate);
 
-  const de = firstDayOfMonthISOFrom(dashboardDate);
-  const ate = lastDayOfMonthISOFrom(dashboardDate);
+  const { de, ate, label } = getMetricDateRange();
+  renderMetricHeader(label);
   let regs=[...state.participacoes];
   regs=regs.filter(r=>r.data>=de && r.data<=ate);
   const resumo=state.programas.map((p)=>{const r=regs.filter(x=>x.programaId===p.id);return {nome:p.nome,total:r.reduce((a,b)=>a+b.quantidade,0),dias:new Set(r.map(x=>x.data)).size};}).sort((a,b)=>b.total-a.total);
   document.getElementById('kpis').innerHTML='';
   const max=Math.max(1,...resumo.map(r=>r.total));
   document.getElementById('bars').innerHTML=resumo.map(r=>`<div class='bar-row'><small>${r.nome}</small><div class='bar' style='width:${(r.total/max)*100}%'></div><small>${r.total}</small></div>`).join('');
+  const total = resumo.reduce((acc, r) => acc + r.total, 0);
+  const totalLabel = document.getElementById('metric-total-label');
+  if (totalLabel) totalLabel.textContent = `TOTAL: ${total}`;
 
   const dayStart = `${dashboardDate}T00:00:00.000Z`;
   const dayEnd = `${dashboardDate}T23:59:59.999Z`;
@@ -621,6 +652,26 @@ function firstDayOfMonthISOFrom(baseISO){const d=new Date(`${baseISO}T00:00:00`)
 function lastDayOfMonthISOFrom(baseISO){const d=new Date(`${baseISO}T00:00:00`);d.setMonth(d.getMonth()+1,0);return d.toISOString().slice(0,10);}
 function currentClockOnDate(baseISO){const now=new Date();const d=new Date(`${baseISO}T00:00:00`);d.setHours(now.getHours(),now.getMinutes(),now.getSeconds(),0);return d;}
 function shiftDateInput(idInput, days){const el=document.getElementById(idInput);const d=new Date(`${(el.value||todayISO())}T00:00:00`);d.setDate(d.getDate()+days);el.value=d.toISOString().slice(0,10);if(idInput==='gmt-date')renderPremiosGerenciamento();if(idInput==='dashboard-date')renderDashboard();}
+function startOfWeekISO(baseISO){const d=new Date(`${baseISO}T00:00:00`);const day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);return d.toISOString().slice(0,10);}
+function endOfWeekISO(baseISO){const d=new Date(`${startOfWeekISO(baseISO)}T00:00:00`);d.setDate(d.getDate()+6);return d.toISOString().slice(0,10);}
+function weekNumberISO(baseISO){const d=new Date(`${baseISO}T00:00:00`);d.setHours(0,0,0,0);d.setDate(d.getDate()+3-((d.getDay()+6)%7));const w1=new Date(d.getFullYear(),0,4);return 1+Math.round((((d.getTime()-w1.getTime())/86400000)-3+((w1.getDay()+6)%7))/7);}
+function getMetricDateRange(){
+  if(metricMode==='dia'){return {de: metricAnchorDate, ate: metricAnchorDate, label: fmtDateOnly(metricAnchorDate)};}
+  if(metricMode==='semana'){
+    const de=startOfWeekISO(metricAnchorDate);const ate=endOfWeekISO(metricAnchorDate);const wk=weekNumberISO(metricAnchorDate);
+    return {de, ate, label:`SEMANA ${wk} — ${fmtDayMonth(de)} A ${fmtDayMonth(ate)}`};
+  }
+  const de=firstDayOfMonthISOFrom(metricAnchorDate);const ate=lastDayOfMonthISOFrom(metricAnchorDate);
+  const monthLabel = new Date(`${metricAnchorDate}T00:00:00`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return {de, ate, label: monthLabel.toUpperCase()};
+}
+function renderMetricHeader(precomputedLabel){
+  const label = document.getElementById('metric-period-label');
+  if (label) label.textContent = precomputedLabel || getMetricDateRange().label;
+  document.getElementById('btn-metric-dia')?.classList.toggle('active', metricMode==='dia');
+  document.getElementById('btn-metric-semana')?.classList.toggle('active', metricMode==='semana');
+  document.getElementById('btn-metric-mes')?.classList.toggle('active', metricMode==='mes');
+}
 function normalizeDateParts(value){
   const raw = String(value || '').trim();
   const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
