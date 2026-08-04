@@ -21,7 +21,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
     prisma.musicRequest.findMany({ include: { program: true }, orderBy: { quantity: "desc" }, take: 6 }),
     prisma.listener.findMany({ take: 5, orderBy: { createdAt: "desc" } }),
     prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 5 })
-  ]);
+  ]).catch(() => [[], [], [], [], [], [], [], [], [], []] as any);
   const totalPeriod = programParticipations.reduce((s, row) => s + row.quantity, 0);
   const totals = monthlyTotals(programParticipations);
   const byProgram = Object.values(programParticipations.reduce<Record<string, { name: string; total: number }>>((acc, row) => { acc[row.program.name] ??= { name: row.program.name, total: 0 }; acc[row.program.name].total += row.quantity; return acc; }, {})).sort((a,b)=>b.total-a.total);
