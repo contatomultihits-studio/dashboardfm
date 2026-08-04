@@ -29,8 +29,5 @@
     "tsx": "latest",
     "typescript": "latest",
     "vitest": "latest"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   }
 }
