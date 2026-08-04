@@ -2,8 +2,6 @@ import { prisma } from "@/lib/db";
 import { canAccessSensitive, currentRole, maskSensitive } from "@/lib/auth";
 import { formatDateBR, monthlyTotals } from "@/lib/normalizers";
 
-export const dynamic = "force-dynamic";
-
 const modules = [
   "Programação",
   "Desafio RD",
@@ -117,10 +115,9 @@ async function loadDashboardData(from: string, to: string): Promise<DashboardDat
   }
 }
 
-export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const params = await searchParams;
-  const from = params.from ?? "2026-07-01";
-  const to = params.to ?? "2026-08-31";
+export default async function Home() {
+  const from = "2026-07-01";
+  const to = "2026-08-31";
   const data = await loadDashboardData(from, to);
   const { programParticipations, challenge, breaks, polls, competitors, songs, episodes, requests, audits } = data;
   const totalPeriod = programParticipations.reduce((sum, row) => sum + row.quantity, 0);
