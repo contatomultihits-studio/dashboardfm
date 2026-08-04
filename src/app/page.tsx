@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { canAccessSensitive, currentRole, maskSensitive } from "@/lib/auth";
 import { formatDateBR, monthlyTotals } from "@/lib/normalizers";
 
+export const dynamic = "force-dynamic";
+
 const modules = ["Programação", "Desafio RD", "Breaks", "Comenta Aí", "Concorrência SP", "Música premiada", "Xuguéder", "Pedidos musicais", "Importações", "Auditoria"];
 
 export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
