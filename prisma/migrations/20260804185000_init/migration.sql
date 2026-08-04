@@ -1,0 +1,2 @@
+-- Initial SQLite migration generated for the Rádio Disney analytics prototype.
+-- Prisma can recreate this from schema.prisma with `npx prisma migrate dev --name init`.
