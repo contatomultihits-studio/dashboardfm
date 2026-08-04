@@ -1,26 +1,287 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "sqlite" url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
 
-enum RoleName { ADMIN PRODUCAO ANALISTA PUBLICO }
-enum PollStatus { IDEIA APROVADA FOI_AO_AR DESCARTADA }
-enum BreakStatus { NO_AR SAIU_DO_AR }
-enum ImportStatus { PENDENTE PROCESSANDO CONCLUIDO ERRO }
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
 
-model Role { id String @id @default(uuid()) name RoleName @unique users User[] }
-model User { id String @id @default(uuid()) name String email String @unique roleId String role Role @relation(fields:[roleId], references:[id]) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt auditLogs AuditLog[] }
-model AuditLog { id String @id @default(uuid()) actorId String? actor User? @relation(fields:[actorId], references:[id]) entity String entityId String action String sensitive Boolean @default(false) before Json? after Json? createdAt DateTime @default(now()) }
-model Listener { id String @id @default(uuid()) name String phoneOriginal String? phoneNormalized String? email String? cpfMasked String? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt sourceFile String? sourceSheet String? sourceRow Int? rawData Json? challengeParticipations ChallengeParticipation[] }
-model ChallengeParticipation { id String @id @default(uuid()) date String time String listenerId String listener Listener @relation(fields:[listenerId], references:[id]) score Int winner Boolean @default(false) partnerFlag String? sourceFile String? sourceSheet String? sourceRow Int? rawData Json? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt winnerDetails ChallengeWinnerDetails? }
-model ChallengeWinnerDetails { id String @id @default(uuid()) participationId String @unique participation ChallengeParticipation @relation(fields:[participationId], references:[id]) fullName String email String cpfMasked String cpfHash String? appDownloaded Boolean? notes String? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model XuguedEREpisode { id String @id @default(uuid()) episodeNumber Int theme String character String airedDate String sourceFile String? sourceSheet String? sourceRow Int? rawData Json? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model Program { id String @id @default(uuid()) name String @unique slug String @unique active Boolean @default(true) participations ProgramParticipation[] musicRequests MusicRequest[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model ProgramParticipation { id String @id @default(uuid()) date String programId String program Program @relation(fields:[programId], references:[id]) quantity Int sourceFile String? sourceSheet String? sourceRow Int? notes String? rawData Json? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt @@unique([date, programId]) }
-model MusicRequest { id String @id @default(uuid()) artistOriginal String artistNormalized String songOriginal String songNormalized String quantity Int programId String? program Program? @relation(fields:[programId], references:[id]) sourceFile String? sourceSheet String? sourceRow Int? rawData Json? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model SeasonalPromotion { id String @id @default(uuid()) name String channel String? startDate String? endDate String? participationCount Int? status String notes String? sourceFile String? sourceSheet String? sourceRow Int? rawData Json? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model CompetitorRadio { id String @id @default(uuid()) name String @unique promotions CompetitorPromotion[] createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model CompetitorPromotion { id String @id @default(uuid()) radioId String radio CompetitorRadio @relation(fields:[radioId], references:[id]) title String duration String? mechanic String channel String? referenceMonth String status String? tags String? sourceFile String? sourceSheet String? sourceRow Int? rawData Json? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model AwardedSong { id String @id @default(uuid()) day String position Int? songOriginal String? artist String? title String? referenceMonth String sourceFile String? sourceSheet String? sourceRow Int? rawData Json? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model BreakItem { id String @id @default(uuid()) name String weekdays String? frequencyComment String? entryDate String? exitDate String? status BreakStatus notes String? sourceFile String? sourceSheet String? sourceRow Int? rawData Json? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model PollIdea { id String @id @default(uuid()) date String? onAirPoll String? suggestion String? reason String? participations Int? referenceWeek String? status PollStatus @default(IDEIA) sourceFile String? sourceSheet String? sourceRow Int? rawData Json? createdAt DateTime @default(now()) updatedAt DateTime @updatedAt }
-model ImportBatch { id String @id @default(uuid()) module String fileName String status ImportStatus @default(PENDENTE) totalRows Int @default(0) processedRows Int @default(0) createdAt DateTime @default(now()) updatedAt DateTime @updatedAt errors ImportError[] }
-model ImportError { id String @id @default(uuid()) batchId String batch ImportBatch @relation(fields:[batchId], references:[id]) rowNumber Int? message String rawData Json? createdAt DateTime @default(now()) }
+enum RoleName {
+  ADMIN
+  PRODUCAO
+  ANALISTA
+  PUBLICO
+}
+
+enum PollStatus {
+  IDEIA
+  APROVADA
+  FOI_AO_AR
+  DESCARTADA
+}
+
+enum BreakStatus {
+  NO_AR
+  SAIU_DO_AR
+}
+
+enum ImportStatus {
+  PENDENTE
+  PROCESSANDO
+  CONCLUIDO
+  ERRO
+}
+
+model Role {
+  id    String   @id @default(uuid())
+  name  RoleName @unique
+  users User[]
+}
+
+model User {
+  id        String     @id @default(uuid())
+  name      String
+  email     String     @unique
+  roleId    String
+  role      Role       @relation(fields: [roleId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  auditLogs AuditLog[]
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  entity    String
+  entityId  String
+  action    String
+  sensitive Boolean  @default(false)
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+}
+
+model Listener {
+  id                      String                   @id @default(uuid())
+  name                    String
+  phoneOriginal           String?
+  phoneNormalized         String?
+  email                   String?
+  cpfMasked               String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  sourceFile              String?
+  sourceSheet             String?
+  sourceRow               Int?
+  rawData                 Json?
+  challengeParticipations ChallengeParticipation[]
+}
+
+model ChallengeParticipation {
+  id            String                  @id @default(uuid())
+  date          String
+  time          String
+  listenerId    String
+  listener      Listener                @relation(fields: [listenerId], references: [id])
+  score         Int
+  winner        Boolean                 @default(false)
+  partnerFlag   String?
+  sourceFile    String?
+  sourceSheet   String?
+  sourceRow     Int?
+  rawData       Json?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  winnerDetails ChallengeWinnerDetails?
+}
+
+model ChallengeWinnerDetails {
+  id              String                 @id @default(uuid())
+  participationId String                 @unique
+  participation   ChallengeParticipation @relation(fields: [participationId], references: [id])
+  fullName        String
+  email           String
+  cpfMasked       String
+  cpfHash         String?
+  appDownloaded   Boolean?
+  notes           String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+}
+
+model XuguedEREpisode {
+  id            String   @id @default(uuid())
+  episodeNumber Int
+  theme         String
+  character     String
+  airedDate     String
+  sourceFile    String?
+  sourceSheet   String?
+  sourceRow     Int?
+  rawData       Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Program {
+  id             String                 @id @default(uuid())
+  name           String                 @unique
+  slug           String                 @unique
+  active         Boolean                @default(true)
+  participations ProgramParticipation[]
+  musicRequests  MusicRequest[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+}
+
+model ProgramParticipation {
+  id          String   @id @default(uuid())
+  date        String
+  programId   String
+  program     Program  @relation(fields: [programId], references: [id])
+  quantity    Int
+  sourceFile  String?
+  sourceSheet String?
+  sourceRow   Int?
+  notes       String?
+  rawData     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([date, programId])
+}
+
+model MusicRequest {
+  id               String   @id @default(uuid())
+  artistOriginal   String
+  artistNormalized String
+  songOriginal     String
+  songNormalized   String
+  quantity         Int
+  programId        String?
+  program          Program? @relation(fields: [programId], references: [id])
+  sourceFile       String?
+  sourceSheet      String?
+  sourceRow        Int?
+  rawData          Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model SeasonalPromotion {
+  id                 String   @id @default(uuid())
+  name               String
+  channel            String?
+  startDate          String?
+  endDate            String?
+  participationCount Int?
+  status             String
+  notes              String?
+  sourceFile         String?
+  sourceSheet        String?
+  sourceRow          Int?
+  rawData            Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model CompetitorRadio {
+  id         String                @id @default(uuid())
+  name       String                @unique
+  promotions CompetitorPromotion[]
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+}
+
+model CompetitorPromotion {
+  id             String          @id @default(uuid())
+  radioId        String
+  radio          CompetitorRadio @relation(fields: [radioId], references: [id])
+  title          String
+  duration       String?
+  mechanic       String
+  channel        String?
+  referenceMonth String
+  status         String?
+  tags           String?
+  sourceFile     String?
+  sourceSheet    String?
+  sourceRow      Int?
+  rawData        Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model AwardedSong {
+  id             String   @id @default(uuid())
+  day            String
+  position       Int?
+  songOriginal   String?
+  artist         String?
+  title          String?
+  referenceMonth String
+  sourceFile     String?
+  sourceSheet    String?
+  sourceRow      Int?
+  rawData        Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model BreakItem {
+  id               String      @id @default(uuid())
+  name             String
+  weekdays         String?
+  frequencyComment String?
+  entryDate        String?
+  exitDate         String?
+  status           BreakStatus
+  notes            String?
+  sourceFile       String?
+  sourceSheet      String?
+  sourceRow        Int?
+  rawData          Json?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+model PollIdea {
+  id             String     @id @default(uuid())
+  date           String?
+  onAirPoll      String?
+  suggestion     String?
+  reason         String?
+  participations Int?
+  referenceWeek  String?
+  status         PollStatus @default(IDEIA)
+  sourceFile     String?
+  sourceSheet    String?
+  sourceRow      Int?
+  rawData        Json?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model ImportBatch {
+  id            String       @id @default(uuid())
+  module        String
+  fileName      String
+  status        ImportStatus @default(PENDENTE)
+  totalRows     Int          @default(0)
+  processedRows Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  errors        ImportError[]
+}
+
+model ImportError {
+  id        String      @id @default(uuid())
+  batchId   String
+  batch     ImportBatch @relation(fields: [batchId], references: [id])
+  rowNumber Int?
+  message   String
+  rawData   Json?
+  createdAt DateTime    @default(now())
+}
