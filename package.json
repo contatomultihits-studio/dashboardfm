@@ -11,7 +11,7 @@
     "postinstall": "DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "latest",
+    "@prisma/client": "^6.0.0",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
@@ -25,7 +25,7 @@
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "latest",
-    "prisma": "latest",
+    "prisma": "^6.0.0",
     "tsx": "latest",
     "typescript": "latest",
     "vitest": "latest"
