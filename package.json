@@ -1,4 +1,7 @@
 {
+  "name": "dashboardfm",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "NEXT_TELEMETRY_DISABLED=1 PRISMA_HIDE_UPDATE_MESSAGE=1 DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma generate && NEXT_TELEMETRY_DISABLED=1 next build",
