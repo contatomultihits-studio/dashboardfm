@@ -1,0 +1,36 @@
+{
+  "name": "dashboardfm",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "NEXT_TELEMETRY_DISABLED=1 PRISMA_HIDE_UPDATE_MESSAGE=1 DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma generate && NEXT_TELEMETRY_DISABLED=1 next build",
+    "start": "next start",
+    "lint": "next lint || eslint .",
+    "test": "vitest run",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "postinstall": "PRISMA_HIDE_UPDATE_MESSAGE=1 DATABASE_URL=${DATABASE_URL:-file:./dev.db} prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "lucide-react": "latest",
+    "clsx": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "prisma": "^6.0.0",
+    "tsx": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  }
+}
