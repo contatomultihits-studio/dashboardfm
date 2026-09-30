@@ -67,6 +67,7 @@ create table if not exists public.prioridades (
   id            uuid primary key default gen_random_uuid(),
   data_inicio   date not null,
   data_fim      date not null,
+  titulo        text not null default '',
   conteudo_html text not null default '',
   imagem_path   text,
   ativo         boolean not null default true,
@@ -92,6 +93,9 @@ end;
 $$;
 
 create index if not exists prioridades_periodo_idx on public.prioridades (data_inicio, data_fim);
+
+-- Título curto que aparece no card (migração 003).
+alter table public.prioridades add column if not exists titulo text not null default '';
 
 
 -- ---------------------------------------------------------------------

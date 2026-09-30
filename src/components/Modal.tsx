@@ -2,7 +2,13 @@
 
 import { useEffect, useRef } from "react";
 
-export function Modal({ titulo, onFechar, children }: { titulo: string; onFechar: () => void; children: React.ReactNode }) {
+/** `leitura`: janela larga e letra grande, para o locutor ler no ar. */
+export function Modal({ titulo, onFechar, leitura, children }: {
+  titulo: string;
+  onFechar: () => void;
+  leitura?: boolean;
+  children: React.ReactNode;
+}) {
   const fecharRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -20,7 +26,7 @@ export function Modal({ titulo, onFechar, children }: { titulo: string; onFechar
 
   return (
     <div className="modal-fundo" onClick={onFechar}>
-      <div className="card modal" role="dialog" aria-modal="true" aria-label={titulo} onClick={(e) => e.stopPropagation()}>
+      <div className={`card modal ${leitura ? "modal-leitura" : ""}`} role="dialog" aria-modal="true" aria-label={titulo} onClick={(e) => e.stopPropagation()}>
         <div className="modal-topo">
           <h2>{titulo}</h2>
           <button ref={fecharRef} type="button" className="branco pequeno" onClick={onFechar}>Fechar ✕</button>

@@ -2,6 +2,7 @@ export type Prioridade = {
   id: string;
   data_inicio: string;
   data_fim: string;
+  titulo: string;
   conteudo_html: string;
   imagem_path: string | null;
   ativo: boolean;

@@ -113,7 +113,7 @@ export function Dashboard() {
               render={(p) => (
                 <button type="button" className="item-card" onClick={() => setAberto({ tipo: "prioridade", item: p })}>
                   <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" />
-                  <span className="item-texto">{textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
+                  <span className="item-titulo">{p.titulo || textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
                   <span className="item-rodape">
                     {p.data_fim === dia ? (
                       <span className="etiqueta ultimo-dia">Último dia</span>
@@ -168,34 +168,31 @@ export function Dashboard() {
       </main>
 
       {aberto?.tipo === "prioridade" && (
-        <Modal titulo="Prioridade no ar" onFechar={fechar}>
+        <Modal titulo={aberto.item.titulo || "Prioridade no ar"} onFechar={fechar} leitura>
           <div className="modal-meta">
             <span className="etiqueta cinza">
               No ar de {fmtData(aberto.item.data_inicio)} a {fmtData(aberto.item.data_fim)}
             </span>
           </div>
-          {aberto.item.imagem_path && <Imagem src={urlImagem(sb, aberto.item.imagem_path)} alt="Imagem da prioridade" className="modal-img" />}
           <TextoRico html={aberto.item.conteudo_html} />
         </Modal>
       )}
       {aberto?.tipo === "convidado" && (
-        <Modal titulo={aberto.item.nome} onFechar={fechar}>
+        <Modal titulo={aberto.item.nome} onFechar={fechar} leitura>
           <div className="modal-meta">
             <span className="etiqueta cinza">{fmtData(aberto.item.data_visita)}{aberto.item.horario ? ` às ${fmtHora(aberto.item.horario)}` : ""}</span>
           </div>
-          {aberto.item.imagem_path && <Imagem src={urlImagem(sb, aberto.item.imagem_path)} alt={aberto.item.nome} className="modal-img" />}
           <h3>Mini pauta</h3>
           <TextoRico html={aberto.item.mini_pauta_html} />
         </Modal>
       )}
       {aberto?.tipo === "evento" && (
-        <Modal titulo={aberto.item.nome} onFechar={fechar}>
+        <Modal titulo={aberto.item.nome} onFechar={fechar} leitura>
           <div className="modal-meta">
             <span className={`etiqueta ${aberto.item.vinculo === "RADIO_OFICIAL" ? "oficial" : "apoio"}`}>{VINCULO_LABEL[aberto.item.vinculo]}</span>
             <span className="etiqueta cinza">{fmtData(aberto.item.data_evento)}</span>
             {aberto.item.local && <span className="etiqueta cinza">{aberto.item.local}</span>}
           </div>
-          {aberto.item.imagem_path && <Imagem src={urlImagem(sb, aberto.item.imagem_path)} alt={aberto.item.nome} className="modal-img" />}
           <TextoRico html={aberto.item.descricao_html} />
         </Modal>
       )}

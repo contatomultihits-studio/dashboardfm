@@ -24,7 +24,7 @@ const PADRAO = ATALHOS[0].duracao;
 
 function novo() {
   const inicio = hojeISO();
-  return { data_inicio: inicio, data_fim: fimDoPeriodo(inicio, PADRAO), conteudo_html: "", ativo: true };
+  return { data_inicio: inicio, data_fim: fimDoPeriodo(inicio, PADRAO), titulo: "", conteudo_html: "", ativo: true };
 }
 
 export function Prioridades({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) {
@@ -48,7 +48,7 @@ export function Prioridades({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar
   }
 
   function editar(p: Prioridade) {
-    setForm({ data_inicio: p.data_inicio, data_fim: p.data_fim, conteudo_html: p.conteudo_html, ativo: p.ativo });
+    setForm({ data_inicio: p.data_inicio, data_fim: p.data_fim, titulo: p.titulo ?? "", conteudo_html: p.conteudo_html, ativo: p.ativo });
     setDuracao(null);
     setEditandoId(p.id);
     imagem.reiniciar(p.imagem_path);
@@ -76,8 +76,12 @@ export function Prioridades({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar
       avisar("A data de saída não pode ser antes da entrada.", true);
       return;
     }
-    if (!textoPuro(form.conteudo_html) && !imagem.arquivo && !imagem.atual) {
-      avisar("Escreva o conteúdo ou envie uma imagem.", true);
+    if (!form.titulo.trim()) {
+      avisar("Dê um título para a prioridade (é o que aparece no card).", true);
+      return;
+    }
+    if (!textoPuro(form.conteudo_html)) {
+      avisar("Escreva o texto que o locutor vai ler no ar.", true);
       return;
     }
     setSalvando(true);
@@ -86,6 +90,7 @@ export function Prioridades({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar
       const dados = {
         data_inicio: form.data_inicio,
         data_fim: form.data_fim,
+        titulo: form.titulo.trim(),
         conteudo_html: sanitizarHtml(form.conteudo_html),
         ativo: form.ativo,
         imagem_path: img.path,
@@ -139,6 +144,17 @@ export function Prioridades({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar
     <>
       <form className="card form" onSubmit={salvar}>
         <h2>{editandoId ? "Editar prioridade" : "Nova prioridade do ar"}</h2>
+        <label className="campo">
+          Título (aparece no card, junto com a imagem)
+          <input
+            type="text"
+            required
+            maxLength={80}
+            placeholder="Ex.: Festivalzinho em Alto-Mar"
+            value={form.titulo}
+            onChange={(e) => setForm({ ...form, titulo: e.target.value })}
+          />
+        </label>
         <div className="form-grade">
           <label className="campo">
             Entra no ar
@@ -180,7 +196,7 @@ export function Prioridades({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar
             </span>
           )}
         </div>
-        <EditorTexto key={`prio-${versao}`} rotulo="Conteúdo" valorInicial={form.conteudo_html} placeholder="O que o locutor precisa falar no ar…" onChange={(html) => setForm((f) => ({ ...f, conteudo_html: html }))} />
+        <EditorTexto key={`prio-${versao}`} rotulo="Texto para o locutor ler no ar" valorInicial={form.conteudo_html} placeholder="O que o locutor precisa falar no ar…" onChange={(html) => setForm((f) => ({ ...f, conteudo_html: html }))} />
         <CampoImagem sb={sb} imagem={imagem} />
         <label className="check">
           <input type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} />
@@ -200,7 +216,7 @@ export function Prioridades({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar
         ) : (
           <div className="tabela-wrap">
             <table>
-              <thead><tr><th>Imagem</th><th>Período no ar</th><th>Situação</th><th>Conteúdo</th><th>Exibir</th><th>Ações</th></tr></thead>
+              <thead><tr><th>Imagem</th><th>Período no ar</th><th>Situação</th><th>Título</th><th>Exibir</th><th>Ações</th></tr></thead>
               <tbody>
                 {lista.itens.map((p) => (
                   <tr key={p.id} className={`${p.ativo ? "" : "oculto"} ${editandoId === p.id ? "editando" : ""}`}>
@@ -210,7 +226,10 @@ export function Prioridades({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar
                       {p.data_fim !== p.data_inicio && <> → {fmtData(p.data_fim)}</>}
                     </td>
                     <td><EtiquetaSituacao inicio={p.data_inicio} fim={p.data_fim} hoje={hoje} /></td>
-                    <td className="texto">{textoPuro(p.conteudo_html).slice(0, 140) || "—"}</td>
+                    <td className="texto">
+                      {p.titulo ? <strong>{p.titulo}</strong> : <em className="sem-titulo">Sem título</em>}
+                      <div className="trecho">{textoPuro(p.conteudo_html).slice(0, 100) || "—"}</div>
+                    </td>
                     <td><input type="checkbox" aria-label="Exibir na dashboard" checked={p.ativo} onChange={() => alternarAtivo(p)} /></td>
                     <td>
                       <div className="tabela-acoes">
