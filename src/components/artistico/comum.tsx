@@ -5,8 +5,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type Avisar = (mensagem: string, erro?: boolean) => void;
 
-/** Carrega uma tabela ordenada por data, só de hoje em diante ou incluindo as anteriores. */
-export function useLista<T>(sb: SupabaseClient, tabela: string, colunaData: string, desde: string, ordemExtra?: string) {
+/**
+ * Carrega uma tabela ordenada por `colunaData`. Por padrão só traz o que ainda não passou
+ * (`colunaFiltro` >= `desde`); marcando "anteriores", traz tudo.
+ */
+export function useLista<T>(
+  sb: SupabaseClient,
+  tabela: string,
+  colunaData: string,
+  desde: string,
+  ordemExtra?: string,
+  colunaFiltro: string = colunaData,
+) {
   const [itens, setItens] = useState<T[]>([]);
   const [anteriores, setAnteriores] = useState(false);
   const [carregando, setCarregando] = useState(true);
@@ -15,14 +25,14 @@ export function useLista<T>(sb: SupabaseClient, tabela: string, colunaData: stri
   const recarregar = useCallback(async () => {
     setCarregando(true);
     let q = sb.from(tabela).select("*");
-    if (!anteriores) q = q.gte(colunaData, desde);
+    if (!anteriores) q = q.gte(colunaFiltro, desde);
     q = q.order(colunaData, { ascending: !anteriores });
     if (ordemExtra) q = q.order(ordemExtra, { nullsFirst: false });
     const { data, error } = await q.order("created_at").limit(500);
     setErro(error?.message ?? null);
     if (!error) setItens(data as T[]);
     setCarregando(false);
-  }, [sb, tabela, colunaData, desde, ordemExtra, anteriores]);
+  }, [sb, tabela, colunaData, desde, ordemExtra, colunaFiltro, anteriores]);
 
   useEffect(() => {
     recarregar();

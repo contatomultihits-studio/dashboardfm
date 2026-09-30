@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { fmtData, fmtDiaMes, fmtHora, hojeISO, somarDias } from "@/lib/datas";
+import {
+  diasNoPeriodo,
+  fimDoPeriodo,
+  fmtData,
+  fmtDiaMes,
+  fmtHora,
+  hojeISO,
+  situacaoPeriodo,
+  somarDias,
+  somarMeses,
+} from "@/lib/datas";
 
 describe("datas", () => {
   it("usa o dia local, não o UTC", () => {
@@ -19,5 +29,32 @@ describe("datas", () => {
     expect(fmtDiaMes("2026-10-05")).toBe("05/10");
     expect(fmtHora("14:30:00")).toBe("14:30");
     expect(fmtHora(null)).toBe("--:--");
+  });
+});
+
+describe("período no ar", () => {
+  it("soma meses sem pular para o mês seguinte", () => {
+    expect(somarMeses("2026-10-15", 1)).toBe("2026-11-15");
+    expect(somarMeses("2026-01-31", 1)).toBe("2026-02-28");
+    expect(somarMeses("2026-11-30", 2)).toBe("2027-01-30");
+  });
+
+  it("calcula o último dia no ar, contando o primeiro", () => {
+    expect(fimDoPeriodo("2026-10-01", { qtd: 1, unidade: "semana" })).toBe("2026-10-07");
+    expect(fimDoPeriodo("2026-10-01", { qtd: 2, unidade: "semana" })).toBe("2026-10-14");
+    expect(fimDoPeriodo("2026-10-01", { qtd: 1, unidade: "mes" })).toBe("2026-10-31");
+    expect(fimDoPeriodo("2026-10-15", { qtd: 3, unidade: "mes" })).toBe("2027-01-14");
+  });
+
+  it("conta os dias do período", () => {
+    expect(diasNoPeriodo("2026-10-01", "2026-10-01")).toBe(1);
+    expect(diasNoPeriodo("2026-10-01", "2026-10-31")).toBe(31);
+  });
+
+  it("diz se está agendada, no ar ou encerrada", () => {
+    expect(situacaoPeriodo("2026-10-05", "2026-10-10", "2026-10-01")).toBe("agendada");
+    expect(situacaoPeriodo("2026-10-05", "2026-10-10", "2026-10-05")).toBe("no-ar");
+    expect(situacaoPeriodo("2026-10-05", "2026-10-10", "2026-10-10")).toBe("no-ar");
+    expect(situacaoPeriodo("2026-10-05", "2026-10-10", "2026-10-11")).toBe("encerrada");
   });
 });

@@ -61,20 +61,37 @@ $$;
 
 
 -- ---------------------------------------------------------------------
--- Prioridades no ar
+-- Prioridades no ar (ficam no ar de data_inicio até data_fim, inclusive)
 -- ---------------------------------------------------------------------
 create table if not exists public.prioridades (
   id            uuid primary key default gen_random_uuid(),
-  data          date not null,
+  data_inicio   date not null,
+  data_fim      date not null,
   conteudo_html text not null default '',
   imagem_path   text,
   ativo         boolean not null default true,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
-  created_by    uuid default auth.uid() references auth.users (id) on delete set null
+  created_by    uuid default auth.uid() references auth.users (id) on delete set null,
+  constraint prioridades_periodo_check check (data_fim >= data_inicio)
 );
 
-create index if not exists prioridades_data_idx on public.prioridades (data);
+-- Atualiza bancos criados com a versão antiga (uma data só). Ver supabase/migrations/.
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+             where table_schema = 'public' and table_name = 'prioridades' and column_name = 'data') then
+    alter table public.prioridades rename column data to data_inicio;
+    alter table public.prioridades add column data_fim date;
+    update public.prioridades set data_fim = data_inicio;
+    alter table public.prioridades alter column data_fim set not null;
+    alter table public.prioridades add constraint prioridades_periodo_check check (data_fim >= data_inicio);
+    drop index if exists public.prioridades_data_idx;
+  end if;
+end;
+$$;
+
+create index if not exists prioridades_periodo_idx on public.prioridades (data_inicio, data_fim);
 
 
 -- ---------------------------------------------------------------------

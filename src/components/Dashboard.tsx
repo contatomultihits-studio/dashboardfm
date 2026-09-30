@@ -42,7 +42,9 @@ export function Dashboard() {
     setCarregando(true);
     // Filtra "ativo" também aqui: quem está logado enxerga os ocultos pelas regras do banco.
     const [p, c, e] = await Promise.all([
-      sb.from("prioridades").select("*").eq("data", dia).eq("ativo", true).order("created_at"),
+      // No ar no dia escolhido: entrou até esse dia e só sai depois dele. As que saem primeiro vêm antes.
+      sb.from("prioridades").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
+        .order("data_fim").order("created_at"),
       sb.from("convidados").select("*").gte("data_visita", dia).eq("ativo", true).eq("concluido", false)
         .order("data_visita").order("horario", { nullsFirst: false }).limit(60),
       sb.from("eventos").select("*").gte("data_evento", dia).eq("ativo", true).order("data_evento").limit(60),
@@ -112,6 +114,13 @@ export function Dashboard() {
                 <button type="button" className="item-card" onClick={() => setAberto({ tipo: "prioridade", item: p })}>
                   <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" />
                   <span className="item-texto">{textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
+                  <span className="item-rodape">
+                    {p.data_fim === dia ? (
+                      <span className="etiqueta ultimo-dia">Último dia</span>
+                    ) : (
+                      <span className="etiqueta cinza">Até {fmtDiaMes(p.data_fim)}</span>
+                    )}
+                  </span>
                 </button>
               )}
             />
@@ -160,7 +169,11 @@ export function Dashboard() {
 
       {aberto?.tipo === "prioridade" && (
         <Modal titulo="Prioridade no ar" onFechar={fechar}>
-          <div className="modal-meta"><span className="etiqueta cinza">{fmtData(aberto.item.data)}</span></div>
+          <div className="modal-meta">
+            <span className="etiqueta cinza">
+              No ar de {fmtData(aberto.item.data_inicio)} a {fmtData(aberto.item.data_fim)}
+            </span>
+          </div>
           {aberto.item.imagem_path && <Imagem src={urlImagem(sb, aberto.item.imagem_path)} alt="Imagem da prioridade" className="modal-img" />}
           <TextoRico html={aberto.item.conteudo_html} />
         </Modal>

@@ -84,6 +84,16 @@ ou mude em **Settings → Git → Production Branch**.
 3. Entre com um usuário do passo 3 e cadastre uma prioridade com foto.
 4. Volte para **Dashboard**: ela aparece em até 1 minuto (ou clique em **Atualizar**).
 
+## Atualizações do banco
+
+Quando uma mudança nova precisa alterar o banco, ela vem num arquivo em [`supabase/migrations/`](supabase/migrations/).
+Rode no **SQL Editor** só os arquivos que ainda não rodou, na ordem do número. Quem for instalar do zero roda apenas o `schema.sql`,
+que já vem com tudo.
+
+| Arquivo | O que muda |
+|---|---|
+| `002_prioridades_periodo.sql` | Prioridades passam a ter período no ar (entra / sai) em vez de uma data só. |
+
 ### Deu problema?
 
 | Sintoma | Causa provável |
