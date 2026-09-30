@@ -14,9 +14,14 @@ import { urlImagem } from "@/lib/imagens";
 import { getSupabase } from "@/lib/supabase/client";
 import { VINCULO_LABEL, type Convidado, type Evento, type Prioridade } from "@/lib/tipos";
 
+/** Convidado na dashboard: os que já vieram aparecem depois dos próximos, em preto e branco. */
+type ConvidadoCard = Convidado & { jaVeio: boolean };
+
+const ULTIMOS_CONVIDADOS = 6;
+
 type Aberto =
   | { tipo: "prioridade"; item: Prioridade }
-  | { tipo: "convidado"; item: Convidado }
+  | { tipo: "convidado"; item: ConvidadoCard }
   | { tipo: "evento"; item: Evento }
   | null;
 
@@ -24,7 +29,7 @@ export function Dashboard() {
   const sb = getSupabase();
   const [dia, setDia] = useState<string | null>(null);
   const [prioridades, setPrioridades] = useState<Prioridade[]>([]);
-  const [convidados, setConvidados] = useState<Convidado[]>([]);
+  const [convidados, setConvidados] = useState<ConvidadoCard[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -41,22 +46,29 @@ export function Dashboard() {
     const busca = ++ultimaBusca.current;
     setCarregando(true);
     // Filtra "ativo" também aqui: quem está logado enxerga os ocultos pelas regras do banco.
-    const [p, c, e] = await Promise.all([
+    const [p, c, cv, e] = await Promise.all([
       // No ar no dia escolhido: entrou até esse dia e só sai depois dele. As que saem primeiro vêm antes.
       sb.from("prioridades").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("data_fim").order("created_at"),
       sb.from("convidados").select("*").gte("data_visita", dia).eq("ativo", true).eq("concluido", false)
         .order("data_visita").order("horario", { nullsFirst: false }).limit(60),
+      // Últimos que já vieram: data anterior ao dia ou marcados como "já veio".
+      sb.from("convidados").select("*").eq("ativo", true).or(`data_visita.lt.${dia},concluido.eq.true`)
+        .order("data_visita", { ascending: false }).order("horario", { ascending: false, nullsFirst: false })
+        .limit(ULTIMOS_CONVIDADOS),
       sb.from("eventos").select("*").gte("data_evento", dia).eq("ativo", true).order("data_evento").limit(60),
     ]);
     if (busca !== ultimaBusca.current) return; // já trocaram de dia; descarta resposta antiga
-    const falha = p.error ?? c.error ?? e.error;
+    const falha = p.error ?? c.error ?? cv.error ?? e.error;
     if (falha) {
       setErro(falha.message);
     } else {
       setErro(null);
       setPrioridades(p.data as Prioridade[]);
-      setConvidados(c.data as Convidado[]);
+      setConvidados([
+        ...(c.data as Convidado[]).map((x) => ({ ...x, jaVeio: false })),
+        ...(cv.data as Convidado[]).map((x) => ({ ...x, jaVeio: true })),
+      ]);
       setEventos(e.data as Evento[]);
       setAtualizadoEm(new Date());
     }
@@ -127,15 +139,16 @@ export function Dashboard() {
 
             <Carrossel
               key={`conv-${dia}`}
-              titulo="Próximos convidados"
+              titulo={convidados.some((c) => !c.jaVeio) || convidados.length === 0 ? "Próximos convidados" : "Últimos convidados"}
               itens={convidados}
               carregando={carregando}
               vazio="Sem convidados programados."
               render={(c) => (
-                <button type="button" className="item-card foto-card" onClick={() => setAberto({ tipo: "convidado", item: c })}>
+                <button type="button" className={`item-card foto-card ${c.jaVeio ? "ja-veio" : ""}`} onClick={() => setAberto({ tipo: "convidado", item: c })}>
                   <div className="foto-wrap">
                     <Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="thumb" />
                     <div className="foto-overlay">
+                      {c.jaVeio && <span className="etiqueta cinza">Já veio</span>}
                       <strong>{c.nome}</strong>
                       <small>{fmtDiaMes(c.data_visita)}{c.horario ? ` às ${fmtHora(c.horario)}` : ""}</small>
                     </div>
@@ -180,6 +193,7 @@ export function Dashboard() {
       {aberto?.tipo === "convidado" && (
         <Modal titulo={aberto.item.nome} onFechar={fechar} leitura>
           <div className="modal-meta">
+            {aberto.item.jaVeio && <span className="etiqueta cinza">Já veio</span>}
             <span className="etiqueta cinza">{fmtData(aberto.item.data_visita)}{aberto.item.horario ? ` às ${fmtHora(aberto.item.horario)}` : ""}</span>
           </div>
           <h3>Mini pauta</h3>
