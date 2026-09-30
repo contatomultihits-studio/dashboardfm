@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
-import { sanitizarHtml } from "@/lib/html";
+import { normalizarTamanhos, sanitizarHtml, TAMANHOS } from "@/lib/html";
 
 const BOTOES: { rotulo: string; titulo: string; comando: string; valor?: string; estilo?: React.CSSProperties }[] = [
   { rotulo: "B", titulo: "Negrito", comando: "bold", estilo: { fontWeight: 900 } },
@@ -28,6 +28,17 @@ export function EditorTexto({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const id = useId();
+  // Última seleção dentro do editor: o seletor de tamanho tira o foco do texto, então restauramos antes de aplicar.
+  const selecao = useRef<Range | null>(null);
+
+  useEffect(() => {
+    const guardar = () => {
+      const sel = document.getSelection();
+      if (sel && sel.rangeCount && ref.current?.contains(sel.anchorNode)) selecao.current = sel.getRangeAt(0).cloneRange();
+    };
+    document.addEventListener("selectionchange", guardar);
+    return () => document.removeEventListener("selectionchange", guardar);
+  }, []);
 
   useEffect(() => {
     if (ref.current) ref.current.innerHTML = sanitizarHtml(valorInicial);
@@ -41,6 +52,20 @@ export function EditorTexto({
     ref.current?.focus();
     document.execCommand("styleWithCSS", false, "true");
     document.execCommand(comando, false, valor);
+    emitir();
+  }
+
+  function aplicarTamanho(comando: string) {
+    if (!ref.current) return;
+    ref.current.focus();
+    const sel = document.getSelection();
+    if (sel && selecao.current) {
+      sel.removeAllRanges();
+      sel.addRange(selecao.current);
+    }
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand("fontSize", false, comando);
+    normalizarTamanhos(ref.current);
     emitir();
   }
 
@@ -63,6 +88,20 @@ export function EditorTexto({
               {b.rotulo}
             </button>
           ))}
+          <select
+            className="editor-tamanho"
+            aria-label="Tamanho da fonte"
+            title="Tamanho da fonte (selecione o texto antes)"
+            value=""
+            onChange={(e) => {
+              if (e.target.value) aplicarTamanho(e.target.value);
+            }}
+          >
+            <option value="">Tamanho…</option>
+            {TAMANHOS.map((t) => (
+              <option key={t.comando} value={t.comando}>{t.rotulo}</option>
+            ))}
+          </select>
         </div>
         <div
           ref={ref}

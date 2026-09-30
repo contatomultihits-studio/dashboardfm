@@ -96,32 +96,36 @@ export function Dashboard() {
 
   return (
     <>
-      <Topbar atual="dashboard" />
+      <Topbar
+        atual="dashboard"
+        meio={
+          sb && (
+            <div className="barra-dia" role="group" aria-label="Dia">
+              <div className="barra-dia-data">
+                <small>
+                  {ehHoje ? "Hoje" : "Dia selecionado"}
+                  {atualizadoEm &&
+                    ` · atualizado às ${atualizadoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
+                </small>
+                <strong>{dia ? fmtDiaSemana(dia) : "…"}</strong>
+              </div>
+              <div className="barra-dia-acoes">
+                <button type="button" className="pequeno verde" disabled={!dia} onClick={() => dia && setDia(somarDias(dia, -1))}>◀ Dia anterior</button>
+                <button type="button" className="pequeno" disabled={ehHoje} onClick={() => setDia(hojeISO())}>Hoje</button>
+                <button type="button" className="pequeno verde" disabled={!dia} onClick={() => dia && setDia(somarDias(dia, 1))}>Próximo dia ▶</button>
+                <button type="button" className="pequeno branco" onClick={carregar} title="Buscar de novo agora">↻ Atualizar</button>
+              </div>
+            </div>
+          )
+        }
+      />
       <main className="container">
         {!sb ? (
           <AvisoConfig />
         ) : (
           <>
-            <section className="card barra-dia" aria-label="Dia">
-              <div>
-                <small>{ehHoje ? "Hoje" : "Dia selecionado"}</small>
-                <h1>{dia ? fmtDiaSemana(dia) : "…"}</h1>
-                {atualizadoEm && (
-                  <span className="atualizado">
-                    Atualizado às {atualizadoEm.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                )}
-              </div>
-              <div className="acoes">
-                <button type="button" className="verde" disabled={!dia} onClick={() => dia && setDia(somarDias(dia, -1))}>◀ Dia anterior</button>
-                <button type="button" disabled={ehHoje} onClick={() => setDia(hojeISO())}>Hoje</button>
-                <button type="button" className="verde" disabled={!dia} onClick={() => dia && setDia(somarDias(dia, 1))}>Próximo dia ▶</button>
-                <button type="button" className="branco" onClick={carregar}>Atualizar</button>
-              </div>
-            </section>
 
             {erro && <div className="aviso erro">Erro ao buscar dados: {erro}</div>}
-
             <Carrossel
               key={`prio-${dia}`}
               titulo="Prioridades no ar"

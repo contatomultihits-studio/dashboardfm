@@ -81,10 +81,13 @@ button.vermelho { background: var(--vermelho); color: #fff; }
 button.pequeno { padding: 5px 10px; font-size: 0.75rem; box-shadow: 0 3px 0 var(--ink); border-radius: 10px; }
 button.icone { width: 38px; height: 34px; padding: 0; border-radius: 12px; }
 
-/* ---------- Barra de dia ---------- */
-.barra-dia { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.barra-dia small { color: var(--muted); font-weight: 700; text-transform: uppercase; }
-.barra-dia h1 { font-size: 1.3rem; margin-top: 2px; }
+/* ---------- Barra de dia (no topo) ---------- */
+.topbar-meio { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; }
+.barra-dia { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.barra-dia-data { display: grid; line-height: 1.15; text-align: right; }
+.barra-dia-data small { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
+.barra-dia-data strong { font-size: 1rem; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
+.barra-dia-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
 .acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
 /* ---------- Carrossel ---------- */
@@ -175,6 +178,7 @@ label.check input { width: 18px; height: 18px; accent-color: var(--ink); }
 
 .editor-caixa { border: 2px solid var(--ink); border-radius: 14px; overflow: hidden; background: #fff; }
 .editor-barra { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px; border-bottom: 2px solid var(--ink); background: #fafafa; }
+.editor-tamanho { width: auto; padding: 4px 8px; font: inherit; font-size: 0.8rem; font-weight: 800; border: 2px solid var(--ink); border-radius: 10px; background: #fff; cursor: pointer; }
 .editor { min-height: 130px; padding: 12px; outline: none; line-height: 1.5; font-weight: 400; text-transform: none; }
 .editor:empty::before { content: attr(data-placeholder); color: #9ca3af; }
 
@@ -208,9 +212,16 @@ tr.editando td { background: #fffbd1; }
 
 .atualizado { font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 
+/* Telas médias: logo e menu na 1ª linha, dia e botões na 2ª */
+@media (max-width: 1100px) {
+  .topbar-meio { order: 3; flex-basis: 100%; }
+  .barra-dia { width: 100%; justify-content: space-between; }
+  .barra-dia-data { text-align: left; }
+}
 @media (max-width: 600px) {
   .foto-wrap { aspect-ratio: 4 / 3; }
   .secao-topo h2 { font-size: 0.95rem; }
   .logo { font-size: 1.25rem; }
-  .barra-dia .acoes button { flex: 1 1 auto; }
+  .barra-dia-acoes { width: 100%; }
+  .barra-dia-acoes button { flex: 1 1 auto; }
 }
