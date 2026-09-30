@@ -8,9 +8,11 @@ import { getSupabase } from "@/lib/supabase/client";
 import { Convidados } from "./Convidados";
 import { Eventos } from "./Eventos";
 import { Prioridades } from "./Prioridades";
+import { Recados } from "./Recados";
 
 const ABAS = [
   { id: "prioridades", rotulo: "Prioridades do ar" },
+  { id: "recados", rotulo: "Recados" },
   { id: "convidados", rotulo: "Convidados" },
   { id: "eventos", rotulo: "Eventos" },
 ] as const;
@@ -83,6 +85,7 @@ export function Artistico() {
               ))}
             </div>
             {aba === "prioridades" && <Prioridades sb={sb} avisar={avisar} />}
+            {aba === "recados" && <Recados sb={sb} avisar={avisar} />}
             {aba === "convidados" && <Convidados sb={sb} avisar={avisar} />}
             {aba === "eventos" && <Eventos sb={sb} avisar={avisar} />}
           </>

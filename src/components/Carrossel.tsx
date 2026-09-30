@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 
-function useItensPorPagina() {
-  const [n, setN] = useState(3);
+function useItensPorPagina(maximo: number) {
+  const [n, setN] = useState(maximo);
   useEffect(() => {
-    const calc = () => setN(window.innerWidth <= 600 ? 1 : window.innerWidth <= 900 ? 2 : 3);
+    const calc = () => setN(window.innerWidth <= 600 ? 1 : window.innerWidth <= 900 ? 2 : maximo);
     calc();
     window.addEventListener("resize", calc);
     return () => window.removeEventListener("resize", calc);
-  }, []);
+  }, [maximo]);
   return n;
 }
 
@@ -19,14 +19,19 @@ export function Carrossel<T extends { id: string }>({
   vazio,
   carregando,
   render,
+  porPaginaMax = 3,
+  className = "",
 }: {
   titulo: string;
   itens: T[];
   vazio: string;
   carregando?: boolean;
   render: (item: T) => React.ReactNode;
+  /** Quantos cards por linha no computador (no celular é 1, no tablet 2). */
+  porPaginaMax?: number;
+  className?: string;
 }) {
-  const porPagina = useItensPorPagina();
+  const porPagina = useItensPorPagina(porPaginaMax);
   const [inicio, setInicio] = useState(0);
   const maxInicio = Math.max(0, itens.length - porPagina);
   const atual = Math.min(inicio, maxInicio);
@@ -35,7 +40,7 @@ export function Carrossel<T extends { id: string }>({
   const faixa = ultimo === atual + 1 ? `${ultimo}` : `${atual + 1}–${ultimo}`;
 
   return (
-    <section className="card" aria-label={titulo}>
+    <section className={`card ${className}`} aria-label={titulo}>
       <div className="secao-topo">
         <h2>{titulo}</h2>
         {itens.length > 0 && (
@@ -51,7 +56,7 @@ export function Carrossel<T extends { id: string }>({
       ) : itens.length === 0 ? (
         <div className="vazio">{vazio}</div>
       ) : (
-        <div className="carrossel-grade">{visiveis.map((item) => <div key={item.id} style={{ display: "grid" }}>{render(item)}</div>)}</div>
+        <div className="carrossel-grade" style={{ gridTemplateColumns: `repeat(${porPagina}, minmax(0, 1fr))` }}>{visiveis.map((item) => <div key={item.id} style={{ display: "grid" }}>{render(item)}</div>)}</div>
       )}
     </section>
   );

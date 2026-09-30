@@ -94,6 +94,7 @@ que já vem com tudo.
 |---|---|
 | `002_prioridades_periodo.sql` | Prioridades passam a ter período no ar (entra / sai) em vez de uma data só. |
 | `003_prioridades_titulo.sql` | Prioridades ganham um título curto, que aparece no card. |
+| `004_recados.sql` | Nova tabela de recados rápidos (sem imagem, com período e destaque). |
 
 ### Deu problema?
 

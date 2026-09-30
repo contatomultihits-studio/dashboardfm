@@ -12,7 +12,7 @@ import { fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, somarDias } from "@
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { getSupabase } from "@/lib/supabase/client";
-import { VINCULO_LABEL, type Convidado, type Evento, type Prioridade } from "@/lib/tipos";
+import { VINCULO_LABEL, type Convidado, type Evento, type Prioridade, type Recado } from "@/lib/tipos";
 
 /** Convidado na dashboard: os que já vieram aparecem depois dos próximos, em preto e branco. */
 type ConvidadoCard = Convidado & { jaVeio: boolean };
@@ -21,6 +21,7 @@ const ULTIMOS_CONVIDADOS = 6;
 
 type Aberto =
   | { tipo: "prioridade"; item: Prioridade }
+  | { tipo: "recado"; item: Recado }
   | { tipo: "convidado"; item: ConvidadoCard }
   | { tipo: "evento"; item: Evento }
   | null;
@@ -29,6 +30,7 @@ export function Dashboard() {
   const sb = getSupabase();
   const [dia, setDia] = useState<string | null>(null);
   const [prioridades, setPrioridades] = useState<Prioridade[]>([]);
+  const [recados, setRecados] = useState<Recado[]>([]);
   const [convidados, setConvidados] = useState<ConvidadoCard[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -46,10 +48,13 @@ export function Dashboard() {
     const busca = ++ultimaBusca.current;
     setCarregando(true);
     // Filtra "ativo" também aqui: quem está logado enxerga os ocultos pelas regras do banco.
-    const [p, c, cv, e] = await Promise.all([
+    const [p, r, c, cv, e] = await Promise.all([
       // No ar no dia escolhido: entrou até esse dia e só sai depois dele. As que saem primeiro vêm antes.
       sb.from("prioridades").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("data_fim").order("created_at"),
+      // Recados no ar no dia: os destacados primeiro, depois os que saem antes.
+      sb.from("recados").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
+        .order("destaque", { ascending: false }).order("data_fim").order("created_at"),
       sb.from("convidados").select("*").gte("data_visita", dia).eq("ativo", true).eq("concluido", false)
         .order("data_visita").order("horario", { nullsFirst: false }).limit(60),
       // Últimos que já vieram: data anterior ao dia ou marcados como "já veio".
@@ -59,12 +64,13 @@ export function Dashboard() {
       sb.from("eventos").select("*").gte("data_evento", dia).eq("ativo", true).order("data_evento").limit(60),
     ]);
     if (busca !== ultimaBusca.current) return; // já trocaram de dia; descarta resposta antiga
-    const falha = p.error ?? c.error ?? cv.error ?? e.error;
+    const falha = p.error ?? r.error ?? c.error ?? cv.error ?? e.error;
     if (falha) {
       setErro(falha.message);
     } else {
       setErro(null);
       setPrioridades(p.data as Prioridade[]);
+      setRecados(r.data as Recado[]);
       setConvidados([
         ...(c.data as Convidado[]).map((x) => ({ ...x, jaVeio: false })),
         ...(cv.data as Convidado[]).map((x) => ({ ...x, jaVeio: true })),
@@ -138,6 +144,33 @@ export function Dashboard() {
             />
 
             <Carrossel
+              key={`rec-${dia}`}
+              titulo="Recados rápidos"
+              className="secao-recados"
+              itens={recados}
+              carregando={carregando}
+              porPaginaMax={4}
+              vazio="Sem recados para este dia."
+              render={(r) => (
+                <button
+                  type="button"
+                  className={`item-card recado-card ${r.destaque ? "destaque" : ""}`}
+                  onClick={() => setAberto({ tipo: "recado", item: r })}
+                >
+                  {r.destaque && <span className="etiqueta destaque">Importante</span>}
+                  <span className="item-titulo">{r.titulo || textoPuro(r.conteudo_html) || "Recado"}</span>
+                  <span className="item-rodape">
+                    {r.data_fim === dia ? (
+                      <span className="etiqueta ultimo-dia">Último dia</span>
+                    ) : (
+                      <span className="etiqueta cinza">Até {fmtDiaMes(r.data_fim)}</span>
+                    )}
+                  </span>
+                </button>
+              )}
+            />
+
+            <Carrossel
               key={`conv-${dia}`}
               titulo={convidados.some((c) => !c.jaVeio) || convidados.length === 0 ? "Próximos convidados" : "Últimos convidados"}
               itens={convidados}
@@ -183,6 +216,17 @@ export function Dashboard() {
       {aberto?.tipo === "prioridade" && (
         <Modal titulo={aberto.item.titulo || "Prioridade no ar"} onFechar={fechar} leitura>
           <div className="modal-meta">
+            <span className="etiqueta cinza">
+              No ar de {fmtData(aberto.item.data_inicio)} a {fmtData(aberto.item.data_fim)}
+            </span>
+          </div>
+          <TextoRico html={aberto.item.conteudo_html} />
+        </Modal>
+      )}
+      {aberto?.tipo === "recado" && (
+        <Modal titulo={aberto.item.titulo || "Recado"} onFechar={fechar} leitura>
+          <div className="modal-meta">
+            {aberto.item.destaque && <span className="etiqueta destaque">Importante</span>}
             <span className="etiqueta cinza">
               No ar de {fmtData(aberto.item.data_inicio)} a {fmtData(aberto.item.data_fim)}
             </span>

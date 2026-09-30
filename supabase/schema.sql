@@ -99,6 +99,26 @@ alter table public.prioridades add column if not exists titulo text not null def
 
 
 -- ---------------------------------------------------------------------
+-- Recados rápidos (frases curtas, recados da diretoria; sem imagem)
+-- ---------------------------------------------------------------------
+create table if not exists public.recados (
+  id            uuid primary key default gen_random_uuid(),
+  data_inicio   date not null,
+  data_fim      date not null,
+  titulo        text not null default '',
+  conteudo_html text not null default '',
+  destaque      boolean not null default false,
+  ativo         boolean not null default true,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  created_by    uuid default auth.uid() references auth.users (id) on delete set null,
+  constraint recados_periodo_check check (data_fim >= data_inicio)
+);
+
+create index if not exists recados_periodo_idx on public.recados (data_inicio, data_fim);
+
+
+-- ---------------------------------------------------------------------
 -- Convidados (próximas visitas)
 -- ---------------------------------------------------------------------
 create table if not exists public.convidados (
@@ -140,13 +160,13 @@ create index if not exists eventos_data_idx on public.eventos (data_evento);
 
 
 -- ---------------------------------------------------------------------
--- Gatilhos, permissões e regras (RLS) das três tabelas
+-- Gatilhos, permissões e regras (RLS) das tabelas de conteúdo
 -- ---------------------------------------------------------------------
 do $$
 declare
   t text;
 begin
-  foreach t in array array['prioridades', 'convidados', 'eventos'] loop
+  foreach t in array array['prioridades', 'recados', 'convidados', 'eventos'] loop
     execute format('drop trigger if exists %1$s_updated_at on public.%1$I', t);
     execute format(
       'create trigger %1$s_updated_at before update on public.%1$I

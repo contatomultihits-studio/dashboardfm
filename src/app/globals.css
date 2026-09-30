@@ -91,6 +91,13 @@ button.icone { width: 38px; height: 34px; padding: 0; border-radius: 12px; }
 .secao-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
 .carrossel-nav { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.8rem; }
 .carrossel-grade { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* Recados rápidos: cards só com título, amarelos; os destacados em vermelho */
+.item-card.recado-card { background: #fff7b3; min-height: 118px; align-content: space-between; }
+.recado-card .item-titulo { -webkit-line-clamp: 3; }
+.item-card.recado-card.destaque { background: #ffe1e3; border-color: #b91c1c; box-shadow: 4px 4px 0 #b91c1c; }
+.recado-card.destaque .item-titulo { color: #991b1b; }
+.etiqueta.destaque { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }
 .vazio { padding: 22px; border: 2px dashed #bdbdbd; border-radius: 16px; color: var(--muted); font-weight: 800; text-transform: uppercase; text-align: center; }
 
 .item-card {
@@ -201,11 +208,7 @@ tr.editando td { background: #fffbd1; }
 
 .atualizado { font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 
-@media (max-width: 900px) {
-  .carrossel-grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
 @media (max-width: 600px) {
-  .carrossel-grade { grid-template-columns: minmax(0, 1fr); }
   .foto-wrap { aspect-ratio: 4 / 3; }
   .secao-topo h2 { font-size: 0.95rem; }
   .logo { font-size: 1.25rem; }
