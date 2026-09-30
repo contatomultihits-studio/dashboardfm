@@ -38,7 +38,6 @@ a { color: inherit; }
   border-bottom: 2px solid var(--ink);
 }
 .topbar-conteudo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; flex-wrap: wrap; }
-.logo { display: flex; align-items: center; gap: 8px; font-size: 1.6rem; font-weight: 900; text-transform: uppercase; letter-spacing: -1px; text-decoration: none; }
 .nav { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
 .pill {
@@ -82,9 +81,9 @@ button.pequeno { padding: 5px 10px; font-size: 0.75rem; box-shadow: 0 3px 0 var(
 button.icone { width: 38px; height: 34px; padding: 0; border-radius: 12px; }
 
 /* ---------- Barra de dia (no topo) ---------- */
-.topbar-meio { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; }
-.barra-dia { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
-.barra-dia-data { display: grid; line-height: 1.15; text-align: right; }
+.topbar-meio { flex: 1 1 auto; display: flex; justify-content: flex-start; min-width: 0; }
+.barra-dia { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-start; }
+.barra-dia-data { display: grid; line-height: 1.15; }
 .barra-dia-data small { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 0.7rem; }
 .barra-dia-data strong { font-size: 1rem; font-weight: 900; text-transform: uppercase; white-space: nowrap; }
 .barra-dia-acoes { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -212,8 +211,8 @@ tr.editando td { background: #fffbd1; }
 
 .atualizado { font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 
-/* Telas médias: logo e menu na 1ª linha, dia e botões na 2ª */
-@media (max-width: 1100px) {
+/* Telas médias: menu na 1ª linha, dia e botões na 2ª */
+@media (max-width: 1000px) {
   .topbar-meio { order: 3; flex-basis: 100%; }
   .barra-dia { width: 100%; justify-content: space-between; }
   .barra-dia-data { text-align: left; }
@@ -221,7 +220,6 @@ tr.editando td { background: #fffbd1; }
 @media (max-width: 600px) {
   .foto-wrap { aspect-ratio: 4 / 3; }
   .secao-topo h2 { font-size: 0.95rem; }
-  .logo { font-size: 1.25rem; }
   .barra-dia-acoes { width: 100%; }
   .barra-dia-acoes button { flex: 1 1 auto; }
 }

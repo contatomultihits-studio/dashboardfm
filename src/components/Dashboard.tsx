@@ -7,7 +7,7 @@ import { Imagem } from "@/components/Imagem";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { Topbar } from "@/components/Topbar";
-import { ATUALIZAR_A_CADA_MS } from "@/lib/config";
+import { ATUALIZAR_A_CADA_MS, VOLTAR_PARA_HOJE_MS } from "@/lib/config";
 import { fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, somarDias } from "@/lib/datas";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
@@ -42,6 +42,31 @@ export function Dashboard() {
 
   // O dia só é definido no navegador, para usar o fuso de quem está vendo.
   useEffect(() => setDia(hojeISO()), []);
+
+  // Última vez que alguém trocou o dia na mão, e qual era "hoje" na última checagem.
+  const ultimaTroca = useRef(0);
+  const hojeNaChecagem = useRef(hojeISO());
+  const mudarDia = useCallback((novo: string) => {
+    ultimaTroca.current = Date.now();
+    setDia(novo);
+  }, []);
+
+  // A cada minuto: vira o dia à meia-noite para quem está em "hoje", e volta para hoje
+  // quem ficou parado muito tempo em outro dia (a tela do estúdio nunca fica presa num dia velho).
+  useEffect(() => {
+    const checar = () => {
+      const agora = hojeISO();
+      setDia((atual) => {
+        if (!atual) return atual;
+        if (atual === hojeNaChecagem.current && atual !== agora) return agora;
+        if (atual !== agora && Date.now() - ultimaTroca.current >= VOLTAR_PARA_HOJE_MS) return agora;
+        return atual;
+      });
+      hojeNaChecagem.current = agora;
+    };
+    const timer = setInterval(checar, 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const carregar = useCallback(async () => {
     if (!sb || !dia) return;
@@ -110,9 +135,9 @@ export function Dashboard() {
                 <strong>{dia ? fmtDiaSemana(dia) : "…"}</strong>
               </div>
               <div className="barra-dia-acoes">
-                <button type="button" className="pequeno verde" disabled={!dia} onClick={() => dia && setDia(somarDias(dia, -1))}>◀ Dia anterior</button>
-                <button type="button" className="pequeno" disabled={ehHoje} onClick={() => setDia(hojeISO())}>Hoje</button>
-                <button type="button" className="pequeno verde" disabled={!dia} onClick={() => dia && setDia(somarDias(dia, 1))}>Próximo dia ▶</button>
+                <button type="button" className="pequeno verde" disabled={!dia} onClick={() => dia && mudarDia(somarDias(dia, -1))}>◀ Dia anterior</button>
+                <button type="button" className="pequeno" disabled={ehHoje} onClick={() => mudarDia(hojeISO())}>Hoje</button>
+                <button type="button" className="pequeno verde" disabled={!dia} onClick={() => dia && mudarDia(somarDias(dia, 1))}>Próximo dia ▶</button>
                 <button type="button" className="pequeno branco" onClick={carregar} title="Buscar de novo agora">↻ Atualizar</button>
               </div>
             </div>
