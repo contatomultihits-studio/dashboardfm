@@ -12,6 +12,7 @@ import { fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, somarDias } from "@
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
+import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
 import { VINCULO_LABEL, type Convidado, type Evento, type Prioridade, type Recado } from "@/lib/tipos";
 
@@ -47,6 +48,7 @@ type Aberto =
   | { tipo: "prioridade"; item: Prioridade }
   | { tipo: "recado"; item: Recado }
   | { tipo: "data"; item: DataComemorativa }
+  | { tipo: "video"; item: VideoYoutube }
   | { tipo: "convidado"; item: ConvidadoCard }
   | { tipo: "evento"; item: Evento }
   | null;
@@ -58,6 +60,7 @@ export function Dashboard() {
   const [recados, setRecados] = useState<Recado[]>([]);
   const [convidados, setConvidados] = useState<ConvidadoCard[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
+  const [videos, setVideos] = useState<VideoYoutube[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
@@ -157,6 +160,22 @@ export function Dashboard() {
       document.removeEventListener("visibilitychange", aoVoltar);
     };
   }, [carregar]);
+
+  // Últimos vídeos do canal no YouTube (o servidor guarda por 10 min; aqui pedimos a cada 10 min).
+  useEffect(() => {
+    const buscar = async () => {
+      try {
+        const r = await fetch("/api/youtube");
+        const j = (await r.json()) as { videos?: VideoYoutube[] };
+        if (j.videos?.length) setVideos(j.videos);
+      } catch {
+        // sem internet: mantém os que já tinha
+      }
+    };
+    buscar();
+    const timer = setInterval(buscar, 10 * 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const ehHoje = dia === hojeISO();
   // Datas comemorativas do dia escolhido e dos 6 seguintes (calculadas, sem buscar nada).
@@ -309,6 +328,30 @@ export function Dashboard() {
                 </button>
               )}
             />
+
+            {videos.length > 0 && (
+              <Carrossel
+                titulo="Últimos vídeos no YouTube"
+                className="secao-youtube"
+                itens={videos}
+                autoAvancarMs={8000}
+                vazio=""
+                render={(v) => (
+                  <button type="button" className="item-card video-card" onClick={() => setAberto({ tipo: "video", item: v })}>
+                    <span className="video-thumb">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={v.thumb} alt="" className="thumb" loading="lazy" />
+                      <span className="video-play" aria-hidden>▶</span>
+                    </span>
+                    <span className="item-titulo">{v.titulo}</span>
+                    <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+                      <span className="etiqueta cinza">{haQuanto(v.publicadoEm)}</span>
+                      {v.short && <span className="etiqueta youtube">Shorts</span>}
+                    </span>
+                  </button>
+                )}
+              />
+            )}
           </>
         )}
       </main>
@@ -341,6 +384,21 @@ export function Dashboard() {
             {aberto.item.feriado && <span className="etiqueta destaque">Feriado nacional</span>}
           </div>
           <div className="texto-rico"><p>{aberto.item.texto}</p></div>
+        </Modal>
+      )}
+      {aberto?.tipo === "video" && (
+        <Modal titulo={aberto.item.titulo} onFechar={fechar}>
+          <div className="video-player">
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${aberto.item.id}?autoplay=1&rel=0`}
+              title={aberto.item.titulo}
+              allow="autoplay; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+          <a className="botao branco" href={aberto.item.link} target="_blank" rel="noreferrer" style={{ justifySelf: "start", textDecoration: "none" }}>
+            Abrir no YouTube ↗
+          </a>
         </Modal>
       )}
       {aberto?.tipo === "convidado" && (

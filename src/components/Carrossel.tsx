@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function useItensPorPagina(maximo: number) {
   const [n, setN] = useState(maximo);
@@ -21,6 +21,7 @@ export function Carrossel<T extends { id: string }>({
   render,
   porPaginaMax = 3,
   className = "",
+  autoAvancarMs,
 }: {
   titulo: string;
   itens: T[];
@@ -30,6 +31,8 @@ export function Carrossel<T extends { id: string }>({
   /** Quantos cards por linha no computador (no celular é 1, no tablet 2). */
   porPaginaMax?: number;
   className?: string;
+  /** Se definido, passa sozinho para a próxima página nesse intervalo (e volta ao início no fim). */
+  autoAvancarMs?: number;
 }) {
   const porPagina = useItensPorPagina(porPaginaMax);
   const [inicio, setInicio] = useState(0);
@@ -39,8 +42,29 @@ export function Carrossel<T extends { id: string }>({
   const ultimo = Math.min(itens.length, atual + porPagina);
   const faixa = ultimo === atual + 1 ? `${ultimo}` : `${atual + 1}–${ultimo}`;
 
+  // Avanço automático: pausa enquanto o mouse está em cima ou algo dentro tem foco.
+  const [pausado, setPausado] = useState(false);
+  const limites = useRef({ atual, maxInicio, porPagina });
+  limites.current = { atual, maxInicio, porPagina };
+  useEffect(() => {
+    if (!autoAvancarMs || pausado) return;
+    const timer = setInterval(() => {
+      const l = limites.current;
+      if (l.maxInicio === 0) return;
+      setInicio(l.atual >= l.maxInicio ? 0 : Math.min(l.maxInicio, l.atual + l.porPagina));
+    }, autoAvancarMs);
+    return () => clearInterval(timer);
+  }, [autoAvancarMs, pausado]);
+
   return (
-    <section className={`card ${className}`} aria-label={titulo}>
+    <section
+      className={`card ${className}`}
+      aria-label={titulo}
+      onMouseEnter={() => setPausado(true)}
+      onMouseLeave={() => setPausado(false)}
+      onFocus={() => setPausado(true)}
+      onBlur={() => setPausado(false)}
+    >
       <div className="secao-topo">
         <h2>{titulo}</h2>
         {itens.length > 0 && (
