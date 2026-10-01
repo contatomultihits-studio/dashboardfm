@@ -22,6 +22,8 @@ export function Carrossel<T extends { id: string }>({
   porPaginaMax = 3,
   className = "",
   autoAvancarMs,
+  ocultarTitulo = false,
+  ocultarSeVazio = false,
 }: {
   titulo: string;
   itens: T[];
@@ -33,6 +35,10 @@ export function Carrossel<T extends { id: string }>({
   className?: string;
   /** Se definido, passa sozinho para a próxima página nesse intervalo (e volta ao início no fim). */
   autoAvancarMs?: number;
+  /** Não mostra o título na tela (continua para leitores de tela). */
+  ocultarTitulo?: boolean;
+  /** Some com a seção inteira quando não há itens (depois de carregar). */
+  ocultarSeVazio?: boolean;
 }) {
   const porPagina = useItensPorPagina(porPaginaMax);
   const [inicio, setInicio] = useState(0);
@@ -56,6 +62,8 @@ export function Carrossel<T extends { id: string }>({
     return () => clearInterval(timer);
   }, [autoAvancarMs, pausado]);
 
+  if (ocultarSeVazio && !carregando && itens.length === 0) return null;
+
   return (
     <section
       className={`card ${className}`}
@@ -65,23 +73,44 @@ export function Carrossel<T extends { id: string }>({
       onFocus={() => setPausado(true)}
       onBlur={() => setPausado(false)}
     >
-      <div className="secao-topo">
-        <h2>{titulo}</h2>
-        {itens.length > 0 && (
+      {(() => {
+        const nav = itens.length > 0 && (
           <div className="carrossel-nav">
             <button type="button" className="icone branco" aria-label={`${titulo}: anteriores`} disabled={atual <= 0} onClick={() => setInicio(Math.max(0, atual - porPagina))}>◀</button>
             <span aria-live="polite" style={{ whiteSpace: "nowrap" }}>{faixa} de {itens.length}</span>
             <button type="button" className="icone" aria-label={`${titulo}: próximos`} disabled={atual >= maxInicio} onClick={() => setInicio(Math.min(maxInicio, atual + porPagina))}>▶</button>
           </div>
-        )}
-      </div>
-      {carregando && itens.length === 0 ? (
-        <div className="vazio">Carregando…</div>
-      ) : itens.length === 0 ? (
-        <div className="vazio">{vazio}</div>
-      ) : (
-        <div className="carrossel-grade" style={{ gridTemplateColumns: `repeat(${porPagina}, minmax(0, 1fr))` }}>{visiveis.map((item) => <div key={item.id} style={{ display: "grid" }}>{render(item)}</div>)}</div>
-      )}
+        );
+        const corpo =
+          carregando && itens.length === 0 ? (
+            <div className="vazio">Carregando…</div>
+          ) : itens.length === 0 ? (
+            <div className="vazio">{vazio}</div>
+          ) : (
+            <div className="carrossel-grade" style={{ gridTemplateColumns: `repeat(${porPagina}, minmax(0, 1fr))` }}>
+              {visiveis.map((item) => <div key={item.id} style={{ display: "grid" }}>{render(item)}</div>)}
+            </div>
+          );
+        if (!ocultarTitulo) {
+          return (
+            <>
+              <div className="secao-topo">
+                <h2>{titulo}</h2>
+                {nav}
+              </div>
+              {corpo}
+            </>
+          );
+        }
+        // Sem título: só os cards; as setas ficam embaixo, e só quando há mais do que cabe na linha.
+        return (
+          <>
+            <h2 className="so-leitor">{titulo}</h2>
+            {corpo}
+            {itens.length > porPagina && <div className="carrossel-rodape">{nav}</div>}
+          </>
+        );
+      })()}
     </section>
   );
 }

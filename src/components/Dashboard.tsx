@@ -244,29 +244,10 @@ export function Dashboard() {
 
             {erro && <div className="aviso erro">Erro ao buscar dados: {erro}</div>}
             <Carrossel
-              key={`prio-${dia}`}
-              titulo="Prioridades no ar"
-              itens={prioridades}
-              carregando={carregando}
-              vazio="Sem prioridades para este dia."
-              render={(p) => (
-                <button type="button" className="item-card" onClick={() => setAberto({ tipo: "prioridade", item: p })}>
-                  <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" prioridade={prioridades.indexOf(p) < 3} />
-                  <span className="item-titulo">{p.titulo || textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
-                  <span className="item-rodape">
-                    {p.data_fim === dia ? (
-                      <span className="etiqueta ultimo-dia">Último dia</span>
-                    ) : (
-                      <span className="etiqueta cinza">Até {fmtDiaMes(p.data_fim)}</span>
-                    )}
-                  </span>
-                </button>
-              )}
-            />
-
-            <Carrossel
               key={`rec-${dia}`}
               titulo="Recados rápidos"
+              ocultarTitulo
+              ocultarSeVazio
               className="secao-recados"
               itens={recados}
               carregando={carregando}
@@ -292,22 +273,22 @@ export function Dashboard() {
             />
 
             <Carrossel
-              key={`datas-${dia}`}
-              titulo="Datas comemorativas"
-              itens={datas}
-              porPaginaMax={4}
-              vazio="Nenhuma data comemorativa nos próximos 7 dias."
-              render={(d) => (
-                <button
-                  type="button"
-                  className={`item-card data-card ${d.data === dia ? "hoje" : ""}`}
-                  onClick={() => setAberto({ tipo: "data", item: d })}
-                >
-                  <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
-                    <span className={`etiqueta ${d.data === dia ? "data-hoje" : "cinza"}`}>{quandoData(d.data)}</span>
-                    {d.feriado && <span className="etiqueta destaque">Feriado</span>}
+              key={`prio-${dia}`}
+              titulo="Prioridades no ar"
+              itens={prioridades}
+              carregando={carregando}
+              vazio="Sem prioridades para este dia."
+              render={(p) => (
+                <button type="button" className="item-card" onClick={() => setAberto({ tipo: "prioridade", item: p })}>
+                  <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" prioridade={prioridades.indexOf(p) < 3} />
+                  <span className="item-titulo">{p.titulo || textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
+                  <span className="item-rodape">
+                    {p.data_fim === dia ? (
+                      <span className="etiqueta ultimo-dia">Último dia</span>
+                    ) : (
+                      <span className="etiqueta cinza">Até {fmtDiaMes(p.data_fim)}</span>
+                    )}
                   </span>
-                  <span className="item-titulo">{d.titulo}</span>
                 </button>
               )}
             />
@@ -355,6 +336,27 @@ export function Dashboard() {
                       {e.local && <small>📍 {e.local}</small>}
                     </div>
                   </div>
+                </button>
+              )}
+            />
+
+            <Carrossel
+              key={`datas-${dia}`}
+              titulo="Datas comemorativas"
+              itens={datas}
+              porPaginaMax={4}
+              vazio="Nenhuma data comemorativa nos próximos 7 dias."
+              render={(d) => (
+                <button
+                  type="button"
+                  className={`item-card data-card ${d.data === dia ? "hoje" : ""}`}
+                  onClick={() => setAberto({ tipo: "data", item: d })}
+                >
+                  <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+                    <span className={`etiqueta ${d.data === dia ? "data-hoje" : "cinza"}`}>{quandoData(d.data)}</span>
+                    {d.feriado && <span className="etiqueta destaque">Feriado</span>}
+                  </span>
+                  <span className="item-titulo">{d.titulo}</span>
                 </button>
               )}
             />

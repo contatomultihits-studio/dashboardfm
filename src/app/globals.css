@@ -91,6 +91,8 @@ button.icone { width: 38px; height: 34px; padding: 0; border-radius: 12px; }
 
 /* ---------- Carrossel ---------- */
 .secao-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.carrossel-rodape { display: flex; justify-content: flex-end; margin-top: 12px; }
+.so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .carrossel-nav { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.8rem; }
 .carrossel-grade { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
