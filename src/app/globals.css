@@ -104,6 +104,7 @@ button.icone { width: 38px; height: 34px; padding: 0; border-radius: 12px; }
 /* Datas comemorativas: lilás; a de hoje com borda forte */
 .item-card.data-card { background: #f1e8ff; min-height: 100px; align-content: start; }
 .item-card.data-card.hoje { background: #e2ccff; border-color: #6d28d9; box-shadow: 4px 4px 0 #6d28d9; }
+.item-card.data-card.topo { min-height: 118px; align-content: space-between; }
 .etiqueta.data-hoje { background: #7c3aed; color: #fff; border-color: #4c1d95; }
 /* YouTube */
 .item-card.video-card { align-content: start; }

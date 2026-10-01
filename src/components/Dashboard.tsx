@@ -22,6 +22,8 @@ type ConvidadoCard = Convidado & { jaVeio: boolean };
 const ULTIMOS_CONVIDADOS = 6;
 
 /** Folhinha de calendário no canto da foto: QUI · 02 · OUT. */
+type ItemTopo = { id: string; tipo: "data"; d: DataComemorativa } | { id: string; tipo: "recado"; r: Recado };
+
 function Folhinha({ data }: { data: string }) {
   const p = partesData(data);
   return (
@@ -232,6 +234,16 @@ export function Dashboard() {
   );
   // Datas comemorativas do dia escolhido e dos 6 seguintes (calculadas, sem buscar nada).
   const datas = useMemo(() => (dia ? datasEntre(dia, 7) : []), [dia]);
+  // Faixa do topo: a data comemorativa do dia vem primeiro, depois os recados.
+  const datasDoDia = useMemo(() => datas.filter((d) => d.data === dia), [datas, dia]);
+  const proximasDatas = useMemo(() => datas.filter((d) => d.data !== dia), [datas, dia]);
+  const faixaTopo = useMemo<ItemTopo[]>(
+    () => [
+      ...datasDoDia.map((d) => ({ id: `data-${d.id}`, tipo: "data" as const, d })),
+      ...recadosNoAr.map((r) => ({ id: `rec-${r.id}`, tipo: "recado" as const, r })),
+    ],
+    [datasDoDia, recadosNoAr],
+  );
   const quandoData = (data: string) => {
     if (!dia) return "";
     if (data === dia) return ehHoje ? "Hoje" : "Neste dia";
@@ -278,11 +290,29 @@ export function Dashboard() {
               ocultarTitulo
               ocultarSeVazio
               className="secao-recados"
-              itens={recadosNoAr}
+              itens={faixaTopo}
               carregando={carregando}
               porPaginaMax={4}
               vazio="Sem recados para este dia."
-              render={(r) => (
+              render={(it) => {
+                if (it.tipo === "data") {
+                  const d = it.d;
+                  return (
+                    <button
+                      type="button"
+                      className="item-card data-card hoje topo"
+                      onClick={() => setAberto({ tipo: "data", item: d })}
+                    >
+                      <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+                        <span className="etiqueta data-hoje">{quandoData(d.data)}</span>
+                        {d.feriado && <span className="etiqueta destaque">Feriado</span>}
+                      </span>
+                      <span className="item-titulo">{d.titulo}</span>
+                    </button>
+                  );
+                }
+                const r = it.r;
+                return (
                 <button
                   type="button"
                   className={`item-card recado-card ${r.destaque ? "destaque" : ""}`}
@@ -292,7 +322,8 @@ export function Dashboard() {
                   <span className="item-titulo">{r.titulo || textoPuro(r.conteudo_html) || "Recado"}</span>
                   <span className="item-rodape">{dia && <AteQuando p={r} dia={dia} />}</span>
                 </button>
-              )}
+                );
+              }}
             />
 
             <Carrossel
@@ -359,18 +390,14 @@ export function Dashboard() {
 
             <Carrossel
               key={`datas-${dia}`}
-              titulo="Datas comemorativas"
-              itens={datas}
+              titulo="Próximas datas comemorativas"
+              itens={proximasDatas}
               porPaginaMax={4}
-              vazio="Nenhuma data comemorativa nos próximos 7 dias."
+              vazio="Nenhuma data comemorativa nos próximos 6 dias."
               render={(d) => (
-                <button
-                  type="button"
-                  className={`item-card data-card ${d.data === dia ? "hoje" : ""}`}
-                  onClick={() => setAberto({ tipo: "data", item: d })}
-                >
+                <button type="button" className="item-card data-card" onClick={() => setAberto({ tipo: "data", item: d })}>
                   <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
-                    <span className={`etiqueta ${d.data === dia ? "data-hoje" : "cinza"}`}>{quandoData(d.data)}</span>
+                    <span className="etiqueta cinza">{quandoData(d.data)}</span>
                     {d.feriado && <span className="etiqueta destaque">Feriado</span>}
                   </span>
                   <span className="item-titulo">{d.titulo}</span>
