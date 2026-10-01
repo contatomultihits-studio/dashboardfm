@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { enviarImagem, removerImagem, TAMANHO_MAXIMO, urlImagem } from "@/lib/imagens";
+import { enviarImagem, removerImagem, removerImagemSemUso, TAMANHO_MAXIMO, urlImagem } from "@/lib/imagens";
 
 /** Guarda o estado da imagem de um formulário: a atual (já salva), uma nova escolhida, ou remoção. */
 export function useImagemForm() {
@@ -33,11 +33,12 @@ export function useImagemForm() {
      * `confirmar` apaga a imagem antiga depois que o banco salvou; `desfazer` apaga a nova se o banco falhar.
      */
     async preparar(sb: SupabaseClient, pasta: string) {
+      // A pasta tem o mesmo nome da tabela (prioridades, convidados, eventos).
       if (arquivo) {
         const novo = await enviarImagem(sb, pasta, arquivo);
-        return { path: novo, confirmar: () => removerImagem(sb, atual), desfazer: () => removerImagem(sb, novo) };
+        return { path: novo, confirmar: () => removerImagemSemUso(sb, pasta, atual), desfazer: () => removerImagem(sb, novo) };
       }
-      if (remover) return { path: null, confirmar: () => removerImagem(sb, atual), desfazer: async () => {} };
+      if (remover) return { path: null, confirmar: () => removerImagemSemUso(sb, pasta, atual), desfazer: async () => {} };
       return { path: atual, confirmar: async () => {}, desfazer: async () => {} };
     },
   };

@@ -3,6 +3,10 @@ export type ItemNoAr = {
   id: string;
   data_inicio: string;
   data_fim: string;
+  /** "HH:MM:SS" ou null (= desde o começo do dia). */
+  hora_inicio?: string | null;
+  /** "HH:MM:SS" ou null (= até o fim do dia). */
+  hora_fim?: string | null;
   titulo: string;
   conteudo_html: string;
   ativo: boolean;

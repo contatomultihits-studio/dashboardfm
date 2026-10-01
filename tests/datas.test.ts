@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  agoraHHMM,
   diasNoPeriodo,
   fimDoPeriodo,
   fmtData,
   fmtDiaMes,
   fmtHora,
   hojeISO,
+  horaCurta,
+  noArAgora,
   partesData,
   quando,
   situacaoPeriodo,
@@ -31,6 +34,41 @@ describe("datas", () => {
     expect(fmtDiaMes("2026-10-05")).toBe("05/10");
     expect(fmtHora("14:30:00")).toBe("14:30");
     expect(fmtHora(null)).toBe("--:--");
+  });
+});
+
+describe("horário de entrada e saída", () => {
+  const promo = { data_inicio: "2026-10-01", data_fim: "2026-10-03", hora_inicio: "08:00:00", hora_fim: "18:00:00" };
+
+  it("respeita o horário no primeiro e no último dia", () => {
+    expect(noArAgora(promo, "2026-10-01", "2026-10-01", "07:59")).toBe(false);
+    expect(noArAgora(promo, "2026-10-01", "2026-10-01", "08:00")).toBe(true);
+    expect(noArAgora(promo, "2026-10-02", "2026-10-02", "03:00")).toBe(true); // dia do meio: o dia todo
+    expect(noArAgora(promo, "2026-10-03", "2026-10-03", "17:59")).toBe(true);
+    expect(noArAgora(promo, "2026-10-03", "2026-10-03", "18:00")).toBe(false); // sai às 18:00 em ponto
+  });
+
+  it("sem horário vale o dia todo", () => {
+    const diaTodo = { data_inicio: "2026-10-01", data_fim: "2026-10-01" };
+    expect(noArAgora(diaTodo, "2026-10-01", "2026-10-01", "00:00")).toBe(true);
+    expect(noArAgora(diaTodo, "2026-10-01", "2026-10-01", "23:59")).toBe(true);
+  });
+
+  it("vendo outro dia, não olha o relógio", () => {
+    expect(noArAgora(promo, "2026-10-03", "2026-10-01", "23:00")).toBe(true);
+  });
+
+  it("situação com horário", () => {
+    const h = { inicio: "08:00", fim: "18:00" };
+    expect(situacaoPeriodo("2026-10-01", "2026-10-03", "2026-10-01", { ...h, agora: "07:00" })).toBe("agendada");
+    expect(situacaoPeriodo("2026-10-01", "2026-10-03", "2026-10-03", { ...h, agora: "18:30" })).toBe("encerrada");
+    expect(situacaoPeriodo("2026-10-01", "2026-10-03", "2026-10-02", { ...h, agora: "23:00" })).toBe("no-ar");
+  });
+
+  it("formata hora", () => {
+    expect(horaCurta("18:00:00")).toBe("18:00");
+    expect(horaCurta(null)).toBe(null);
+    expect(agoraHHMM(new Date(2026, 9, 1, 9, 5))).toBe("09:05");
   });
 });
 

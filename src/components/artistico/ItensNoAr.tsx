@@ -4,9 +4,9 @@ import { useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Imagem } from "@/components/Imagem";
 import { EtiquetaSituacao } from "@/components/EtiquetaSituacao";
-import { diasNoPeriodo, fimDoPeriodo, fmtData, hojeISO, type Duracao } from "@/lib/datas";
+import { agoraHHMM, diasNoPeriodo, fimDoPeriodo, fmtData, hojeISO, horaCurta, situacaoPeriodo, somarDias, type Duracao } from "@/lib/datas";
 import { sanitizarHtml, textoPuro } from "@/lib/html";
-import { removerImagem, urlImagem } from "@/lib/imagens";
+import { removerImagemSemUso, urlImagem } from "@/lib/imagens";
 import type { ItemNoAr } from "@/lib/tipos";
 import { CampoImagem, useImagemForm } from "./CampoImagem";
 import { CabecalhoLista, erroMsg, useLista, type Avisar } from "./comum";
@@ -39,7 +39,16 @@ const PADRAO = ATALHOS[0].duracao;
 
 function novo() {
   const inicio = hojeISO();
-  return { data_inicio: inicio, data_fim: fimDoPeriodo(inicio, PADRAO), titulo: "", conteudo_html: "", ativo: true, destaque: false };
+  return {
+    data_inicio: inicio,
+    data_fim: fimDoPeriodo(inicio, PADRAO),
+    hora_inicio: "",
+    hora_fim: "",
+    titulo: "",
+    conteudo_html: "",
+    ativo: true,
+    destaque: false,
+  };
 }
 
 export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisar: Avisar; config: ConfigItensNoAr }) {
@@ -68,6 +77,8 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
     setForm({
       data_inicio: p.data_inicio,
       data_fim: p.data_fim,
+      hora_inicio: horaCurta(p.hora_inicio) ?? "",
+      hora_fim: horaCurta(p.hora_fim) ?? "",
       titulo: p.titulo ?? "",
       conteudo_html: p.conteudo_html,
       ativo: p.ativo,
@@ -77,6 +88,27 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
     setEditandoId(p.id);
     imagem.reiniciar(p.imagem_path ?? null);
     setVersao((v) => v + 1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /** Nova versão a partir de uma existente: mesmo texto e foto, começando no dia seguinte ao fim dela. */
+  function duplicar(p: ItemNoAr) {
+    const inicio = somarDias(p.data_fim, 1);
+    setForm({
+      data_inicio: inicio,
+      data_fim: inicio,
+      hora_inicio: "",
+      hora_fim: horaCurta(p.hora_fim) ?? "",
+      titulo: p.titulo ?? "",
+      conteudo_html: p.conteudo_html,
+      ativo: p.ativo,
+      destaque: Boolean(p.destaque),
+    });
+    setDuracao(null);
+    setEditandoId(null);
+    imagem.reiniciar(p.imagem_path ?? null);
+    setVersao((v) => v + 1);
+    avisar("Cópia pronta: ajuste o texto e as datas e salve");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -100,6 +132,10 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
       avisar("A data de saída não pode ser antes da entrada.", true);
       return;
     }
+    if (form.data_fim === form.data_inicio && form.hora_inicio && form.hora_fim && form.hora_fim <= form.hora_inicio) {
+      avisar("No mesmo dia, o horário de saída precisa ser depois do de entrada.", true);
+      return;
+    }
     if (!form.titulo.trim()) {
       avisar(`Dê um título para ${g("a", "o")} ${c.nome} (é o que aparece no card).`, true);
       return;
@@ -114,6 +150,8 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
       const dados = {
         data_inicio: form.data_inicio,
         data_fim: form.data_fim,
+        hora_inicio: form.hora_inicio || null,
+        hora_fim: form.hora_fim || null,
         titulo: form.titulo.trim(),
         conteudo_html: sanitizarHtml(form.conteudo_html),
         ativo: form.ativo,
@@ -145,11 +183,10 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
   }
 
   async function tirarDoAr(p: ItemNoAr) {
-    if (!confirm(`Tirar ${g("esta", "este")} ${c.nome} do ar hoje? ${g("Ela", "Ele")} sai da dashboard a partir de amanhã.`)) return;
-    const fim = hoje < p.data_inicio ? p.data_inicio : hoje;
-    const { error } = await sb.from(c.tabela).update({ data_fim: fim }).eq("id", p.id);
+    if (!confirm(`Tirar ${g("esta", "este")} ${c.nome} do ar agora? ${g("Ela", "Ele")} sai da dashboard em até 1 minuto.`)) return;
+    const { error } = await sb.from(c.tabela).update({ data_fim: hoje, hora_fim: agoraHHMM() }).eq("id", p.id);
     if (error) return avisar(error.message, true);
-    avisar(`${Nome} sai do ar hoje`);
+    avisar(`${Nome} saiu do ar`);
     lista.recarregar();
   }
 
@@ -157,7 +194,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
     if (!confirm(`Excluir ${g("esta", "este")} ${c.nome}? Não dá para desfazer.`)) return;
     const { error } = await sb.from(c.tabela).delete().eq("id", p.id);
     if (error) return avisar(error.message, true);
-    if (c.comImagem) await removerImagem(sb, p.imagem_path);
+    if (c.comImagem) await removerImagemSemUso(sb, c.tabela, p.imagem_path);
     if (editandoId === p.id) limpar();
     avisar(`${Nome} ${g("excluída", "excluído")}`);
     lista.recarregar();
@@ -180,10 +217,14 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
             onChange={(e) => setForm({ ...form, titulo: e.target.value })}
           />
         </label>
-        <div className="form-grade">
+        <div className="form-grade periodo-grade">
           <label className="campo">
             Entra no ar
             <input type="date" required value={form.data_inicio} onChange={(e) => mudarInicio(e.target.value)} />
+          </label>
+          <label className="campo">
+            às (opcional)
+            <input type="time" aria-label="Horário de entrada" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} />
           </label>
           <label className="campo">
             Sai do ar (último dia)
@@ -198,7 +239,12 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
               }}
             />
           </label>
+          <label className="campo">
+            até (opcional)
+            <input type="time" aria-label="Horário de saída" value={form.hora_fim} onChange={(e) => setForm({ ...form, hora_fim: e.target.value })} />
+          </label>
         </div>
+        <p className="dica">Sem horário, vale o dia todo. Com horário, sai da dashboard sozinho no minuto marcado.</p>
         <div className="atalhos" role="group" aria-label="Duração">
           <span>Duração:</span>
           {ATALHOS.map((a) => {
@@ -217,7 +263,9 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
           })}
           {dias > 0 && (
             <span className="resumo-periodo">
-              {fmtData(form.data_inicio)} a {fmtData(form.data_fim)} · {dias} {dias === 1 ? "dia" : "dias"} no ar
+              {fmtData(form.data_inicio)}
+              {form.hora_inicio ? ` ${form.hora_inicio}` : ""} a {fmtData(form.data_fim)}
+              {form.hora_fim ? ` ${form.hora_fim}` : ""} · {dias} {dias === 1 ? "dia" : "dias"} no ar
             </span>
           )}
         </div>
@@ -261,9 +309,18 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
                     {c.comImagem && <td><Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="mini-thumb" largura={88} altura={88} sizes="44px" /></td>}
                     <td style={{ whiteSpace: "nowrap" }}>
                       {fmtData(p.data_inicio)}
-                      {p.data_fim !== p.data_inicio && <> → {fmtData(p.data_fim)}</>}
+                      {horaCurta(p.hora_inicio) && ` ${horaCurta(p.hora_inicio)}`}
+                      {(p.data_fim !== p.data_inicio || horaCurta(p.hora_fim)) && (
+                        <>
+                          {" → "}
+                          {p.data_fim !== p.data_inicio && fmtData(p.data_fim)}
+                          {horaCurta(p.hora_fim) && ` ${horaCurta(p.hora_fim)}`}
+                        </>
+                      )}
                     </td>
-                    <td><EtiquetaSituacao inicio={p.data_inicio} fim={p.data_fim} hoje={hoje} /></td>
+                    <td>
+                      <EtiquetaSituacao inicio={p.data_inicio} fim={p.data_fim} hoje={hoje} horaInicio={p.hora_inicio} horaFim={p.hora_fim} />
+                    </td>
                     <td className="texto">
                       {p.destaque && <span className="etiqueta destaque" style={{ marginRight: 6 }}>Destaque</span>}
                       {p.titulo ? <strong>{p.titulo}</strong> : <em className="sem-titulo">Sem título</em>}
@@ -273,7 +330,8 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
                     <td>
                       <div className="tabela-acoes">
                         <button type="button" className="pequeno" onClick={() => editar(p)}>Editar</button>
-                        {p.data_fim > hoje && p.data_inicio <= hoje && (
+                        <button type="button" className="pequeno branco" onClick={() => duplicar(p)} title="Criar a próxima versão (ex.: 'é amanhã', 'é hoje')">Duplicar</button>
+                        {situacaoPeriodo(p.data_inicio, p.data_fim, hoje, { inicio: p.hora_inicio, fim: p.hora_fim, agora: agoraHHMM() }) === "no-ar" && (
                           <button type="button" className="pequeno branco" onClick={() => tirarDoAr(p)}>Tirar do ar</button>
                         )}
                         <button type="button" className="pequeno vermelho" onClick={() => excluir(p)}>Excluir</button>

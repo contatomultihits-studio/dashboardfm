@@ -118,6 +118,21 @@ create table if not exists public.recados (
 create index if not exists recados_periodo_idx on public.recados (data_inicio, data_fim);
 
 
+-- Horário de entrada e saída, opcionais (migração 005). Sem horário = o dia todo.
+alter table public.prioridades add column if not exists hora_inicio time;
+alter table public.prioridades add column if not exists hora_fim time;
+alter table public.recados add column if not exists hora_inicio time;
+alter table public.recados add column if not exists hora_fim time;
+
+alter table public.prioridades drop constraint if exists prioridades_horario_check;
+alter table public.prioridades add constraint prioridades_horario_check
+  check (data_fim > data_inicio or hora_inicio is null or hora_fim is null or hora_fim > hora_inicio);
+
+alter table public.recados drop constraint if exists recados_horario_check;
+alter table public.recados add constraint recados_horario_check
+  check (data_fim > data_inicio or hora_inicio is null or hora_fim is null or hora_fim > hora_inicio);
+
+
 -- ---------------------------------------------------------------------
 -- Convidados (próximas visitas)
 -- ---------------------------------------------------------------------

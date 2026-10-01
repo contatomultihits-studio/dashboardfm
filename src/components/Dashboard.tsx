@@ -8,7 +8,7 @@ import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { Topbar } from "@/components/Topbar";
 import { ATUALIZAR_A_CADA_MS, VOLTAR_PARA_HOJE_MS } from "@/lib/config";
-import { fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, partesData, quando, somarDias } from "@/lib/datas";
+import { agoraHHMM, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, horaCurta, noArAgora, partesData, quando, somarDias, type PeriodoComHora } from "@/lib/datas";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
@@ -42,6 +42,20 @@ function Quando({ data, hora }: { data: string; hora?: string | null }) {
       {hora ? ` · ${fmtHora(hora)}` : ""}
     </span>
   );
+}
+
+/** Rodapé do card: "Último dia", "Até 18:00", "Até 03/10", "Até 03/10 às 18:00". */
+function AteQuando({ p, dia }: { p: PeriodoComHora; dia: string }) {
+  const hf = horaCurta(p.hora_fim);
+  if (p.data_fim === dia) return <span className="etiqueta ultimo-dia">{hf ? `Até ${hf}` : "Último dia"}</span>;
+  return <span className="etiqueta cinza">Até {fmtDiaMes(p.data_fim)}{hf ? ` às ${hf}` : ""}</span>;
+}
+
+/** "No ar de 01/10 08:00 a 03/10 18:00" */
+function periodoTexto(p: PeriodoComHora) {
+  const hi = horaCurta(p.hora_inicio);
+  const hf = horaCurta(p.hora_fim);
+  return `No ar de ${fmtData(p.data_inicio)}${hi ? ` ${hi}` : ""} a ${fmtData(p.data_fim)}${hf ? ` ${hf}` : ""}`;
 }
 
 /** Última versão de cada dia, guardada no navegador para a tela abrir na hora (depois atualiza). */
@@ -200,7 +214,22 @@ export function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Relógio: a cada 30 s confere quem entrou ou saiu do ar pelo horário.
+  const [agora, setAgora] = useState(agoraHHMM());
+  useEffect(() => {
+    const timer = setInterval(() => setAgora(agoraHHMM()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+
   const ehHoje = dia === hojeISO();
+  const prioridadesNoAr = useMemo(
+    () => (dia ? prioridades.filter((p) => noArAgora(p, dia, hojeISO(), agora)) : prioridades),
+    [prioridades, dia, agora],
+  );
+  const recadosNoAr = useMemo(
+    () => (dia ? recados.filter((r) => noArAgora(r, dia, hojeISO(), agora)) : recados),
+    [recados, dia, agora],
+  );
   // Datas comemorativas do dia escolhido e dos 6 seguintes (calculadas, sem buscar nada).
   const datas = useMemo(() => (dia ? datasEntre(dia, 7) : []), [dia]);
   const quandoData = (data: string) => {
@@ -249,7 +278,7 @@ export function Dashboard() {
               ocultarTitulo
               ocultarSeVazio
               className="secao-recados"
-              itens={recados}
+              itens={recadosNoAr}
               carregando={carregando}
               porPaginaMax={4}
               vazio="Sem recados para este dia."
@@ -261,13 +290,7 @@ export function Dashboard() {
                 >
                   {r.destaque && <span className="etiqueta destaque">Importante</span>}
                   <span className="item-titulo">{r.titulo || textoPuro(r.conteudo_html) || "Recado"}</span>
-                  <span className="item-rodape">
-                    {r.data_fim === dia ? (
-                      <span className="etiqueta ultimo-dia">Último dia</span>
-                    ) : (
-                      <span className="etiqueta cinza">Até {fmtDiaMes(r.data_fim)}</span>
-                    )}
-                  </span>
+                  <span className="item-rodape">{dia && <AteQuando p={r} dia={dia} />}</span>
                 </button>
               )}
             />
@@ -275,20 +298,14 @@ export function Dashboard() {
             <Carrossel
               key={`prio-${dia}`}
               titulo="Prioridades no ar"
-              itens={prioridades}
+              itens={prioridadesNoAr}
               carregando={carregando}
               vazio="Sem prioridades para este dia."
               render={(p) => (
                 <button type="button" className="item-card" onClick={() => setAberto({ tipo: "prioridade", item: p })}>
-                  <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" prioridade={prioridades.indexOf(p) < 3} />
+                  <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" prioridade={prioridadesNoAr.indexOf(p) < 3} />
                   <span className="item-titulo">{p.titulo || textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
-                  <span className="item-rodape">
-                    {p.data_fim === dia ? (
-                      <span className="etiqueta ultimo-dia">Último dia</span>
-                    ) : (
-                      <span className="etiqueta cinza">Até {fmtDiaMes(p.data_fim)}</span>
-                    )}
-                  </span>
+                  <span className="item-rodape">{dia && <AteQuando p={p} dia={dia} />}</span>
                 </button>
               )}
             />
@@ -392,7 +409,7 @@ export function Dashboard() {
         <Modal titulo={aberto.item.titulo || "Prioridade no ar"} onFechar={fechar} leitura>
           <div className="modal-meta">
             <span className="etiqueta cinza">
-              No ar de {fmtData(aberto.item.data_inicio)} a {fmtData(aberto.item.data_fim)}
+              {periodoTexto(aberto.item)}
             </span>
           </div>
           <TextoRico html={aberto.item.conteudo_html} />
@@ -403,7 +420,7 @@ export function Dashboard() {
           <div className="modal-meta">
             {aberto.item.destaque && <span className="etiqueta destaque">Importante</span>}
             <span className="etiqueta cinza">
-              No ar de {fmtData(aberto.item.data_inicio)} a {fmtData(aberto.item.data_fim)}
+              {periodoTexto(aberto.item)}
             </span>
           </div>
           <TextoRico html={aberto.item.conteudo_html} />

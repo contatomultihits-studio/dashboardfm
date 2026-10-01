@@ -53,3 +53,14 @@ export async function removerImagem(sb: SupabaseClient, path: string | null | un
   if (!path) return;
   await sb.storage.from(BUCKET).remove([path]);
 }
+
+/**
+ * Remove a imagem só se nenhum outro registro da tabela ainda usa
+ * (com "Duplicar", várias versões podem dividir a mesma foto).
+ */
+export async function removerImagemSemUso(sb: SupabaseClient, tabela: string, path: string | null | undefined) {
+  if (!path) return;
+  const { count, error } = await sb.from(tabela).select("id", { count: "exact", head: true }).eq("imagem_path", path);
+  if (error || count !== 0) return; // na dúvida, mantém
+  await removerImagem(sb, path);
+}

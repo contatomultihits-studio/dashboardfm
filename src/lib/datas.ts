@@ -32,10 +32,42 @@ export function fimDoPeriodo(inicio: string, { qtd, unidade }: Duracao): string 
 
 export type Situacao = "agendada" | "no-ar" | "encerrada";
 
-export function situacaoPeriodo(inicio: string, fim: string, hoje: string): Situacao {
-  if (hoje < inicio) return "agendada";
-  if (hoje > fim) return "encerrada";
+/** Período com horários opcionais (sem horário = o dia todo). */
+export type PeriodoComHora = {
+  data_inicio: string;
+  data_fim: string;
+  hora_inicio?: string | null;
+  hora_fim?: string | null;
+};
+
+/** "18:00:00" → "18:00"; vazio → null. */
+export function horaCurta(hora: string | null | undefined): string | null {
+  const m = String(hora ?? "").match(/^(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : null;
+}
+
+/** Hora atual "HH:MM" no fuso de quem está vendo. */
+export function agoraHHMM(agora = new Date()): string {
+  return `${pad(agora.getHours())}:${pad(agora.getMinutes())}`;
+}
+
+/** Situação considerando data e, se houver, horário de entrada/saída. */
+export function situacaoPeriodo(inicio: string, fim: string, hoje: string, horas?: { inicio?: string | null; fim?: string | null; agora?: string }): Situacao {
+  const hi = horaCurta(horas?.inicio);
+  const hf = horaCurta(horas?.fim);
+  const agora = horas?.agora;
+  if (hoje < inicio || (agora && hoje === inicio && hi && hi > agora)) return "agendada";
+  if (hoje > fim || (agora && hoje === fim && hf && hf <= agora)) return "encerrada";
   return "no-ar";
+}
+
+/**
+ * Está no ar agora? Só olha o horário quando o dia mostrado é hoje
+ * (em outros dias, vale o período de datas, que já vem filtrado do banco).
+ */
+export function noArAgora(p: PeriodoComHora, dia: string, hoje: string, agora: string): boolean {
+  if (dia !== hoje) return true;
+  return situacaoPeriodo(p.data_inicio, p.data_fim, hoje, { inicio: p.hora_inicio, fim: p.hora_fim, agora }) === "no-ar";
 }
 
 /** Quantidade de dias no ar, contando o primeiro e o último. */
