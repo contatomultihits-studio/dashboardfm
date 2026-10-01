@@ -99,6 +99,10 @@ button.icone { width: 38px; height: 34px; padding: 0; border-radius: 12px; }
 .recado-card .item-titulo { -webkit-line-clamp: 3; }
 .item-card.recado-card.destaque { background: #ffe1e3; border-color: #b91c1c; box-shadow: 4px 4px 0 #b91c1c; }
 .recado-card.destaque .item-titulo { color: #991b1b; }
+/* Datas comemorativas: lilás; a de hoje com borda forte */
+.item-card.data-card { background: #f1e8ff; min-height: 100px; align-content: start; }
+.item-card.data-card.hoje { background: #e2ccff; border-color: #6d28d9; box-shadow: 4px 4px 0 #6d28d9; }
+.etiqueta.data-hoje { background: #7c3aed; color: #fff; border-color: #4c1d95; }
 .etiqueta.destaque { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }
 .vazio { padding: 22px; border: 2px dashed #bdbdbd; border-radius: 16px; color: var(--muted); font-weight: 800; text-transform: uppercase; text-align: center; }
 
@@ -108,7 +112,7 @@ button.icone { width: 38px; height: 34px; padding: 0; border-radius: 12px; }
   box-shadow: 4px 4px 0 var(--ink); text-transform: none; font-weight: 700;
 }
 .item-card:hover:not(:disabled) { transform: translateY(-3px); }
-.thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; display: block; background: var(--placeholder); }
+.thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; display: block; background: var(--placeholder); }
 .sem-imagem { display: grid; place-items: center; color: #64748b; font-size: 0.75rem; font-weight: 800; }
 .item-titulo { font-size: 1.05rem; font-weight: 900; text-transform: uppercase; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .sem-titulo { color: #b45309; font-weight: 800; font-style: normal; font-size: 0.8rem; text-transform: uppercase; }

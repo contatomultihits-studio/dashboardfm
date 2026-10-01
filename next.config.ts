@@ -1,5 +1,26 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {};
+// As fotos vêm do Storage do Supabase; a Vercel redimensiona, converte para WebP e guarda em cache.
+const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL) : null;
+
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: supabase
+      ? [
+          {
+            protocol: supabase.protocol.replace(":", "") as "http" | "https",
+            hostname: supabase.hostname,
+            port: supabase.port,
+            pathname: "/storage/v1/object/public/imagens/**",
+          },
+        ]
+      : [],
+    qualities: [75],
+    // Cada foto tem nome único (novo upload = novo nome), então o cache pode durar bastante.
+    minimumCacheTTL: 60 * 60 * 24 * 30,
+    // Só para testes locais (Supabase em localhost); em produção fica desligado.
+    dangerouslyAllowLocalIP: supabase?.hostname === "localhost",
+  },
+};
 
 export default nextConfig;

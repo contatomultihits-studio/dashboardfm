@@ -258,7 +258,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
               <tbody>
                 {lista.itens.map((p) => (
                   <tr key={p.id} className={`${p.ativo ? "" : "oculto"} ${editandoId === p.id ? "editando" : ""}`}>
-                    {c.comImagem && <td><Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="mini-thumb" /></td>}
+                    {c.comImagem && <td><Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="mini-thumb" largura={88} altura={88} sizes="44px" /></td>}
                     <td style={{ whiteSpace: "nowrap" }}>
                       {fmtData(p.data_inicio)}
                       {p.data_fim !== p.data_inicio && <> → {fmtData(p.data_fim)}</>}

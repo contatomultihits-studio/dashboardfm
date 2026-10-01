@@ -125,7 +125,7 @@ export function Convidados({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar 
               <tbody>
                 {lista.itens.map((c) => (
                   <tr key={c.id} className={`${c.ativo && !c.concluido ? "" : "oculto"} ${editandoId === c.id ? "editando" : ""}`}>
-                    <td><Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="mini-thumb" /></td>
+                    <td><Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="mini-thumb" largura={88} altura={88} sizes="44px" /></td>
                     <td>{c.nome}</td>
                     <td>{fmtData(c.data_visita)}</td>
                     <td>{c.horario ? fmtHora(c.horario) : "—"}</td>

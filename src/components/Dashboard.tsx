@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AvisoConfig } from "@/components/AvisoConfig";
 import { Carrossel } from "@/components/Carrossel";
 import { Imagem } from "@/components/Imagem";
@@ -11,6 +11,7 @@ import { ATUALIZAR_A_CADA_MS, VOLTAR_PARA_HOJE_MS } from "@/lib/config";
 import { fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, somarDias } from "@/lib/datas";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
+import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
 import { getSupabase } from "@/lib/supabase/client";
 import { VINCULO_LABEL, type Convidado, type Evento, type Prioridade, type Recado } from "@/lib/tipos";
 
@@ -19,9 +20,33 @@ type ConvidadoCard = Convidado & { jaVeio: boolean };
 
 const ULTIMOS_CONVIDADOS = 6;
 
+/** Última versão de cada dia, guardada no navegador para a tela abrir na hora (depois atualiza). */
+type Retrato = { prioridades: Prioridade[]; recados: Recado[]; convidados: ConvidadoCard[]; eventos: Evento[]; em: string };
+const chaveRetrato = (dia: string) => `dashboardfm:retrato:${dia}`;
+
+function lerRetrato(dia: string): Retrato | null {
+  try {
+    const bruto = localStorage.getItem(chaveRetrato(dia));
+    return bruto ? (JSON.parse(bruto) as Retrato) : null;
+  } catch {
+    return null;
+  }
+}
+
+function salvarRetrato(dia: string, r: Retrato) {
+  try {
+    // Guarda só o dia atual, para não acumular lixo no navegador.
+    for (const k of Object.keys(localStorage)) if (k.startsWith("dashboardfm:retrato:")) localStorage.removeItem(k);
+    localStorage.setItem(chaveRetrato(dia), JSON.stringify(r));
+  } catch {
+    // sem espaço ou navegação privada: segue sem cache
+  }
+}
+
 type Aberto =
   | { tipo: "prioridade"; item: Prioridade }
   | { tipo: "recado"; item: Recado }
+  | { tipo: "data"; item: DataComemorativa }
   | { tipo: "convidado"; item: ConvidadoCard }
   | { tipo: "evento"; item: Evento }
   | null;
@@ -72,6 +97,14 @@ export function Dashboard() {
     if (!sb || !dia) return;
     const busca = ++ultimaBusca.current;
     setCarregando(true);
+    // Mostra na hora o que já tinha deste dia, enquanto busca a versão nova.
+    const guardado = lerRetrato(dia);
+    if (guardado) {
+      setPrioridades(guardado.prioridades);
+      setRecados(guardado.recados);
+      setConvidados(guardado.convidados);
+      setEventos(guardado.eventos);
+    }
     // Filtra "ativo" também aqui: quem está logado enxerga os ocultos pelas regras do banco.
     const [p, r, c, cv, e] = await Promise.all([
       // No ar no dia escolhido: entrou até esse dia e só sai depois dele. As que saem primeiro vêm antes.
@@ -94,14 +127,22 @@ export function Dashboard() {
       setErro(falha.message);
     } else {
       setErro(null);
-      setPrioridades(p.data as Prioridade[]);
-      setRecados(r.data as Recado[]);
-      setConvidados([
-        ...(c.data as Convidado[]).map((x) => ({ ...x, jaVeio: false })),
-        ...(cv.data as Convidado[]).map((x) => ({ ...x, jaVeio: true })),
-      ]);
-      setEventos(e.data as Evento[]);
+      const novo: Retrato = {
+        prioridades: p.data as Prioridade[],
+        recados: r.data as Recado[],
+        convidados: [
+          ...(c.data as Convidado[]).map((x) => ({ ...x, jaVeio: false })),
+          ...(cv.data as Convidado[]).map((x) => ({ ...x, jaVeio: true })),
+        ],
+        eventos: e.data as Evento[],
+        em: new Date().toISOString(),
+      };
+      setPrioridades(novo.prioridades);
+      setRecados(novo.recados);
+      setConvidados(novo.convidados);
+      setEventos(novo.eventos);
       setAtualizadoEm(new Date());
+      salvarRetrato(dia, novo);
     }
     setCarregando(false);
   }, [sb, dia]);
@@ -118,6 +159,15 @@ export function Dashboard() {
   }, [carregar]);
 
   const ehHoje = dia === hojeISO();
+  // Datas comemorativas do dia escolhido e dos 6 seguintes (calculadas, sem buscar nada).
+  const datas = useMemo(() => (dia ? datasEntre(dia, 7) : []), [dia]);
+  const quandoData = (data: string) => {
+    if (!dia) return "";
+    if (data === dia) return ehHoje ? "Hoje" : "Neste dia";
+    const n = Math.round((Date.parse(data) - Date.parse(dia)) / 86_400_000);
+    if (n === 1 && ehHoje) return "Amanhã";
+    return `Em ${n} dias · ${fmtDiaMes(data)}`;
+  };
 
   return (
     <>
@@ -159,7 +209,7 @@ export function Dashboard() {
               vazio="Sem prioridades para este dia."
               render={(p) => (
                 <button type="button" className="item-card" onClick={() => setAberto({ tipo: "prioridade", item: p })}>
-                  <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" />
+                  <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" prioridade={prioridades.indexOf(p) < 3} />
                   <span className="item-titulo">{p.titulo || textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
                   <span className="item-rodape">
                     {p.data_fim === dia ? (
@@ -200,6 +250,27 @@ export function Dashboard() {
             />
 
             <Carrossel
+              key={`datas-${dia}`}
+              titulo="Datas comemorativas"
+              itens={datas}
+              porPaginaMax={4}
+              vazio="Nenhuma data comemorativa nos próximos 7 dias."
+              render={(d) => (
+                <button
+                  type="button"
+                  className={`item-card data-card ${d.data === dia ? "hoje" : ""}`}
+                  onClick={() => setAberto({ tipo: "data", item: d })}
+                >
+                  <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
+                    <span className={`etiqueta ${d.data === dia ? "data-hoje" : "cinza"}`}>{quandoData(d.data)}</span>
+                    {d.feriado && <span className="etiqueta destaque">Feriado</span>}
+                  </span>
+                  <span className="item-titulo">{d.titulo}</span>
+                </button>
+              )}
+            />
+
+            <Carrossel
               key={`conv-${dia}`}
               titulo={convidados.some((c) => !c.jaVeio) || convidados.length === 0 ? "Próximos convidados" : "Últimos convidados"}
               itens={convidados}
@@ -208,7 +279,7 @@ export function Dashboard() {
               render={(c) => (
                 <button type="button" className={`item-card foto-card ${c.jaVeio ? "ja-veio" : ""}`} onClick={() => setAberto({ tipo: "convidado", item: c })}>
                   <div className="foto-wrap">
-                    <Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="thumb" />
+                    <Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
                     <div className="foto-overlay">
                       {c.jaVeio && <span className="etiqueta cinza">Já veio</span>}
                       <strong>{c.nome}</strong>
@@ -228,7 +299,7 @@ export function Dashboard() {
               render={(e) => (
                 <button type="button" className="item-card foto-card" onClick={() => setAberto({ tipo: "evento", item: e })}>
                   <div className="foto-wrap">
-                    <Imagem src={urlImagem(sb, e.imagem_path)} alt="" className="thumb" />
+                    <Imagem src={urlImagem(sb, e.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
                     <div className="foto-overlay">
                       <span className={`etiqueta ${e.vinculo === "RADIO_OFICIAL" ? "oficial" : "apoio"}`}>{VINCULO_LABEL[e.vinculo]}</span>
                       <strong>{e.nome}</strong>
@@ -261,6 +332,15 @@ export function Dashboard() {
             </span>
           </div>
           <TextoRico html={aberto.item.conteudo_html} />
+        </Modal>
+      )}
+      {aberto?.tipo === "data" && (
+        <Modal titulo={aberto.item.titulo} onFechar={fechar} leitura>
+          <div className="modal-meta">
+            <span className="etiqueta cinza">{fmtData(aberto.item.data)}</span>
+            {aberto.item.feriado && <span className="etiqueta destaque">Feriado nacional</span>}
+          </div>
+          <div className="texto-rico"><p>{aberto.item.texto}</p></div>
         </Modal>
       )}
       {aberto?.tipo === "convidado" && (

@@ -58,7 +58,7 @@ export function CampoImagem({ sb, imagem, rotulo = "Imagem" }: { sb: SupabaseCli
 
   return (
     <div className="campo" style={{ display: "grid", gap: 6 }}>
-      <label htmlFor={`img-${rotulo}`} style={{ fontWeight: 800, fontSize: "0.8rem", textTransform: "uppercase" }}>{rotulo} (JPG, PNG ou WEBP, até 5 MB)</label>
+      <label htmlFor={`img-${rotulo}`} style={{ fontWeight: 800, fontSize: "0.8rem", textTransform: "uppercase" }}>{rotulo} (JPG, PNG ou WEBP, até 20 MB — reduzimos automaticamente)</label>
       <div className="imagem-campo">
         {previa && <img src={previa} alt="Prévia" className="imagem-previa" />}
         <input
@@ -69,7 +69,7 @@ export function CampoImagem({ sb, imagem, rotulo = "Imagem" }: { sb: SupabaseCli
           onChange={(e) => {
             const f = e.target.files?.[0] ?? null;
             if (f && f.size > TAMANHO_MAXIMO) {
-              setAviso("Essa imagem passa de 5 MB. Escolha uma menor.");
+              setAviso("Essa imagem passa de 20 MB. Escolha uma menor.");
               e.target.value = "";
               return;
             }

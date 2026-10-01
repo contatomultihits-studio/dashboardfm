@@ -132,7 +132,7 @@ export function Eventos({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) 
               <tbody>
                 {lista.itens.map((ev) => (
                   <tr key={ev.id} className={`${ev.ativo ? "" : "oculto"} ${editandoId === ev.id ? "editando" : ""}`}>
-                    <td><Imagem src={urlImagem(sb, ev.imagem_path)} alt="" className="mini-thumb" /></td>
+                    <td><Imagem src={urlImagem(sb, ev.imagem_path)} alt="" className="mini-thumb" largura={88} altura={88} sizes="44px" /></td>
                     <td>{ev.nome}</td>
                     <td>{fmtData(ev.data_evento)}</td>
                     <td>{ev.local || "—"}</td>
