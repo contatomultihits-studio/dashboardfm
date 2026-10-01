@@ -45,6 +45,27 @@ export function diasNoPeriodo(inicio: string, fim: string): number {
   return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86_400_000) + 1;
 }
 
+const DIAS_SEMANA = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
+const MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+/** Partes para a "folhinha" de calendário: QUI · 02 · OUT. */
+export function partesData(iso: string) {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return { semana: DIAS_SEMANA[new Date(y, m - 1, d).getDay()], dia: String(d).padStart(2, "0"), mes: MESES[m - 1] };
+}
+
+export type Quando = { texto: string; tipo: "hoje" | "amanha" | "futuro" | "passado" };
+
+/** "HOJE", "AMANHÃ", "EM 5 DIAS", "ONTEM", "HÁ 3 DIAS" em relação a `hoje`. */
+export function quando(iso: string, hoje: string): Quando {
+  const n = diasNoPeriodo(hoje, iso.slice(0, 10)) - 1;
+  if (n === 0) return { texto: "Hoje", tipo: "hoje" };
+  if (n === 1) return { texto: "Amanhã", tipo: "amanha" };
+  if (n > 1) return { texto: `Em ${n} dias`, tipo: "futuro" };
+  if (n === -1) return { texto: "Ontem", tipo: "passado" };
+  return { texto: `Há ${-n} dias`, tipo: "passado" };
+}
+
 export function fmtData(iso: string | null | undefined): string {
   if (!iso) return "--";
   const [y, m, d] = iso.slice(0, 10).split("-");

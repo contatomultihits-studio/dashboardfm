@@ -6,6 +6,8 @@ import {
   fmtDiaMes,
   fmtHora,
   hojeISO,
+  partesData,
+  quando,
   situacaoPeriodo,
   somarDias,
   somarMeses,
@@ -29,6 +31,22 @@ describe("datas", () => {
     expect(fmtDiaMes("2026-10-05")).toBe("05/10");
     expect(fmtHora("14:30:00")).toBe("14:30");
     expect(fmtHora(null)).toBe("--:--");
+  });
+});
+
+describe("folhinha e quando", () => {
+  it("monta dia da semana, dia e mês", () => {
+    expect(partesData("2026-10-02")).toEqual({ semana: "SEX", dia: "02", mes: "OUT" });
+    expect(partesData("2026-12-25")).toEqual({ semana: "SEX", dia: "25", mes: "DEZ" });
+  });
+
+  it("diz quando é em relação a hoje", () => {
+    expect(quando("2026-10-01", "2026-10-01")).toEqual({ texto: "Hoje", tipo: "hoje" });
+    expect(quando("2026-10-02", "2026-10-01").texto).toBe("Amanhã");
+    expect(quando("2026-10-06", "2026-10-01").texto).toBe("Em 5 dias");
+    expect(quando("2026-09-30", "2026-10-01").texto).toBe("Ontem");
+    expect(quando("2026-09-28", "2026-10-01")).toEqual({ texto: "Há 3 dias", tipo: "passado" });
+    expect(quando("2026-11-01", "2026-10-30").texto).toBe("Em 2 dias");
   });
 });
 

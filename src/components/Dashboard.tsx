@@ -8,7 +8,7 @@ import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { Topbar } from "@/components/Topbar";
 import { ATUALIZAR_A_CADA_MS, VOLTAR_PARA_HOJE_MS } from "@/lib/config";
-import { fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, somarDias } from "@/lib/datas";
+import { fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, partesData, quando, somarDias } from "@/lib/datas";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
@@ -20,6 +20,29 @@ import { VINCULO_LABEL, type Convidado, type Evento, type Prioridade, type Recad
 type ConvidadoCard = Convidado & { jaVeio: boolean };
 
 const ULTIMOS_CONVIDADOS = 6;
+
+/** Folhinha de calendário no canto da foto: QUI · 02 · OUT. */
+function Folhinha({ data }: { data: string }) {
+  const p = partesData(data);
+  return (
+    <span className="folhinha" aria-hidden>
+      <span className="folhinha-semana">{p.semana}</span>
+      <span className="folhinha-dia">{p.dia}</span>
+      <span className="folhinha-mes">{p.mes}</span>
+    </span>
+  );
+}
+
+/** "HOJE · 14:00", "AMANHÃ", "EM 5 DIAS"... em relação ao dia de verdade. */
+function Quando({ data, hora }: { data: string; hora?: string | null }) {
+  const q = quando(data, hojeISO());
+  return (
+    <span className={`quando quando-${q.tipo}`}>
+      {q.texto}
+      {hora ? ` · ${fmtHora(hora)}` : ""}
+    </span>
+  );
+}
 
 /** Última versão de cada dia, guardada no navegador para a tela abrir na hora (depois atualiza). */
 type Retrato = { prioridades: Prioridade[]; recados: Recado[]; convidados: ConvidadoCard[]; eventos: Evento[]; em: string };
@@ -299,10 +322,13 @@ export function Dashboard() {
                 <button type="button" className={`item-card foto-card ${c.jaVeio ? "ja-veio" : ""}`} onClick={() => setAberto({ tipo: "convidado", item: c })}>
                   <div className="foto-wrap">
                     <Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
+                    <Folhinha data={c.data_visita} />
                     <div className="foto-overlay">
-                      {c.jaVeio && <span className="etiqueta cinza">Já veio</span>}
+                      <span className="foto-etiquetas">
+                        {c.jaVeio && <span className="etiqueta cinza">Já veio</span>}
+                        <Quando data={c.data_visita} hora={c.jaVeio ? null : c.horario} />
+                      </span>
                       <strong>{c.nome}</strong>
-                      <small>{fmtDiaMes(c.data_visita)}{c.horario ? ` às ${fmtHora(c.horario)}` : ""}</small>
                     </div>
                   </div>
                 </button>
@@ -319,10 +345,14 @@ export function Dashboard() {
                 <button type="button" className="item-card foto-card" onClick={() => setAberto({ tipo: "evento", item: e })}>
                   <div className="foto-wrap">
                     <Imagem src={urlImagem(sb, e.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
+                    <Folhinha data={e.data_evento} />
                     <div className="foto-overlay">
-                      <span className={`etiqueta ${e.vinculo === "RADIO_OFICIAL" ? "oficial" : "apoio"}`}>{VINCULO_LABEL[e.vinculo]}</span>
+                      <span className="foto-etiquetas">
+                        <Quando data={e.data_evento} />
+                        <span className={`etiqueta ${e.vinculo === "RADIO_OFICIAL" ? "oficial" : "apoio"}`}>{VINCULO_LABEL[e.vinculo]}</span>
+                      </span>
                       <strong>{e.nome}</strong>
-                      <small>{fmtDiaMes(e.data_evento)}{e.local ? ` • ${e.local}` : ""}</small>
+                      {e.local && <small>📍 {e.local}</small>}
                     </div>
                   </div>
                 </button>
