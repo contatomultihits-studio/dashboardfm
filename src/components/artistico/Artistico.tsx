@@ -5,16 +5,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AvisoConfig } from "@/components/AvisoConfig";
 import { Topbar } from "@/components/Topbar";
 import { getSupabase } from "@/lib/supabase/client";
+import { Conexoes } from "./Conexoes";
 import { Convidados } from "./Convidados";
 import { Eventos } from "./Eventos";
+import { Pautas } from "./Pautas";
 import { Prioridades } from "./Prioridades";
 import { Recados } from "./Recados";
+import { RelatorioPautas } from "./RelatorioPautas";
 
 const ABAS = [
   { id: "prioridades", rotulo: "Prioridades do ar" },
   { id: "recados", rotulo: "Recados" },
+  { id: "pautas", rotulo: "Partiu Rádio Disney" },
+  { id: "conexoes", rotulo: "Conexões" },
   { id: "convidados", rotulo: "Convidados" },
   { id: "eventos", rotulo: "Eventos" },
+  { id: "relatorio", rotulo: "Relatório de pautas" },
 ] as const;
 type Aba = (typeof ABAS)[number]["id"];
 
@@ -86,8 +92,11 @@ export function Artistico() {
             </div>
             {aba === "prioridades" && <Prioridades sb={sb} avisar={avisar} />}
             {aba === "recados" && <Recados sb={sb} avisar={avisar} />}
+            {aba === "pautas" && <Pautas sb={sb} avisar={avisar} />}
+            {aba === "conexoes" && <Conexoes sb={sb} avisar={avisar} />}
             {aba === "convidados" && <Convidados sb={sb} avisar={avisar} />}
             {aba === "eventos" && <Eventos sb={sb} avisar={avisar} />}
+            {aba === "relatorio" && <RelatorioPautas sb={sb} avisar={avisar} />}
           </>
         )}
       </main>

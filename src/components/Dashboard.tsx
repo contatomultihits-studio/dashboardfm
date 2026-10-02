@@ -8,18 +8,22 @@ import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { Topbar } from "@/components/Topbar";
 import { ATUALIZAR_A_CADA_MS, VOLTAR_PARA_HOJE_MS } from "@/lib/config";
-import { agoraHHMM, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, horaCurta, noArAgora, partesData, quando, somarDias, type PeriodoComHora } from "@/lib/datas";
+import { agoraHHMM, ehSemPrazo, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, horaCurta, noArAgora, partesData, quando, somarDias, type PeriodoComHora } from "@/lib/datas";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
 import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
-import { VINCULO_LABEL, type Convidado, type Evento, type Prioridade, type Recado } from "@/lib/tipos";
+import { horaNoFuso, ordenarPautas, situacaoPauta } from "@/lib/pautas";
+import { TIPO_PAUTA_LABEL, VINCULO_LABEL, type Conexao, type Convidado, type Evento, type Pauta, type PautaRealizada, type Prioridade, type Recado } from "@/lib/tipos";
 
 /** Convidado na dashboard: os que já vieram aparecem depois dos próximos, em preto e branco. */
 type ConvidadoCard = Convidado & { jaVeio: boolean };
 
 const ULTIMOS_CONVIDADOS = 6;
+
+/** Quanto tempo o locutor tem para desfazer um "feita" por engano (igual ao banco). */
+const DESFAZER_PAUTA_MS = 15 * 60_000;
 
 /** Folhinha de calendário no canto da foto: QUI · 02 · OUT. */
 type ItemTopo = { id: string; tipo: "data"; d: DataComemorativa } | { id: string; tipo: "recado"; r: Recado };
@@ -48,6 +52,7 @@ function Quando({ data, hora }: { data: string; hora?: string | null }) {
 
 /** Rodapé do card: "Último dia", "Até 18:00", "Até 03/10", "Até 03/10 às 18:00". */
 function AteQuando({ p, dia }: { p: PeriodoComHora; dia: string }) {
+  if (ehSemPrazo(p.data_fim)) return null;
   const hf = horaCurta(p.hora_fim);
   if (p.data_fim === dia) return <span className="etiqueta ultimo-dia">{hf ? `Até ${hf}` : "Último dia"}</span>;
   return <span className="etiqueta cinza">Até {fmtDiaMes(p.data_fim)}{hf ? ` às ${hf}` : ""}</span>;
@@ -55,13 +60,23 @@ function AteQuando({ p, dia }: { p: PeriodoComHora; dia: string }) {
 
 /** "No ar de 01/10 08:00 a 03/10 18:00" */
 function periodoTexto(p: PeriodoComHora) {
+  if (ehSemPrazo(p.data_fim)) return `No ar desde ${fmtData(p.data_inicio)}`;
   const hi = horaCurta(p.hora_inicio);
   const hf = horaCurta(p.hora_fim);
   return `No ar de ${fmtData(p.data_inicio)}${hi ? ` ${hi}` : ""} a ${fmtData(p.data_fim)}${hf ? ` ${hf}` : ""}`;
 }
 
 /** Última versão de cada dia, guardada no navegador para a tela abrir na hora (depois atualiza). */
-type Retrato = { prioridades: Prioridade[]; recados: Recado[]; convidados: ConvidadoCard[]; eventos: Evento[]; em: string };
+type Retrato = {
+  prioridades: Prioridade[];
+  recados: Recado[];
+  conexoes?: Conexao[];
+  pautas?: Pauta[];
+  realizadas?: PautaRealizada[];
+  convidados: ConvidadoCard[];
+  eventos: Evento[];
+  em: string;
+};
 const chaveRetrato = (dia: string) => `dashboardfm:retrato:${dia}`;
 
 function lerRetrato(dia: string): Retrato | null {
@@ -86,6 +101,8 @@ function salvarRetrato(dia: string, r: Retrato) {
 type Aberto =
   | { tipo: "prioridade"; item: Prioridade }
   | { tipo: "recado"; item: Recado }
+  | { tipo: "conexao"; item: Conexao }
+  | { tipo: "pauta"; item: Pauta }
   | { tipo: "data"; item: DataComemorativa }
   | { tipo: "video"; item: VideoYoutube }
   | { tipo: "convidado"; item: ConvidadoCard }
@@ -97,6 +114,9 @@ export function Dashboard() {
   const [dia, setDia] = useState<string | null>(null);
   const [prioridades, setPrioridades] = useState<Prioridade[]>([]);
   const [recados, setRecados] = useState<Recado[]>([]);
+  const [conexoes, setConexoes] = useState<Conexao[]>([]);
+  const [pautas, setPautas] = useState<Pauta[]>([]);
+  const [realizadas, setRealizadas] = useState<PautaRealizada[]>([]);
   const [convidados, setConvidados] = useState<ConvidadoCard[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [videos, setVideos] = useState<VideoYoutube[]>([]);
@@ -105,6 +125,10 @@ export function Dashboard() {
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
   const [aberto, setAberto] = useState<Aberto>(null);
   const fechar = useCallback(() => setAberto(null), []);
+  const abrir = useCallback((a: Aberto) => {
+    setMsgPauta(null);
+    setAberto(a);
+  }, []);
   const ultimaBusca = useRef(0);
 
   // O dia só é definido no navegador, para usar o fuso de quem está vendo.
@@ -144,17 +168,25 @@ export function Dashboard() {
     if (guardado) {
       setPrioridades(guardado.prioridades);
       setRecados(guardado.recados);
+      setConexoes(guardado.conexoes ?? []);
+      setPautas(guardado.pautas ?? []);
+      setRealizadas(guardado.realizadas ?? []);
       setConvidados(guardado.convidados);
       setEventos(guardado.eventos);
     }
     // Filtra "ativo" também aqui: quem está logado enxerga os ocultos pelas regras do banco.
-    const [p, r, c, cv, e] = await Promise.all([
+    const [p, r, cx, pa, pr, c, cv, e] = await Promise.all([
       // No ar no dia escolhido: entrou até esse dia e só sai depois dele. As que saem primeiro vêm antes.
       sb.from("prioridades").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("data_fim").order("created_at"),
       // Recados no ar no dia: os destacados primeiro, depois os que saem antes.
       sb.from("recados").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("destaque", { ascending: false }).order("data_fim").order("created_at"),
+      sb.from("conexoes").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
+        .order("data_inicio", { ascending: false }).order("created_at"),
+      // Partiu Rádio Disney: pautas do dia e o que o locutor já marcou como feito.
+      sb.from("pautas").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true).order("horario"),
+      sb.from("pautas_realizadas").select("*").eq("dia", dia),
       sb.from("convidados").select("*").gte("data_visita", dia).eq("ativo", true).eq("concluido", false)
         .order("data_visita").order("horario", { nullsFirst: false }).limit(60),
       // Últimos que já vieram: data anterior ao dia ou marcados como "já veio".
@@ -164,7 +196,7 @@ export function Dashboard() {
       sb.from("eventos").select("*").gte("data_evento", dia).eq("ativo", true).order("data_evento").limit(60),
     ]);
     if (busca !== ultimaBusca.current) return; // já trocaram de dia; descarta resposta antiga
-    const falha = p.error ?? r.error ?? c.error ?? cv.error ?? e.error;
+    const falha = p.error ?? r.error ?? cx.error ?? pa.error ?? pr.error ?? c.error ?? cv.error ?? e.error;
     if (falha) {
       setErro(falha.message);
     } else {
@@ -172,6 +204,9 @@ export function Dashboard() {
       const novo: Retrato = {
         prioridades: p.data as Prioridade[],
         recados: r.data as Recado[],
+        conexoes: cx.data as Conexao[],
+        pautas: pa.data as Pauta[],
+        realizadas: pr.data as PautaRealizada[],
         convidados: [
           ...(c.data as Convidado[]).map((x) => ({ ...x, jaVeio: false })),
           ...(cv.data as Convidado[]).map((x) => ({ ...x, jaVeio: true })),
@@ -181,6 +216,9 @@ export function Dashboard() {
       };
       setPrioridades(novo.prioridades);
       setRecados(novo.recados);
+      setConexoes(novo.conexoes ?? []);
+      setPautas(novo.pautas ?? []);
+      setRealizadas(novo.realizadas ?? []);
       setConvidados(novo.convidados);
       setEventos(novo.eventos);
       setAtualizadoEm(new Date());
@@ -232,6 +270,38 @@ export function Dashboard() {
     () => (dia ? recados.filter((r) => noArAgora(r, dia, hojeISO(), agora)) : recados),
     [recados, dia, agora],
   );
+  const conexoesNoAr = useMemo(
+    () => (dia ? conexoes.filter((x) => noArAgora(x, dia, hojeISO(), agora)) : conexoes),
+    [conexoes, dia, agora],
+  );
+  const feitas = useMemo(() => new Map(realizadas.map((x) => [x.pauta_id, x])), [realizadas]);
+  const pautasDoDia = useMemo(() => ordenarPautas(pautas, feitas), [pautas, feitas]);
+  const [marcando, setMarcando] = useState(false);
+  const [msgPauta, setMsgPauta] = useState<{ texto: string; erro?: boolean } | null>(null);
+
+  async function marcarFeita(p: Pauta) {
+    if (!sb || !dia) return;
+    setMarcando(true);
+    setMsgPauta(null);
+    const { data, error } = await sb.rpc("marcar_pauta_feita", { p_pauta: p.id, p_dia: dia });
+    setMarcando(false);
+    if (error) return setMsgPauta({ texto: `Não deu para marcar: ${error.message}`, erro: true });
+    const feita: PautaRealizada = { id: `local-${p.id}`, pauta_id: p.id, dia, realizado_em: String(data), origem: "locutor" };
+    setRealizadas((rs) => [...rs.filter((x) => x.pauta_id !== p.id), feita]);
+    setMsgPauta({ texto: `Pauta registrada às ${horaNoFuso(feita.realizado_em)}. Valeu!` });
+  }
+
+  async function desfazerFeita(p: Pauta) {
+    if (!sb || !dia) return;
+    setMarcando(true);
+    const { data, error } = await sb.rpc("desmarcar_pauta", { p_pauta: p.id, p_dia: dia });
+    setMarcando(false);
+    if (error) return setMsgPauta({ texto: error.message, erro: true });
+    if (!data) return setMsgPauta({ texto: "Passou de 15 minutos: peça para a produção corrigir no relatório.", erro: true });
+    setRealizadas((rs) => rs.filter((x) => x.pauta_id !== p.id));
+    setMsgPauta({ texto: "Desfeito: a pauta voltou para pendente." });
+  }
+
   // Datas comemorativas do dia escolhido e dos 6 seguintes (calculadas, sem buscar nada).
   const datas = useMemo(() => (dia ? datasEntre(dia, 7) : []), [dia]);
   // Faixa do topo: a data comemorativa do dia vem primeiro, depois os recados.
@@ -301,7 +371,7 @@ export function Dashboard() {
                     <button
                       type="button"
                       className="item-card data-card hoje topo"
-                      onClick={() => setAberto({ tipo: "data", item: d })}
+                      onClick={() => abrir({ tipo: "data", item: d })}
                     >
                       <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
                         <span className="etiqueta data-hoje">{quandoData(d.data)}</span>
@@ -316,7 +386,7 @@ export function Dashboard() {
                 <button
                   type="button"
                   className={`item-card recado-card ${r.destaque ? "destaque" : ""}`}
-                  onClick={() => setAberto({ tipo: "recado", item: r })}
+                  onClick={() => abrir({ tipo: "recado", item: r })}
                 >
                   {r.destaque && <span className="etiqueta destaque">Importante</span>}
                   <span className="item-titulo">{r.titulo || textoPuro(r.conteudo_html) || "Recado"}</span>
@@ -333,10 +403,50 @@ export function Dashboard() {
               carregando={carregando}
               vazio="Sem prioridades para este dia."
               render={(p) => (
-                <button type="button" className="item-card" onClick={() => setAberto({ tipo: "prioridade", item: p })}>
+                <button type="button" className="item-card" onClick={() => abrir({ tipo: "prioridade", item: p })}>
                   <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" prioridade={prioridadesNoAr.indexOf(p) < 3} />
                   <span className="item-titulo">{p.titulo || textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
                   <span className="item-rodape">{dia && <AteQuando p={p} dia={dia} />}</span>
+                </button>
+              )}
+            />
+
+            <Carrossel
+              key={`pautas-${dia}`}
+              titulo="Partiu Rádio Disney"
+              className="secao-pautas"
+              itens={pautasDoDia}
+              carregando={carregando}
+              porPaginaMax={4}
+              vazio="Sem pautas de ação externa para este dia."
+              render={(p) => {
+                const st = situacaoPauta(p.horario, feitas.get(p.id), dia ?? "", hojeISO(), agora);
+                return (
+                  <button type="button" className={`item-card pauta-card pauta-${st.tipo}`} onClick={() => abrir({ tipo: "pauta", item: p })}>
+                    <span className="pauta-topo">
+                      <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
+                      <span className={`etiqueta pauta-status status-${st.tipo}`}>{st.tipo === "feita" ? "✓ " : ""}{st.texto}</span>
+                    </span>
+                    <span className="pauta-hora">{horaCurta(p.horario)}</span>
+                    <span className="pauta-cliente">{p.cliente}</span>
+                    {p.titulo && <span className="pauta-acao">{p.titulo}</span>}
+                    <span className="pauta-locutor">🎙 {p.locutor}</span>
+                  </button>
+                );
+              }}
+            />
+
+            <Carrossel
+              key={`conex-${dia}`}
+              titulo="Conexões"
+              itens={conexoesNoAr}
+              carregando={carregando}
+              vazio="Sem conexões no ar."
+              render={(x) => (
+                <button type="button" className="item-card conexao-card" onClick={() => abrir({ tipo: "conexao", item: x })}>
+                  <Imagem src={urlImagem(sb, x.imagem_path)} alt="" className="thumb" />
+                  <span className="item-titulo">{x.titulo || textoPuro(x.conteudo_html) || "Conexão"}</span>
+                  <span className="item-rodape">{dia && <AteQuando p={x} dia={dia} />}</span>
                 </button>
               )}
             />
@@ -348,7 +458,7 @@ export function Dashboard() {
               carregando={carregando}
               vazio="Sem convidados programados."
               render={(c) => (
-                <button type="button" className={`item-card foto-card ${c.jaVeio ? "ja-veio" : ""}`} onClick={() => setAberto({ tipo: "convidado", item: c })}>
+                <button type="button" className={`item-card foto-card ${c.jaVeio ? "ja-veio" : ""}`} onClick={() => abrir({ tipo: "convidado", item: c })}>
                   <div className="foto-wrap">
                     <Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
                     <Folhinha data={c.data_visita} />
@@ -371,7 +481,7 @@ export function Dashboard() {
               carregando={carregando}
               vazio="Sem eventos na agenda."
               render={(e) => (
-                <button type="button" className="item-card foto-card" onClick={() => setAberto({ tipo: "evento", item: e })}>
+                <button type="button" className="item-card foto-card" onClick={() => abrir({ tipo: "evento", item: e })}>
                   <div className="foto-wrap">
                     <Imagem src={urlImagem(sb, e.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
                     <Folhinha data={e.data_evento} />
@@ -395,7 +505,7 @@ export function Dashboard() {
               porPaginaMax={4}
               vazio="Nenhuma data comemorativa nos próximos 6 dias."
               render={(d) => (
-                <button type="button" className="item-card data-card" onClick={() => setAberto({ tipo: "data", item: d })}>
+                <button type="button" className="item-card data-card" onClick={() => abrir({ tipo: "data", item: d })}>
                   <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
                     <span className="etiqueta cinza">{quandoData(d.data)}</span>
                     {d.feriado && <span className="etiqueta destaque">Feriado</span>}
@@ -413,7 +523,7 @@ export function Dashboard() {
                 autoAvancarMs={8000}
                 vazio=""
                 render={(v) => (
-                  <button type="button" className="item-card video-card" onClick={() => setAberto({ tipo: "video", item: v })}>
+                  <button type="button" className="item-card video-card" onClick={() => abrir({ tipo: "video", item: v })}>
                     <span className="video-thumb">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={v.thumb} alt="" className="thumb" loading="lazy" />
@@ -442,6 +552,47 @@ export function Dashboard() {
           <TextoRico html={aberto.item.conteudo_html} />
         </Modal>
       )}
+      {aberto?.tipo === "conexao" && (
+        <Modal titulo={aberto.item.titulo || "Conexão"} onFechar={fechar} leitura>
+          <div className="modal-meta">
+            <span className="etiqueta cinza">{periodoTexto(aberto.item)}</span>
+          </div>
+          <TextoRico html={aberto.item.conteudo_html} />
+        </Modal>
+      )}
+      {aberto?.tipo === "pauta" && (() => {
+        const p = aberto.item;
+        const feita = feitas.get(p.id);
+        const podeDesfazer = feita && feita.origem === "locutor" && Date.now() - Date.parse(feita.realizado_em) < DESFAZER_PAUTA_MS;
+        return (
+          <Modal titulo={`${p.cliente} · ${horaCurta(p.horario)}`} onFechar={fechar} leitura>
+            <div className="modal-meta">
+              <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
+              <span className="etiqueta cinza">🎙 {p.locutor}</span>
+              <span className="etiqueta cinza">No ar às {horaCurta(p.horario)}</span>
+              {p.titulo && <span className="etiqueta cinza">{p.titulo}</span>}
+            </div>
+            <TextoRico html={p.conteudo_html} />
+            <div className={`pauta-checkout ${feita ? "feita" : ""}`}>
+              {feita ? (
+                <>
+                  <strong>✓ Pauta feita às {horaNoFuso(feita.realizado_em)}</strong>
+                  {podeDesfazer && (
+                    <button type="button" className="pequeno branco" disabled={marcando} onClick={() => desfazerFeita(p)}>Desfazer</button>
+                  )}
+                </>
+              ) : ehHoje ? (
+                <button type="button" className="verde grande" disabled={marcando} onClick={() => marcarFeita(p)}>
+                  {marcando ? "Registrando…" : "✓ Marcar pauta como feita"}
+                </button>
+              ) : (
+                <span>Só dá para marcar como feita no dia da pauta.</span>
+              )}
+              {msgPauta && <span className={`pauta-msg ${msgPauta.erro ? "erro" : ""}`} role="status">{msgPauta.texto}</span>}
+            </div>
+          </Modal>
+        );
+      })()}
       {aberto?.tipo === "recado" && (
         <Modal titulo={aberto.item.titulo || "Recado"} onFechar={fechar} leitura>
           <div className="modal-meta">

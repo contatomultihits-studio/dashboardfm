@@ -22,10 +22,18 @@ export function somarMeses(iso: string, meses: number): string {
   return paraISO(new Date(y, m - 1 + meses, Math.min(d, ultimoDia)));
 }
 
-export type Duracao = { qtd: number; unidade: "semana" | "mes" };
+export type Duracao = { qtd: number; unidade: "dia" | "semana" | "mes" };
+
+/** Data de saída usada para o que fica no ar "sem prazo" (conteúdo atemporal). */
+export const SEM_PRAZO = "2099-12-31";
+
+export function ehSemPrazo(fim: string | null | undefined): boolean {
+  return Boolean(fim && fim >= "2099-01-01");
+}
 
 /** Último dia no ar (inclusive) para um período que começa em `inicio`. Ex.: 01/10 + 1 mês → 31/10. */
 export function fimDoPeriodo(inicio: string, { qtd, unidade }: Duracao): string {
+  if (unidade === "dia") return somarDias(inicio, qtd - 1);
   if (unidade === "semana") return somarDias(inicio, 7 * qtd - 1);
   return somarDias(somarMeses(inicio, qtd), -1);
 }

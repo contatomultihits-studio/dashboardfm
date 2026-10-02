@@ -14,7 +14,7 @@ São uns 10 minutos. Você só precisa de uma conta no **Supabase** e uma na **V
 3. Copie **todo** o conteúdo do arquivo [`supabase/schema.sql`](supabase/schema.sql), cole e clique em **Run**.
    Deve aparecer *"Success. No rows returned"*. Se rodar de novo, não tem problema: nada é apagado.
 
-Isso cria as tabelas `prioridades`, `convidados` e `eventos`, o espaço de fotos `imagens` e as regras de acesso.
+Isso cria as tabelas `prioridades`, `recados`, `conexoes`, `pautas`, `pautas_realizadas`, `convidados` e `eventos`, o espaço de fotos `imagens` e as regras de acesso.
 
 ## 2. Supabase: fechar o cadastro público
 
@@ -96,6 +96,7 @@ que já vem com tudo.
 | `003_prioridades_titulo.sql` | Prioridades ganham um título curto, que aparece no card. |
 | `004_recados.sql` | Nova tabela de recados rápidos (sem imagem, com período e destaque). |
 | `005_horarios.sql` | Horário de entrada e saída (opcionais) em prioridades e recados. |
+| `006_conexoes_pautas.sql` | Conexões (institucional, pode ficar sem prazo) e Partiu Rádio Disney: pautas com cliente, locutor, horário e tipo, e o "feito" do locutor para o relatório. |
 
 ### Deu problema?
 

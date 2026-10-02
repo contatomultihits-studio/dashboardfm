@@ -1,4 +1,4 @@
-/** Algo que fica no ar por um período (prioridades e recados). */
+/** Algo que fica no ar por um período (prioridades, recados, conexões e pautas). */
 export type ItemNoAr = {
   id: string;
   data_inicio: string;
@@ -12,12 +12,39 @@ export type ItemNoAr = {
   ativo: boolean;
   imagem_path?: string | null;
   destaque?: boolean;
+  /** Só nas pautas do "Partiu Rádio Disney". */
+  cliente?: string;
+  locutor?: string;
+  horario?: string;
+  tipo?: TipoPauta;
 };
 
 export type Prioridade = ItemNoAr & { imagem_path: string | null };
 
 /** Recado rápido: sem imagem, pode ser destacado. */
 export type Recado = ItemNoAr & { destaque: boolean };
+
+/** Conexões: institucional e atemporal da emissora (igual às prioridades). */
+export type Conexao = Prioridade;
+
+export type TipoPauta = "EXPECTATIVA" | "VALENDO";
+
+export const TIPO_PAUTA_LABEL: Record<TipoPauta, string> = {
+  EXPECTATIVA: "Expectativa",
+  VALENDO: "Valendo",
+};
+
+/** Pauta de ação externa ("Partiu Rádio Disney"): vai ao ar num horário, lida por um locutor. */
+export type Pauta = ItemNoAr & { cliente: string; locutor: string; horario: string; tipo: TipoPauta };
+
+/** O "feito" do locutor: uma por pauta por dia. */
+export type PautaRealizada = {
+  id: string;
+  pauta_id: string;
+  dia: string;
+  realizado_em: string;
+  origem: "locutor" | "producao";
+};
 
 export type Convidado = {
   id: string;

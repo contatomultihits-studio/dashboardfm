@@ -266,3 +266,40 @@ tr.editando td { background: #fffbd1; }
   .barra-dia-acoes { width: 100%; }
   .barra-dia-acoes button { flex: 1 1 auto; }
 }
+
+/* ---------- Partiu Rádio Disney (pautas de ações externas) ---------- */
+button.amarelo { background: var(--amarelo); }
+button.grande { font-size: 1.15rem; padding: 14px 22px; }
+.etiqueta.expectativa { background: var(--amarelo); }
+.etiqueta.valendo { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }
+.item-card.pauta-card { background: #e0f2fe; min-height: 170px; align-content: start; gap: 4px; }
+.pauta-topo { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+.pauta-hora { font-size: 2.1rem; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+.pauta-cliente { font-size: 1.2rem; font-weight: 900; text-transform: uppercase; line-height: 1.1; }
+.pauta-acao { font-size: 0.85rem; color: var(--muted); font-weight: 700; }
+.pauta-locutor { font-size: 0.95rem; font-weight: 800; }
+.etiqueta.status-pendente { background: #fff; }
+.etiqueta.status-agora { background: var(--amarelo); animation: pisca 1s steps(2) infinite; }
+.etiqueta.status-atrasada, .etiqueta.status-nao-feita { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }
+.etiqueta.status-feita { background: var(--verde); }
+.item-card.pauta-card.pauta-atrasada { border-color: #b91c1c; box-shadow: 4px 4px 0 #b91c1c; }
+.item-card.pauta-card.pauta-agora { background: #fef9c3; }
+.item-card.pauta-card.pauta-feita { background: #dcfce7; opacity: 0.8; }
+@keyframes pisca { 50% { filter: brightness(0.85); } }
+@media (prefers-reduced-motion: reduce) { .etiqueta.status-agora { animation: none; } }
+.pauta-checkout { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 3px dashed var(--ink); padding-top: 14px; margin-top: 6px; }
+.pauta-checkout.feita strong { font-size: 1.2rem; background: var(--verde); border: 2px solid var(--ink); border-radius: 12px; padding: 6px 12px; }
+.pauta-msg { font-weight: 800; }
+.pauta-msg.erro { color: #b91c1c; }
+.pauta-grade { grid-template-columns: 2fr 1.4fr 1fr; }
+@media (max-width: 600px) { .pauta-grade { grid-template-columns: 1fr; } }
+
+/* Conexões: card com foto, igual às prioridades, com faixa azul */
+.item-card.conexao-card { border-top-width: 8px; border-top-color: var(--azul); }
+
+/* Relatório de pautas */
+.relatorio-resumo { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 12px; }
+.relatorio-resumo span { border: 2px solid var(--ink); border-radius: 12px; padding: 6px 12px; background: var(--verde); font-weight: 700; }
+.relatorio-resumo span.falta { background: #ffe1e3; }
+.etiqueta.relatorio-falta { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }
+.relatorio-texto { white-space: pre-wrap; background: #f8fafc; border: 2px dashed var(--ink); border-radius: 12px; padding: 12px; font-size: 0.85rem; max-height: 260px; overflow: auto; }
