@@ -302,11 +302,8 @@ export function Dashboard() {
     setMsgPauta({ texto: "Desfeito: a pauta voltou para pendente." });
   }
 
-  // Datas comemorativas do dia escolhido e dos 6 seguintes (calculadas, sem buscar nada).
-  const datas = useMemo(() => (dia ? datasEntre(dia, 7) : []), [dia]);
-  // Faixa do topo: a data comemorativa do dia vem primeiro, depois os recados.
-  const datasDoDia = useMemo(() => datas.filter((d) => d.data === dia), [datas, dia]);
-  const proximasDatas = useMemo(() => datas.filter((d) => d.data !== dia), [datas, dia]);
+  // Faixa do topo: a data comemorativa do dia (calculada, sem buscar nada) vem primeiro, depois os recados.
+  const datasDoDia = useMemo(() => (dia ? datasEntre(dia, 1) : []), [dia]);
   const faixaTopo = useMemo<ItemTopo[]>(
     () => [
       ...datasDoDia.map((d) => ({ id: `data-${d.id}`, tipo: "data" as const, d })),
@@ -314,13 +311,6 @@ export function Dashboard() {
     ],
     [datasDoDia, recadosNoAr],
   );
-  const quandoData = (data: string) => {
-    if (!dia) return "";
-    if (data === dia) return ehHoje ? "Hoje" : "Neste dia";
-    const n = Math.round((Date.parse(data) - Date.parse(dia)) / 86_400_000);
-    if (n === 1 && ehHoje) return "Amanhã";
-    return `Em ${n} dias · ${fmtDiaMes(data)}`;
-  };
 
   return (
     <>
@@ -374,7 +364,7 @@ export function Dashboard() {
                       onClick={() => abrir({ tipo: "data", item: d })}
                     >
                       <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
-                        <span className="etiqueta data-hoje">{quandoData(d.data)}</span>
+                        <span className="etiqueta data-hoje">{ehHoje ? "Hoje" : "Neste dia"}</span>
                         {d.feriado && <span className="etiqueta destaque">Feriado</span>}
                       </span>
                       <span className="item-titulo">{d.titulo}</span>
@@ -494,23 +484,6 @@ export function Dashboard() {
                       {e.local && <small>📍 {e.local}</small>}
                     </div>
                   </div>
-                </button>
-              )}
-            />
-
-            <Carrossel
-              key={`datas-${dia}`}
-              titulo="Próximas datas comemorativas"
-              itens={proximasDatas}
-              porPaginaMax={4}
-              vazio="Nenhuma data comemorativa nos próximos 6 dias."
-              render={(d) => (
-                <button type="button" className="item-card data-card" onClick={() => abrir({ tipo: "data", item: d })}>
-                  <span className="item-rodape" style={{ justifyContent: "flex-start", flexWrap: "wrap" }}>
-                    <span className="etiqueta cinza">{quandoData(d.data)}</span>
-                    {d.feriado && <span className="etiqueta destaque">Feriado</span>}
-                  </span>
-                  <span className="item-titulo">{d.titulo}</span>
                 </button>
               )}
             />
