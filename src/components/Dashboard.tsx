@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AvisoConfig } from "@/components/AvisoConfig";
 import { Carrossel } from "@/components/Carrossel";
 import { Imagem } from "@/components/Imagem";
+import { LembretePautas } from "@/components/LembretePautas";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { Topbar } from "@/components/Topbar";
@@ -14,7 +15,7 @@ import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
 import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
-import { horaNoFuso, ordenarPautas, situacaoPauta } from "@/lib/pautas";
+import { horaNoFuso, ordenarPautas, pautasParaLembrar, situacaoPauta } from "@/lib/pautas";
 import { TIPO_PAUTA_LABEL, VINCULO_LABEL, type Conexao, type Convidado, type Evento, type Pauta, type PautaRealizada, type Prioridade, type Recado } from "@/lib/tipos";
 
 /** Convidado na dashboard: os que já vieram aparecem depois dos próximos, em preto e branco. */
@@ -257,7 +258,7 @@ export function Dashboard() {
   // Relógio: a cada 30 s confere quem entrou ou saiu do ar pelo horário.
   const [agora, setAgora] = useState(agoraHHMM());
   useEffect(() => {
-    const timer = setInterval(() => setAgora(agoraHHMM()), 30_000);
+    const timer = setInterval(() => setAgora(agoraHHMM()), 15_000);
     return () => clearInterval(timer);
   }, []);
 
@@ -276,6 +277,12 @@ export function Dashboard() {
   );
   const feitas = useMemo(() => new Map(realizadas.map((x) => [x.pauta_id, x])), [realizadas]);
   const pautasDoDia = useMemo(() => ordenarPautas(pautas, feitas), [pautas, feitas]);
+  // Lembrete na tela 5 min antes de cada pauta de hoje (o locutor pode fechar o aviso).
+  const [dispensadas, setDispensadas] = useState<Set<string>>(() => new Set());
+  const lembretes = useMemo(
+    () => (ehHoje ? pautasParaLembrar(pautas, feitas, dispensadas, agora) : []),
+    [ehHoje, pautas, feitas, dispensadas, agora],
+  );
   const [marcando, setMarcando] = useState(false);
   const [msgPauta, setMsgPauta] = useState<{ texto: string; erro?: boolean } | null>(null);
 
@@ -525,6 +532,11 @@ export function Dashboard() {
           <TextoRico html={aberto.item.conteudo_html} />
         </Modal>
       )}
+      <LembretePautas
+        lembretes={aberto?.tipo === "pauta" ? lembretes.filter((l) => l.pauta.id !== aberto.item.id) : lembretes}
+        onAbrir={(p) => abrir({ tipo: "pauta", item: p })}
+        onFechar={(id) => setDispensadas((d) => new Set(d).add(id))}
+      />
       {aberto?.tipo === "conexao" && (
         <Modal titulo={aberto.item.titulo || "Conexão"} onFechar={fechar} leitura>
           <div className="modal-meta">

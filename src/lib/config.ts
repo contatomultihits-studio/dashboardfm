@@ -10,3 +10,8 @@ export const FUSO = "America/Sao_Paulo";
 
 /** Até quantos minutos de diferença do horário previsto a pauta conta como "no horário". */
 export const TOLERANCIA_PAUTA_MIN = 5;
+
+/** Quantos minutos antes do horário da pauta aparece o lembrete na tela. */
+export const LEMBRETE_PAUTA_MIN = 5;
+/** Até quantos minutos de atraso o lembrete continua na tela (depois fica só o card "atrasada"). */
+export const LEMBRETE_ATRASO_MAX_MIN = 30;

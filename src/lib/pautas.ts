@@ -1,6 +1,6 @@
 // Regras do "Partiu Rádio Disney": situação de cada pauta no dia e o relatório para Opec/produção.
 
-import { FUSO, TOLERANCIA_PAUTA_MIN } from "@/lib/config";
+import { FUSO, LEMBRETE_ATRASO_MAX_MIN, LEMBRETE_PAUTA_MIN, TOLERANCIA_PAUTA_MIN } from "@/lib/config";
 import { fmtData, horaCurta } from "@/lib/datas";
 import { TIPO_PAUTA_LABEL, type Pauta, type PautaRealizada } from "@/lib/tipos";
 
@@ -52,6 +52,33 @@ export function ordenarPautas<T extends Pick<Pauta, "id" | "horario">>(pautas: T
     const fb = feitas.has(b.id) ? 1 : 0;
     return fa - fb || a.horario.localeCompare(b.horario);
   });
+}
+
+export type Lembrete<T> = { pauta: T; faltam: number };
+
+/**
+ * Pautas de hoje que pedem atenção agora: faltam até LEMBRETE_PAUTA_MIN minutos, ou já passaram
+ * há no máximo LEMBRETE_ATRASO_MAX_MIN, sem "feita" e sem o locutor ter fechado o aviso.
+ * A mais urgente vem primeiro.
+ */
+export function pautasParaLembrar<T extends Pick<Pauta, "id" | "horario">>(
+  pautas: T[],
+  feitas: Map<string, unknown>,
+  dispensadas: Set<string>,
+  agora: string,
+): Lembrete<T>[] {
+  return pautas
+    .filter((p) => !feitas.has(p.id) && !dispensadas.has(p.id))
+    .map((p) => ({ pauta: p, faltam: minutosEntre(agora, horaCurta(p.horario) ?? "00:00") }))
+    .filter((l) => l.faltam <= LEMBRETE_PAUTA_MIN && l.faltam >= -LEMBRETE_ATRASO_MAX_MIN)
+    .sort((a, b) => a.faltam - b.faltam);
+}
+
+/** "Em 5 min", "É agora!", "Atrasada 3 min". */
+export function textoFaltam(faltam: number): string {
+  if (faltam > 0) return `Em ${faltam} min`;
+  if (faltam === 0) return "É agora!";
+  return `Atrasada ${-faltam} min`;
 }
 
 export type LinhaRelatorio = {

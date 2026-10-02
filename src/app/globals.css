@@ -303,3 +303,20 @@ button.grande { font-size: 1.15rem; padding: 14px 22px; }
 .relatorio-resumo span.falta { background: #ffe1e3; }
 .etiqueta.relatorio-falta { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }
 .relatorio-texto { white-space: pre-wrap; background: #f8fafc; border: 2px dashed var(--ink); border-radius: 12px; padding: 12px; font-size: 0.85rem; max-height: 260px; overflow: auto; }
+
+/* Lembrete de pauta: aviso fixo na tela, 5 min antes */
+.lembretes { position: fixed; right: 16px; bottom: 16px; z-index: 40; display: grid; gap: 10px; width: min(460px, calc(100vw - 32px)); }
+.lembrete { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; background: var(--amarelo); border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--sombra); padding: 12px 14px; animation: lembrete-entra 0.35s ease-out; }
+.lembrete.agora { background: #ffd43b; animation: lembrete-entra 0.35s ease-out, lembrete-pulsa 1.2s ease-in-out infinite; }
+.lembrete.atrasada { background: #ffe1e3; border-color: #b91c1c; box-shadow: 6px 6px 0 #b91c1c; }
+.lembrete-sino { font-size: 2rem; line-height: 1; animation: lembrete-sino 1s ease-in-out infinite; }
+.lembrete-texto { display: grid; gap: 2px; min-width: 0; }
+.lembrete-texto strong { font-size: 1.25rem; font-weight: 900; text-transform: uppercase; line-height: 1.1; overflow-wrap: anywhere; }
+.lembrete-quando { font-size: 0.75rem; font-weight: 900; text-transform: uppercase; }
+.lembrete.atrasada .lembrete-quando { color: #b91c1c; }
+.lembrete-acoes { display: grid; gap: 6px; justify-items: end; }
+@keyframes lembrete-entra { from { transform: translateY(20px); opacity: 0; } }
+@keyframes lembrete-pulsa { 50% { background: #fff06a; box-shadow: 6px 6px 0 #b45309; } }
+@keyframes lembrete-sino { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
+@media (prefers-reduced-motion: reduce) { .lembrete, .lembrete.agora, .lembrete-sino { animation: none; } }
+@media (max-width: 600px) { .lembrete { grid-template-columns: 1fr auto; } .lembrete-sino { display: none; } }

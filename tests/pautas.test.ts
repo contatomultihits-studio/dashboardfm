@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fimDoPeriodo, ehSemPrazo, SEM_PRAZO } from "@/lib/datas";
-import { csvRelatorio, horaNoFuso, instanteNoFuso, linhasRelatorio, minutosEntre, ordenarPautas, resumoRelatorio, situacaoPauta, textoRelatorio } from "@/lib/pautas";
+import { csvRelatorio, horaNoFuso, instanteNoFuso, linhasRelatorio, minutosEntre, ordenarPautas, pautasParaLembrar, resumoRelatorio, situacaoPauta, textoFaltam, textoRelatorio } from "@/lib/pautas";
 import type { Pauta, PautaRealizada } from "@/lib/tipos";
 
 const pauta = (id: string, horario: string, extra: Partial<Pauta> = {}): Pauta => ({
@@ -81,6 +81,23 @@ describe("pautas", () => {
     expect(csv.startsWith("﻿Data;Horário previsto;Cliente")).toBe(true);
     expect(csv).toContain('"Shopping; Centro"');
     expect(csv.split("\r\n")).toHaveLength(5);
+  });
+
+  it("lembrete: 5 min antes até 30 min de atraso, sem as feitas e as fechadas", () => {
+    const ps = [
+      pauta("cedo", "10:06:00"),
+      pauta("logo", "10:05:00"),
+      pauta("agora", "10:00:00"),
+      pauta("atrasada", "09:40:00"),
+      pauta("velha", "09:20:00"),
+      pauta("feita", "10:01:00"),
+      pauta("fechada", "10:02:00"),
+    ];
+    const l = pautasParaLembrar(ps, new Map([["feita", 1]]), new Set(["fechada"]), "10:00");
+    expect(l.map((x) => [x.pauta.id, x.faltam])).toEqual([["atrasada", -20], ["agora", 0], ["logo", 5]]);
+    expect(textoFaltam(5)).toBe("Em 5 min");
+    expect(textoFaltam(0)).toBe("É agora!");
+    expect(textoFaltam(-3)).toBe("Atrasada 3 min");
   });
 
   it("duração em dias e 'sem prazo'", () => {
