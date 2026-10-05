@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diaDaSemana, faixasDoDia, fimDeSemana, horarioFaixa, noArEm, nomesFaixa, proximaFaixa, quemVemDepois } from "@/lib/escala";
+import { diaDaSemana, faixasDoDia, fimDeSemana, finsDeSemanaProntos, horarioFaixa, noArEm, nomesFaixa, proximaFaixa, quemVemDepois } from "@/lib/escala";
 import type { ItemEscala, Locutor } from "@/lib/tipos";
 
 const loc = (id: string, nome: string, inicio: string | null = null, fim: string | null = null, extra: Partial<Locutor> = {}): Locutor => ({
@@ -111,6 +111,12 @@ describe("escala de locutores", () => {
     expect(fimDeSemana("2026-10-10")).toEqual(["2026-10-10", "2026-10-11"]); // sábado
     expect(fimDeSemana("2026-10-11")).toEqual(["2026-10-10", "2026-10-11"]); // domingo
     expect(fimDeSemana("2026-12-28")).toEqual(["2027-01-02", "2027-01-03"]); // virada de ano
+  });
+
+  it("setas: o fim de semana atual e os próximos que já têm escala", () => {
+    const prontos = [{ data: "2026-10-11" }, { data: "2026-10-17" }, { data: "2026-10-18" }, { data: "2026-10-14" }, { data: "2026-10-03" }, { data: "2026-11-01" }];
+    expect(finsDeSemanaProntos("2026-10-05", prontos)).toEqual(["2026-10-10", "2026-10-17", "2026-10-31"]);
+    expect(finsDeSemanaProntos("2026-10-05", [])).toEqual(["2026-10-10"]);
   });
 
   it("formata horários quebrados", () => {

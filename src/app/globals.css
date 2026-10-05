@@ -336,7 +336,7 @@ fieldset.grupo legend { font-weight: 900; font-size: 0.8rem; text-transform: upp
 
 
 /* No topo: quem está no ar agora */
-.no-ar-topo { display: flex; align-items: center; gap: 10px; margin-left: auto; padding: 5px 14px 5px 6px; border: 3px solid var(--ink); border-radius: 999px; background: #dcfce7; box-shadow: 3px 3px 0 var(--ink); min-width: 0; }
+.no-ar-topo { display: flex; align-items: center; gap: 10px; padding: 5px 14px 5px 6px; border: 3px solid var(--ink); border-radius: 999px; background: #dcfce7; box-shadow: 3px 3px 0 var(--ink); min-width: 0; }
 .no-ar-topo-texto { display: grid; line-height: 1.12; min-width: 0; }
 .no-ar-topo-texto small { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .no-ar-topo-texto strong { font-size: 1.15rem; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -344,7 +344,7 @@ fieldset.grupo legend { font-weight: 900; font-size: 0.8rem; text-transform: upp
 .no-ar-topo-gravado { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: #fff; }
 @keyframes pisca-ponto { 50% { opacity: 0.25; } }
 @media (prefers-reduced-motion: reduce) { .no-ar-ponto { animation: none; } }
-@media (max-width: 1000px) { .no-ar-topo { margin-left: 0; } }
+@media (max-width: 1000px) { .no-ar-topo { flex: 1 1 100%; } }
 
 /* Escala do fim de semana */
 .fds-dias { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -355,7 +355,11 @@ fieldset.grupo legend { font-weight: 900; font-size: 0.8rem; text-transform: upp
 .fds-dia li.no-ar { background: #dcfce7; box-shadow: 3px 3px 0 var(--ink); }
 .fds-dia li strong { font-weight: 900; text-transform: uppercase; overflow-wrap: break-word; }
 .fds-horario { font-weight: 900; white-space: nowrap; }
-.fds-folga { margin: 14px 0 0; font-weight: 800; text-transform: uppercase; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.fds-folga { margin-top: 16px; border: 3px solid var(--ink); border-radius: 16px; overflow: hidden; box-shadow: 4px 4px 0 var(--ink); }
+.fds-folga-titulo { background: var(--vermelho); color: #fff; text-align: center; font-weight: 900; font-size: 1.15rem; text-transform: uppercase; letter-spacing: 1px; padding: 6px; border-bottom: 3px solid var(--ink); }
+.fds-folga-nomes { list-style: none; margin: 0; padding: 10px 14px; background: var(--amarelo); display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 22px; }
+.fds-folga-nomes li { display: flex; align-items: center; gap: 8px; }
+.fds-folga-nomes strong { font-size: 1.1rem; font-weight: 900; text-transform: uppercase; }
 @media (max-width: 700px) {
   .fds-dias { grid-template-columns: 1fr; }
   .fds-dia li { grid-template-columns: auto 1fr; }

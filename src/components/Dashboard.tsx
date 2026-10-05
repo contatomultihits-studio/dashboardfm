@@ -16,7 +16,7 @@ import { agoraHHMM, ehSemPrazo, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeI
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
-import { fimDeSemana, noArEm, quemVemDepois } from "@/lib/escala";
+import { noArEm, quemVemDepois } from "@/lib/escala";
 import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
 import { horaNoFuso, ordenarPautas, pautasParaLembrar, situacaoPauta } from "@/lib/pautas";
@@ -198,9 +198,9 @@ export function Dashboard() {
       // Partiu Rádio Disney: pautas do dia e o que o locutor já marcou como feito.
       sb.from("pautas").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true).order("horario"),
       sb.from("pautas_realizadas").select("*").eq("dia", dia),
-      // Escala: locutores e o escalado de ontem (madrugada) até o fim do próximo fim de semana.
+      // Escala: locutores e o escalado de ontem (madrugada) até ~3 meses à frente (fins de semana prontos).
       sb.from("locutores").select("*").eq("ativo", true),
-      sb.from("escala").select("*").gte("data", somarDias(hojeISO(), -1)).lte("data", fimDeSemana(hojeISO())[1]),
+      sb.from("escala").select("*").gte("data", somarDias(hojeISO(), -1)).lte("data", somarDias(hojeISO(), 100)).limit(1000),
       sb.from("convidados").select("*").gte("data_visita", dia).eq("ativo", true).eq("concluido", false)
         .order("data_visita").order("horario", { nullsFirst: false }).limit(60),
       // Últimos que já vieram: data anterior ao dia ou marcados como "já veio".
@@ -299,7 +299,6 @@ export function Dashboard() {
   const hojeAgora = useMemo(() => hojeISO(), [agora]); // eslint-disable-line react-hooks/exhaustive-deps
   const noAr = useMemo(() => noArEm(hojeAgora, agora, locutores, escala), [hojeAgora, agora, locutores, escala]);
   const depois = useMemo(() => quemVemDepois(hojeAgora, agora, locutores, escala), [hojeAgora, agora, locutores, escala]);
-  const [sabado, domingo] = fimDeSemana(hojeAgora);
   // Lembrete na tela 5 min antes de cada pauta de hoje (o locutor pode fechar o aviso).
   const [dispensadas, setDispensadas] = useState<Set<string>>(() => new Set());
   const lembretes = useMemo(
@@ -349,6 +348,7 @@ export function Dashboard() {
         meio={
           sb && (
             <div className="barra-dia" role="group" aria-label="Dia">
+              {locutores.length > 0 && <NoArTopo sb={sb} noAr={noAr} depois={depois} />}
               <div className="barra-dia-data">
                 <small>
                   {ehHoje ? "Hoje" : "Dia selecionado"}
@@ -363,7 +363,6 @@ export function Dashboard() {
                 <button type="button" className="pequeno verde" disabled={!dia} onClick={() => dia && mudarDia(somarDias(dia, 1))}>Próximo dia ▶</button>
                 <button type="button" className="pequeno branco" onClick={carregar} title="Buscar de novo agora">↻ Atualizar</button>
               </div>
-              {locutores.length > 0 && <NoArTopo sb={sb} noAr={noAr} depois={depois} />}
             </div>
           )
         }
@@ -521,10 +520,6 @@ export function Dashboard() {
               )}
             />
 
-            {locutores.length > 0 && (
-              <EscalaFimDeSemana sb={sb} sabado={sabado} domingo={domingo} locutores={locutores} escala={escala} noAr={noAr} />
-            )}
-
             {videos.length > 0 && (
               <Carrossel
                 titulo="Últimos vídeos no YouTube"
@@ -548,6 +543,8 @@ export function Dashboard() {
                 )}
               />
             )}
+
+            {locutores.length > 0 && <EscalaFimDeSemana sb={sb} hoje={hojeAgora} locutores={locutores} escala={escala} noAr={noAr} />}
           </>
         )}
       </main>

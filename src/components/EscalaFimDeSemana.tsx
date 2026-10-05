@@ -1,22 +1,32 @@
 "use client";
 
+import { useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Avatares } from "@/components/Avatar";
-import { fmtDiaMes } from "@/lib/datas";
-import { faixasDoDia, horarioFaixa, nomesFaixa, type Faixa } from "@/lib/escala";
+import { Avatar, Avatares } from "@/components/Avatar";
+import { fmtDiaMes, somarDias } from "@/lib/datas";
+import { faixasDoDia, finsDeSemanaProntos, horarioFaixa, nomesFaixa, type Faixa } from "@/lib/escala";
 import type { ItemEscala, Locutor } from "@/lib/tipos";
 
 const mesmaFaixa = (a: Faixa | null, b: Faixa) => Boolean(a) && a!.data === b.data && a!.inicioMin === b.inicioMin && a!.origem === b.origem;
 
-/** Escala do fim de semana (sábado e domingo lado a lado), com quem está de folga. */
-export function EscalaFimDeSemana({ sb, sabado, domingo, locutores, escala, noAr }: {
+/**
+ * Escala do fim de semana (sábado e domingo lado a lado), com a folga em destaque.
+ * Começa no fim de semana atual/próximo; as setas passam pelos seguintes que já estão prontos.
+ */
+export function EscalaFimDeSemana({ sb, hoje, locutores, escala, noAr }: {
   sb: SupabaseClient | null;
-  sabado: string;
-  domingo: string;
+  hoje: string;
   locutores: Locutor[];
   escala: ItemEscala[];
   noAr: Faixa | null;
 }) {
+  const sabados = finsDeSemanaProntos(hoje, escala);
+  const [escolhido, setEscolhido] = useState<string | null>(null);
+  // Se o fim de semana escolhido já passou (ou sumiu), volta para o primeiro.
+  const indice = Math.max(0, escolhido ? sabados.indexOf(escolhido) : 0);
+  const sabado = sabados[indice];
+  const domingo = somarDias(sabado, 1);
+
   const dias = [
     { rotulo: "Sábado", data: sabado, faixas: faixasDoDia(sabado, locutores, escala) },
     { rotulo: "Domingo", data: domingo, faixas: faixasDoDia(domingo, locutores, escala) },
@@ -29,6 +39,13 @@ export function EscalaFimDeSemana({ sb, sabado, domingo, locutores, escala, noAr
     <section className="card secao-fds" aria-label="Escala do fim de semana">
       <div className="secao-topo">
         <h2>Escala do fim de semana · {fmtDiaMes(sabado)} e {fmtDiaMes(domingo)}</h2>
+        {sabados.length > 1 && (
+          <div className="carrossel-nav">
+            <button type="button" className="icone branco" aria-label="Fim de semana anterior" disabled={indice === 0} onClick={() => setEscolhido(sabados[indice - 1])}>◀</button>
+            <span aria-live="polite" style={{ whiteSpace: "nowrap" }}>{indice + 1} de {sabados.length}</span>
+            <button type="button" className="icone" aria-label="Próximo fim de semana" disabled={indice === sabados.length - 1} onClick={() => setEscolhido(sabados[indice + 1])}>▶</button>
+          </div>
+        )}
       </div>
       {vazio ? (
         <div className="vazio">Escala deste fim de semana ainda não definida.</div>
@@ -56,7 +73,17 @@ export function EscalaFimDeSemana({ sb, sabado, domingo, locutores, escala, noAr
             ))}
           </div>
           {folga.length > 0 && (
-            <p className="fds-folga"><span className="etiqueta destaque">Folga</span> {folga.map((l) => l.nome).join(" · ")}</p>
+            <div className="fds-folga" role="group" aria-label="Folga dupla">
+              <div className="fds-folga-titulo">Folga dupla</div>
+              <ul className="fds-folga-nomes">
+                {folga.map((l) => (
+                  <li key={l.id}>
+                    <Avatar sb={sb} locutor={l} tamanho={44} />
+                    <strong>{l.nome}</strong>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </>
       )}

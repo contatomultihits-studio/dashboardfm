@@ -105,3 +105,20 @@ export function fimDeSemana(hoje: string): [string, string] {
   const sabado = d === 6 ? hoje : d === 0 ? somarDias(hoje, -1) : somarDias(hoje, 6 - d);
   return [sabado, somarDias(sabado, 1)];
 }
+
+/**
+ * Sábados dos fins de semana a mostrar nas setas: o atual (sempre) e os seguintes
+ * que já têm escala montada, em ordem.
+ */
+export function finsDeSemanaProntos(hoje: string, escala: Pick<ItemEscala, "data">[]): string[] {
+  const [atual] = fimDeSemana(hoje);
+  const sabados = new Set([atual]);
+  for (const e of escala) {
+    const d = diaDaSemana(e.data);
+    if (d === 6 || d === 0) {
+      const sab = d === 6 ? e.data : somarDias(e.data, -1);
+      if (sab > atual) sabados.add(sab);
+    }
+  }
+  return [...sabados].sort();
+}
