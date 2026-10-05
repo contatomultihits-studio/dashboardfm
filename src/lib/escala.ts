@@ -89,13 +89,19 @@ export function proximaFaixa(data: string, hora: string, locutores: Locutor[], e
 }
 
 /**
- * O que mostrar na dashboard para um dia: a faixa da noite anterior que entra no dia
- * (só enquanto ainda está no ar, se for hoje) e as faixas que começam no dia.
+ * Quem entra depois da hora: no mesmo dia ou, se acabou a escala do dia, o primeiro do dia seguinte.
+ * `amanha` indica que é do dia seguinte.
  */
-export function escalaParaMostrar(data: string, locutores: Locutor[], escala: ItemEscala[], agora?: string): Faixa[] {
-  const doDia = faixasDoDia(data, locutores, escala);
-  const ontem = faixasDoDia(somarDias(data, -1), locutores, escala).filter(
-    (f) => f.fimMin > 1440 && (agora === undefined || minutos(agora) + 1440 < f.fimMin),
-  );
-  return [...ontem, ...doDia];
+export function quemVemDepois(data: string, hora: string, locutores: Locutor[], escala: ItemEscala[]): { faixa: Faixa; amanha: boolean } | null {
+  const hoje = proximaFaixa(data, hora, locutores, escala);
+  if (hoje) return { faixa: hoje, amanha: false };
+  const amanha = faixasDoDia(somarDias(data, 1), locutores, escala)[0];
+  return amanha ? { faixa: amanha, amanha: true } : null;
+}
+
+/** Sábado e domingo a mostrar: o fim de semana em curso (sáb/dom) ou o próximo (seg a sex). */
+export function fimDeSemana(hoje: string): [string, string] {
+  const d = diaDaSemana(hoje);
+  const sabado = d === 6 ? hoje : d === 0 ? somarDias(hoje, -1) : somarDias(hoje, 6 - d);
+  return [sabado, somarDias(sabado, 1)];
 }

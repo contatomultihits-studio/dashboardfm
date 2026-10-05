@@ -5,7 +5,8 @@ import { AvisoConfig } from "@/components/AvisoConfig";
 import { Carrossel } from "@/components/Carrossel";
 import { Imagem } from "@/components/Imagem";
 import { Avatar } from "@/components/Avatar";
-import { EscalaDia } from "@/components/EscalaDia";
+import { EscalaFimDeSemana } from "@/components/EscalaFimDeSemana";
+import { NoArTopo } from "@/components/NoArTopo";
 import { LembretePautas } from "@/components/LembretePautas";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
@@ -15,7 +16,7 @@ import { agoraHHMM, ehSemPrazo, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeI
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
-import { escalaParaMostrar, noArEm } from "@/lib/escala";
+import { fimDeSemana, noArEm, quemVemDepois } from "@/lib/escala";
 import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
 import { horaNoFuso, ordenarPautas, pautasParaLembrar, situacaoPauta } from "@/lib/pautas";
@@ -197,9 +198,9 @@ export function Dashboard() {
       // Partiu Rádio Disney: pautas do dia e o que o locutor já marcou como feito.
       sb.from("pautas").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true).order("horario"),
       sb.from("pautas_realizadas").select("*").eq("dia", dia),
-      // Escala: locutores e o que foi escalado no dia (e na véspera, por causa da madrugada).
+      // Escala: locutores e o escalado de ontem (madrugada) até o fim do próximo fim de semana.
       sb.from("locutores").select("*").eq("ativo", true),
-      sb.from("escala").select("*").gte("data", somarDias(dia, -1)).lte("data", dia),
+      sb.from("escala").select("*").gte("data", somarDias(hojeISO(), -1)).lte("data", fimDeSemana(hojeISO())[1]),
       sb.from("convidados").select("*").gte("data_visita", dia).eq("ativo", true).eq("concluido", false)
         .order("data_visita").order("horario", { nullsFirst: false }).limit(60),
       // Últimos que já vieram: data anterior ao dia ou marcados como "já veio".
@@ -294,8 +295,11 @@ export function Dashboard() {
   const feitas = useMemo(() => new Map(realizadas.map((x) => [x.pauta_id, x])), [realizadas]);
   const pautasDoDia = useMemo(() => ordenarPautas(pautas, feitas), [pautas, feitas]);
   const locutorPorId = useMemo(() => new Map(locutores.map((l) => [l.id, l])), [locutores]);
-  const faixas = useMemo(() => (dia ? escalaParaMostrar(dia, locutores, escala, ehHoje ? agora : undefined) : []), [dia, locutores, escala, ehHoje, agora]);
-  const noAr = useMemo(() => (dia && ehHoje ? noArEm(dia, agora, locutores, escala) : null), [dia, ehHoje, agora, locutores, escala]);
+  // Quem está no ar é sempre sobre agora (mesmo olhando outro dia); `agora` muda a cada 15s.
+  const hojeAgora = useMemo(() => hojeISO(), [agora]); // eslint-disable-line react-hooks/exhaustive-deps
+  const noAr = useMemo(() => noArEm(hojeAgora, agora, locutores, escala), [hojeAgora, agora, locutores, escala]);
+  const depois = useMemo(() => quemVemDepois(hojeAgora, agora, locutores, escala), [hojeAgora, agora, locutores, escala]);
+  const [sabado, domingo] = fimDeSemana(hojeAgora);
   // Lembrete na tela 5 min antes de cada pauta de hoje (o locutor pode fechar o aviso).
   const [dispensadas, setDispensadas] = useState<Set<string>>(() => new Set());
   const lembretes = useMemo(
@@ -359,6 +363,7 @@ export function Dashboard() {
                 <button type="button" className="pequeno verde" disabled={!dia} onClick={() => dia && mudarDia(somarDias(dia, 1))}>Próximo dia ▶</button>
                 <button type="button" className="pequeno branco" onClick={carregar} title="Buscar de novo agora">↻ Atualizar</button>
               </div>
+              {locutores.length > 0 && <NoArTopo sb={sb} noAr={noAr} depois={depois} />}
             </div>
           )
         }
@@ -411,18 +416,6 @@ export function Dashboard() {
                 );
               }}
             />
-
-            {dia && (locutores.length > 0 || escala.length > 0) && (
-              <EscalaDia
-                sb={sb}
-                dia={dia}
-                faixas={faixas}
-                noAr={noAr}
-                ehHoje={ehHoje}
-                agora={agora}
-                titulo={ehHoje ? "Escala de hoje" : `Escala · ${fmtDiaSemana(dia)}`}
-              />
-            )}
 
             <Carrossel
               key={`prio-${dia}`}
@@ -527,6 +520,10 @@ export function Dashboard() {
                 </button>
               )}
             />
+
+            {locutores.length > 0 && (
+              <EscalaFimDeSemana sb={sb} sabado={sabado} domingo={domingo} locutores={locutores} escala={escala} noAr={noAr} />
+            )}
 
             {videos.length > 0 && (
               <Carrossel

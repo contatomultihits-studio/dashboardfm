@@ -332,19 +332,33 @@ fieldset.grupo legend { font-weight: 900; font-size: 0.8rem; text-transform: upp
 .campo-locutor { display: grid; gap: 4px; align-content: start; }
 .campo-locutor-linha { display: flex; gap: 8px; align-items: center; }
 .campo-locutor-linha select { flex: 1; min-width: 0; }
-.escala-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
-.escala-item { display: flex; gap: 10px; align-items: center; border: 3px solid var(--ink); border-top-width: 7px; border-radius: 16px; padding: 10px 12px; background: var(--surface); box-shadow: 3px 3px 0 var(--ink); }
-.escala-texto { display: grid; gap: 2px; min-width: 0; }
-.escala-texto strong { font-size: 1rem; font-weight: 900; text-transform: uppercase; line-height: 1.1; overflow-wrap: break-word; }
-.escala-horario { font-weight: 800; font-size: 0.85rem; }
-.escala-programa { font-size: 0.75rem; color: var(--muted); font-weight: 700; }
-.escala-item.no-ar { background: #dcfce7; grid-column: span 2; box-shadow: 5px 5px 0 var(--ink); }
-.escala-item.no-ar strong { font-size: 1.35rem; }
-.escala-item.passou { opacity: 0.45; }
-.escala-item.a-seguir { background: #fefce8; }
-.etiqueta.no-ar-agora { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }
 .lembrete-foto { display: grid; }
-@media (max-width: 600px) {
-  .escala-lista { grid-template-columns: 1fr 1fr; }
-  .escala-item { flex-direction: column; align-items: flex-start; }
+
+
+/* No topo: quem está no ar agora */
+.no-ar-topo { display: flex; align-items: center; gap: 10px; margin-left: auto; padding: 5px 14px 5px 6px; border: 3px solid var(--ink); border-radius: 999px; background: #dcfce7; box-shadow: 3px 3px 0 var(--ink); min-width: 0; }
+.no-ar-topo-texto { display: grid; line-height: 1.12; min-width: 0; }
+.no-ar-topo-texto small { font-size: 0.68rem; font-weight: 800; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.no-ar-topo-texto strong { font-size: 1.15rem; font-weight: 900; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.no-ar-ponto { color: var(--vermelho); animation: pisca-ponto 1.4s steps(2) infinite; }
+.no-ar-topo-gravado { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: var(--ink); color: #fff; }
+@keyframes pisca-ponto { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .no-ar-ponto { animation: none; } }
+@media (max-width: 1000px) { .no-ar-topo { margin-left: 0; } }
+
+/* Escala do fim de semana */
+.fds-dias { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.fds-dia h3 { font-size: 1rem; margin-bottom: 8px; }
+.fds-dia h3 span { color: var(--muted); }
+.fds-dia ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.fds-dia li { display: grid; grid-template-columns: 112px auto 1fr auto; align-items: center; gap: 10px; border: 2px solid var(--ink); border-left-width: 8px; border-radius: 12px; padding: 6px 10px; background: var(--surface); }
+.fds-dia li.no-ar { background: #dcfce7; box-shadow: 3px 3px 0 var(--ink); }
+.fds-dia li strong { font-weight: 900; text-transform: uppercase; overflow-wrap: break-word; }
+.fds-horario { font-weight: 900; white-space: nowrap; }
+.fds-folga { margin: 14px 0 0; font-weight: 800; text-transform: uppercase; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+@media (max-width: 700px) {
+  .fds-dias { grid-template-columns: 1fr; }
+  .fds-dia li { grid-template-columns: auto 1fr; }
+  .fds-horario { grid-column: 1 / -1; }
 }
+.etiqueta.no-ar-agora { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }

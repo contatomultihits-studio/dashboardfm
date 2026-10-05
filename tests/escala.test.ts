@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diaDaSemana, escalaParaMostrar, faixasDoDia, horarioFaixa, noArEm, nomesFaixa, proximaFaixa } from "@/lib/escala";
+import { diaDaSemana, faixasDoDia, fimDeSemana, horarioFaixa, noArEm, nomesFaixa, proximaFaixa, quemVemDepois } from "@/lib/escala";
 import type { ItemEscala, Locutor } from "@/lib/tipos";
 
 const loc = (id: string, nome: string, inicio: string | null = null, fim: string | null = null, extra: Partial<Locutor> = {}): Locutor => ({
@@ -97,9 +97,20 @@ describe("escala de locutores", () => {
     expect(faixasDoDia("2026-10-05", sem, []).map(nomesFaixa)).not.toContain("CW");
   });
 
-  it("na dashboard: a faixa da madrugada que veio do dia anterior aparece primeiro enquanto está no ar", () => {
-    expect(escalaParaMostrar("2026-10-04", L, E, "01:00").map(nomesFaixa)).toEqual(["Marcus", "CW", "M. Aurélio", "Vanessa", "Marcus"]);
-    expect(escalaParaMostrar("2026-10-04", L, E, "08:00").map(nomesFaixa)).toEqual(["CW", "M. Aurélio", "Vanessa", "Marcus"]);
+  it("quem vem depois: no mesmo dia ou o primeiro de amanhã", () => {
+    expect(nomesFaixa(quemVemDepois("2026-10-05", "19:00", L, E)!.faixa)).toBe("Vanessa");
+    const depois = quemVemDepois("2026-10-05", "23:00", L, E)!;
+    expect(nomesFaixa(depois.faixa)).toBe("Serginho & Suzana");
+    expect(depois.amanha).toBe(true);
+    expect(nomesFaixa(quemVemDepois("2026-10-06", "01:00", L, E)!.faixa)).toBe("Serginho & Suzana");
+  });
+
+  it("fim de semana a mostrar: o próximo durante a semana, o atual no sábado e no domingo", () => {
+    expect(fimDeSemana("2026-10-05")).toEqual(["2026-10-10", "2026-10-11"]); // segunda
+    expect(fimDeSemana("2026-10-09")).toEqual(["2026-10-10", "2026-10-11"]); // sexta
+    expect(fimDeSemana("2026-10-10")).toEqual(["2026-10-10", "2026-10-11"]); // sábado
+    expect(fimDeSemana("2026-10-11")).toEqual(["2026-10-10", "2026-10-11"]); // domingo
+    expect(fimDeSemana("2026-12-28")).toEqual(["2027-01-02", "2027-01-03"]); // virada de ano
   });
 
   it("formata horários quebrados", () => {
