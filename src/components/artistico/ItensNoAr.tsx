@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { Avatar } from "@/components/Avatar";
 import { Imagem } from "@/components/Imagem";
 import { EtiquetaSituacao } from "@/components/EtiquetaSituacao";
 import { agoraHHMM, diasNoPeriodo, ehSemPrazo, fimDoPeriodo, fmtData, hojeISO, horaCurta, SEM_PRAZO, situacaoPeriodo, somarDias, type Duracao } from "@/lib/datas";
@@ -9,7 +10,8 @@ import { sanitizarHtml, textoPuro } from "@/lib/html";
 import { removerImagemSemUso, urlImagem } from "@/lib/imagens";
 import { TIPO_PAUTA_LABEL, type ItemNoAr, type TipoPauta } from "@/lib/tipos";
 import { CampoImagem, useImagemForm } from "./CampoImagem";
-import { CabecalhoLista, erroMsg, useLista, type Avisar } from "./comum";
+import { CampoLocutor } from "./CampoLocutor";
+import { CabecalhoLista, erroMsg, useLista, useLocutoresEquipe, type Avisar } from "./comum";
 import { EditorTexto } from "./EditorTexto";
 
 /** O que muda entre prioridades, recados, conexões e pautas: tabela, campos extras e os textos da tela. */
@@ -71,6 +73,7 @@ function novo(padrao: Atalho) {
     destaque: false,
     cliente: "",
     locutor: "",
+    locutor_id: null as string | null,
     horario: "",
     tipo: "VALENDO" as TipoPauta,
   };
@@ -78,7 +81,7 @@ function novo(padrao: Atalho) {
 
 /** Campos das pautas, copiados ao editar e ao duplicar. */
 function camposPauta(p: ItemNoAr) {
-  return { cliente: p.cliente ?? "", locutor: p.locutor ?? "", horario: horaCurta(p.horario) ?? "", tipo: p.tipo ?? ("VALENDO" as TipoPauta) };
+  return { cliente: p.cliente ?? "", locutor: p.locutor ?? "", locutor_id: p.locutor_id ?? null, horario: horaCurta(p.horario) ?? "", tipo: p.tipo ?? ("VALENDO" as TipoPauta) };
 }
 
 export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisar: Avisar; config: ConfigItensNoAr }) {
@@ -89,6 +92,8 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
   const lista = useLista<ItemNoAr>(sb, c.tabela, "data_inicio", hoje, c.pauta ? "horario" : "data_fim", "data_fim");
   const imagem = useImagemForm();
   const atalhos = atalhosDe(c);
+  const { locutores } = useLocutoresEquipe(sb);
+  const locutorDe = (p: ItemNoAr) => (p.locutor_id ? locutores.find((l) => l.id === p.locutor_id) : undefined);
   const padrao = atalhos[0];
   const [form, setForm] = useState(() => novo(padrao));
   // Atalho escolhido: se a data de entrada mudar, a saída acompanha.
@@ -146,6 +151,8 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  const mudarLocutor = useCallback((v: { locutor_id: string | null; locutor: string }) => setForm((f) => ({ ...f, ...v })), []);
+
   function mudarInicio(inicio: string) {
     if (!inicio) return;
     setForm((f) => ({
@@ -189,7 +196,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
         data_inicio: form.data_inicio,
         data_fim: form.data_fim,
         ...(c.pauta
-          ? { horario: form.horario, cliente: form.cliente.trim(), locutor: form.locutor.trim(), tipo: form.tipo }
+          ? { horario: form.horario, cliente: form.cliente.trim(), locutor: form.locutor.trim(), locutor_id: form.locutor_id, tipo: form.tipo }
           : { hora_inicio: form.hora_inicio || null, hora_fim: semPrazo ? null : form.hora_fim || null }),
         titulo: form.titulo.trim(),
         conteudo_html: sanitizarHtml(form.conteudo_html),
@@ -253,10 +260,15 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
                 Cliente
                 <input type="text" required maxLength={80} placeholder="Ex.: Shopping Eldorado" value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} />
               </label>
-              <label className="campo">
-                Locutor que vai ler
-                <input type="text" required maxLength={60} placeholder="Ex.: Gabi" value={form.locutor} onChange={(e) => setForm({ ...form, locutor: e.target.value })} />
-              </label>
+              <CampoLocutor
+                key={`loc-${versao}`}
+                sb={sb}
+                data={form.data_inicio}
+                horario={form.horario}
+                locutorId={form.locutor_id}
+                nome={form.locutor}
+                onChange={mudarLocutor}
+              />
               <label className="campo">
                 Horário no ar
                 <input type="time" required value={form.horario} onChange={(e) => setForm({ ...form, horario: e.target.value })} />
@@ -417,7 +429,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
                       {c.pauta ? (
                         <>
                           <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`} style={{ marginRight: 6 }}>{TIPO_PAUTA_LABEL[p.tipo ?? "VALENDO"]}</span>
-                          <strong>{p.cliente}</strong> · 🎙 {p.locutor}
+                          <strong>{p.cliente}</strong> · {locutorDe(p) ? <Avatar sb={sb} locutor={locutorDe(p)!} tamanho={24} /> : "🎙"} {p.locutor}
                           {p.titulo && <div className="trecho">{p.titulo}</div>}
                         </>
                       ) : p.titulo ? <strong>{p.titulo}</strong> : <em className="sem-titulo">Sem título</em>}

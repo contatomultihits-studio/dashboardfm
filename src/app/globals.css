@@ -320,3 +320,31 @@ button.grande { font-size: 1.15rem; padding: 14px 22px; }
 @keyframes lembrete-sino { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
 @media (prefers-reduced-motion: reduce) { .lembrete, .lembrete.agora, .lembrete-sino { animation: none; } }
 @media (max-width: 600px) { .lembrete { grid-template-columns: 1fr auto; } .lembrete-sino { display: none; } }
+
+/* ---------- Locutores e escala ---------- */
+.avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; border: 3px solid; overflow: hidden; box-shadow: 2px 2px 0 var(--ink); }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar.sem-foto { color: #fff; font-weight: 900; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); }
+.avatares { display: inline-flex; }
+.avatares .avatar + .avatar { margin-left: -12px; }
+fieldset.grupo { border: 2px dashed var(--ink); border-radius: 14px; padding: 10px 14px 4px; margin: 0; display: grid; gap: 10px; }
+fieldset.grupo legend { font-weight: 900; font-size: 0.8rem; text-transform: uppercase; padding: 0 6px; }
+.campo-locutor { display: grid; gap: 4px; align-content: start; }
+.campo-locutor-linha { display: flex; gap: 8px; align-items: center; }
+.campo-locutor-linha select { flex: 1; min-width: 0; }
+.escala-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); }
+.escala-item { display: flex; gap: 10px; align-items: center; border: 3px solid var(--ink); border-top-width: 7px; border-radius: 16px; padding: 10px 12px; background: var(--surface); box-shadow: 3px 3px 0 var(--ink); }
+.escala-texto { display: grid; gap: 2px; min-width: 0; }
+.escala-texto strong { font-size: 1rem; font-weight: 900; text-transform: uppercase; line-height: 1.1; overflow-wrap: break-word; }
+.escala-horario { font-weight: 800; font-size: 0.85rem; }
+.escala-programa { font-size: 0.75rem; color: var(--muted); font-weight: 700; }
+.escala-item.no-ar { background: #dcfce7; grid-column: span 2; box-shadow: 5px 5px 0 var(--ink); }
+.escala-item.no-ar strong { font-size: 1.35rem; }
+.escala-item.passou { opacity: 0.45; }
+.escala-item.a-seguir { background: #fefce8; }
+.etiqueta.no-ar-agora { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }
+.lembrete-foto { display: grid; }
+@media (max-width: 600px) {
+  .escala-lista { grid-template-columns: 1fr 1fr; }
+  .escala-item { flex-direction: column; align-items: flex-start; }
+}

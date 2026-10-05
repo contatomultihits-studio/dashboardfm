@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AvisoConfig } from "@/components/AvisoConfig";
 import { Carrossel } from "@/components/Carrossel";
 import { Imagem } from "@/components/Imagem";
+import { Avatar } from "@/components/Avatar";
+import { EscalaDia } from "@/components/EscalaDia";
 import { LembretePautas } from "@/components/LembretePautas";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
@@ -13,10 +15,11 @@ import { agoraHHMM, ehSemPrazo, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeI
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
+import { escalaParaMostrar, noArEm } from "@/lib/escala";
 import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
 import { horaNoFuso, ordenarPautas, pautasParaLembrar, situacaoPauta } from "@/lib/pautas";
-import { TIPO_PAUTA_LABEL, VINCULO_LABEL, type Conexao, type Convidado, type Evento, type Pauta, type PautaRealizada, type Prioridade, type Recado } from "@/lib/tipos";
+import { TIPO_PAUTA_LABEL, VINCULO_LABEL, type Conexao, type Convidado, type ItemEscala, type Locutor, type Evento, type Pauta, type PautaRealizada, type Prioridade, type Recado } from "@/lib/tipos";
 
 /** Convidado na dashboard: os que já vieram aparecem depois dos próximos, em preto e branco. */
 type ConvidadoCard = Convidado & { jaVeio: boolean };
@@ -74,6 +77,8 @@ type Retrato = {
   conexoes?: Conexao[];
   pautas?: Pauta[];
   realizadas?: PautaRealizada[];
+  locutores?: Locutor[];
+  escala?: ItemEscala[];
   convidados: ConvidadoCard[];
   eventos: Evento[];
   em: string;
@@ -118,6 +123,8 @@ export function Dashboard() {
   const [conexoes, setConexoes] = useState<Conexao[]>([]);
   const [pautas, setPautas] = useState<Pauta[]>([]);
   const [realizadas, setRealizadas] = useState<PautaRealizada[]>([]);
+  const [locutores, setLocutores] = useState<Locutor[]>([]);
+  const [escala, setEscala] = useState<ItemEscala[]>([]);
   const [convidados, setConvidados] = useState<ConvidadoCard[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [videos, setVideos] = useState<VideoYoutube[]>([]);
@@ -172,11 +179,13 @@ export function Dashboard() {
       setConexoes(guardado.conexoes ?? []);
       setPautas(guardado.pautas ?? []);
       setRealizadas(guardado.realizadas ?? []);
+      setLocutores(guardado.locutores ?? []);
+      setEscala(guardado.escala ?? []);
       setConvidados(guardado.convidados);
       setEventos(guardado.eventos);
     }
     // Filtra "ativo" também aqui: quem está logado enxerga os ocultos pelas regras do banco.
-    const [p, r, cx, pa, pr, c, cv, e] = await Promise.all([
+    const [p, r, cx, pa, pr, lo, es, c, cv, e] = await Promise.all([
       // No ar no dia escolhido: entrou até esse dia e só sai depois dele. As que saem primeiro vêm antes.
       sb.from("prioridades").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("data_fim").order("created_at"),
@@ -188,6 +197,9 @@ export function Dashboard() {
       // Partiu Rádio Disney: pautas do dia e o que o locutor já marcou como feito.
       sb.from("pautas").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true).order("horario"),
       sb.from("pautas_realizadas").select("*").eq("dia", dia),
+      // Escala: locutores e o que foi escalado no dia (e na véspera, por causa da madrugada).
+      sb.from("locutores").select("*").eq("ativo", true),
+      sb.from("escala").select("*").gte("data", somarDias(dia, -1)).lte("data", dia),
       sb.from("convidados").select("*").gte("data_visita", dia).eq("ativo", true).eq("concluido", false)
         .order("data_visita").order("horario", { nullsFirst: false }).limit(60),
       // Últimos que já vieram: data anterior ao dia ou marcados como "já veio".
@@ -197,7 +209,7 @@ export function Dashboard() {
       sb.from("eventos").select("*").gte("data_evento", dia).eq("ativo", true).order("data_evento").limit(60),
     ]);
     if (busca !== ultimaBusca.current) return; // já trocaram de dia; descarta resposta antiga
-    const falha = p.error ?? r.error ?? cx.error ?? pa.error ?? pr.error ?? c.error ?? cv.error ?? e.error;
+    const falha = p.error ?? r.error ?? cx.error ?? pa.error ?? pr.error ?? lo.error ?? es.error ?? c.error ?? cv.error ?? e.error;
     if (falha) {
       setErro(falha.message);
     } else {
@@ -208,6 +220,8 @@ export function Dashboard() {
         conexoes: cx.data as Conexao[],
         pautas: pa.data as Pauta[],
         realizadas: pr.data as PautaRealizada[],
+        locutores: lo.data as Locutor[],
+        escala: es.data as ItemEscala[],
         convidados: [
           ...(c.data as Convidado[]).map((x) => ({ ...x, jaVeio: false })),
           ...(cv.data as Convidado[]).map((x) => ({ ...x, jaVeio: true })),
@@ -220,6 +234,8 @@ export function Dashboard() {
       setConexoes(novo.conexoes ?? []);
       setPautas(novo.pautas ?? []);
       setRealizadas(novo.realizadas ?? []);
+      setLocutores(novo.locutores ?? []);
+      setEscala(novo.escala ?? []);
       setConvidados(novo.convidados);
       setEventos(novo.eventos);
       setAtualizadoEm(new Date());
@@ -277,6 +293,9 @@ export function Dashboard() {
   );
   const feitas = useMemo(() => new Map(realizadas.map((x) => [x.pauta_id, x])), [realizadas]);
   const pautasDoDia = useMemo(() => ordenarPautas(pautas, feitas), [pautas, feitas]);
+  const locutorPorId = useMemo(() => new Map(locutores.map((l) => [l.id, l])), [locutores]);
+  const faixas = useMemo(() => (dia ? escalaParaMostrar(dia, locutores, escala, ehHoje ? agora : undefined) : []), [dia, locutores, escala, ehHoje, agora]);
+  const noAr = useMemo(() => (dia && ehHoje ? noArEm(dia, agora, locutores, escala) : null), [dia, ehHoje, agora, locutores, escala]);
   // Lembrete na tela 5 min antes de cada pauta de hoje (o locutor pode fechar o aviso).
   const [dispensadas, setDispensadas] = useState<Set<string>>(() => new Set());
   const lembretes = useMemo(
@@ -393,6 +412,18 @@ export function Dashboard() {
               }}
             />
 
+            {dia && (locutores.length > 0 || escala.length > 0) && (
+              <EscalaDia
+                sb={sb}
+                dia={dia}
+                faixas={faixas}
+                noAr={noAr}
+                ehHoje={ehHoje}
+                agora={agora}
+                titulo={ehHoje ? "Escala de hoje" : `Escala · ${fmtDiaSemana(dia)}`}
+              />
+            )}
+
             <Carrossel
               key={`prio-${dia}`}
               titulo="Prioridades no ar"
@@ -427,7 +458,9 @@ export function Dashboard() {
                     <span className="pauta-hora">{horaCurta(p.horario)}</span>
                     <span className="pauta-cliente">{p.cliente}</span>
                     {p.titulo && <span className="pauta-acao">{p.titulo}</span>}
-                    <span className="pauta-locutor">🎙 {p.locutor}</span>
+                    <span className="pauta-locutor">
+                      {p.locutor_id && locutorPorId.get(p.locutor_id) ? <Avatar sb={sb} locutor={locutorPorId.get(p.locutor_id)!} tamanho={30} /> : "🎙"} {p.locutor}
+                    </span>
                   </button>
                 );
               }}
@@ -533,6 +566,8 @@ export function Dashboard() {
         </Modal>
       )}
       <LembretePautas
+        sb={sb}
+        locutores={locutorPorId}
         lembretes={aberto?.tipo === "pauta" ? lembretes.filter((l) => l.pauta.id !== aberto.item.id) : lembretes}
         onAbrir={(p) => abrir({ tipo: "pauta", item: p })}
         onFechar={(id) => setDispensadas((d) => new Set(d).add(id))}

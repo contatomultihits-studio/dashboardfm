@@ -3,6 +3,8 @@
 Tudo o que o locutor precisa para tocar o horário, numa tela só:
 
 - **Recados rápidos** no topo, com a data comemorativa do dia como primeiro card.
+- **Escala de hoje**: quem está no ar agora (com foto), quem vem a seguir e quem já passou.
+  Segunda a sexta vem do horário fixo de cada locutor; fins de semana e trocas, da aba Escala.
 - **Prioridades no ar** do dia, com imagem e texto (3 por vez, com setas).
 - **Partiu Rádio Disney**: pautas das ações externas com cliente, locutor, horário e *Expectativa* / *Valendo*.
   Lembrete na tela 5 min antes (com som e "Abrir pauta"). O locutor marca "feita" na própria pauta, e isso vira o **Relatório de pautas** do dia (Artístico),

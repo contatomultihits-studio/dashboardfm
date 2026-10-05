@@ -15,6 +15,7 @@ export type ItemNoAr = {
   /** Só nas pautas do "Partiu Rádio Disney". */
   cliente?: string;
   locutor?: string;
+  locutor_id?: string | null;
   horario?: string;
   tipo?: TipoPauta;
 };
@@ -35,7 +36,7 @@ export const TIPO_PAUTA_LABEL: Record<TipoPauta, string> = {
 };
 
 /** Pauta de ação externa ("Partiu Rádio Disney"): vai ao ar num horário, lida por um locutor. */
-export type Pauta = ItemNoAr & { cliente: string; locutor: string; horario: string; tipo: TipoPauta };
+export type Pauta = ItemNoAr & { cliente: string; locutor: string; locutor_id?: string | null; horario: string; tipo: TipoPauta };
 
 /** O "feito" do locutor: uma por pauta por dia. */
 export type PautaRealizada = {
@@ -73,4 +74,29 @@ export type Evento = {
 export const VINCULO_LABEL: Record<Vinculo, string> = {
   RADIO_OFICIAL: "Rádio oficial",
   APOIO: "Apoio",
+};
+
+/** Locutor: perfil e horário fixo da semana (freela costuma não ter). */
+export type Locutor = {
+  id: string;
+  nome: string;
+  nome_completo: string;
+  programa: string;
+  cor: string;
+  imagem_path: string | null;
+  /** 0 = domingo ... 6 = sábado. */
+  dias: number[];
+  hora_inicio: string | null;
+  hora_fim: string | null;
+  freela: boolean;
+  ativo: boolean;
+};
+
+/** Quem fica num horário numa data específica (fins de semana e trocas). */
+export type ItemEscala = {
+  id: string;
+  data: string;
+  locutor_id: string;
+  hora_inicio: string;
+  hora_fim: string;
 };

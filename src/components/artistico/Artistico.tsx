@@ -7,7 +7,9 @@ import { Topbar } from "@/components/Topbar";
 import { getSupabase } from "@/lib/supabase/client";
 import { Conexoes } from "./Conexoes";
 import { Convidados } from "./Convidados";
+import { Escala } from "./Escala";
 import { Eventos } from "./Eventos";
+import { Locutores } from "./Locutores";
 import { Pautas } from "./Pautas";
 import { Prioridades } from "./Prioridades";
 import { Recados } from "./Recados";
@@ -21,6 +23,8 @@ const ABAS = [
   { id: "convidados", rotulo: "Convidados" },
   { id: "eventos", rotulo: "Eventos" },
   { id: "relatorio", rotulo: "Relatório de pautas" },
+  { id: "locutores", rotulo: "Locutores" },
+  { id: "escala", rotulo: "Escala" },
 ] as const;
 type Aba = (typeof ABAS)[number]["id"];
 
@@ -97,6 +101,8 @@ export function Artistico() {
             {aba === "convidados" && <Convidados sb={sb} avisar={avisar} />}
             {aba === "eventos" && <Eventos sb={sb} avisar={avisar} />}
             {aba === "relatorio" && <RelatorioPautas sb={sb} avisar={avisar} />}
+            {aba === "locutores" && <Locutores sb={sb} avisar={avisar} />}
+            {aba === "escala" && <Escala sb={sb} avisar={avisar} />}
           </>
         )}
       </main>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Locutor } from "@/lib/tipos";
 
 export type Avisar = (mensagem: string, erro?: boolean) => void;
 
@@ -60,4 +61,19 @@ export function CabecalhoLista({ titulo, anteriores, setAnteriores, rotuloAnteri
 
 export function erroMsg(e: unknown) {
   return e instanceof Error ? e.message : String(e);
+}
+
+/** Locutores cadastrados (para escolher na escala e nas pautas). */
+export function useLocutoresEquipe(sb: SupabaseClient) {
+  const [locutores, setLocutores] = useState<Locutor[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const recarregar = useCallback(async () => {
+    const { data } = await sb.from("locutores").select("*").order("hora_inicio", { nullsFirst: false }).order("nome");
+    setLocutores((data as Locutor[]) ?? []);
+    setCarregando(false);
+  }, [sb]);
+  useEffect(() => {
+    recarregar();
+  }, [recarregar]);
+  return { locutores, carregando, recarregar };
 }

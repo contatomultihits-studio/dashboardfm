@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { Avatar } from "@/components/Avatar";
 import { horaCurta } from "@/lib/datas";
 import { textoFaltam, type Lembrete } from "@/lib/pautas";
-import { TIPO_PAUTA_LABEL, type Pauta } from "@/lib/tipos";
+import { TIPO_PAUTA_LABEL, type Locutor, type Pauta } from "@/lib/tipos";
 
 /** "Ding-dong" curto, gerado no navegador (sem arquivo de som). Se o navegador bloquear, segue sem som. */
 function tocarAviso() {
@@ -34,7 +36,9 @@ function tocarAviso() {
  * Aviso fixo na tela quando uma pauta do Partiu Rádio Disney está para ir ao ar.
  * Toca um som quando um aviso novo aparece e pisca o título da aba, para quem está em outra janela.
  */
-export function LembretePautas({ lembretes, onAbrir, onFechar }: {
+export function LembretePautas({ sb, locutores, lembretes, onAbrir, onFechar }: {
+  sb: SupabaseClient | null;
+  locutores: Map<string, Locutor>;
   lembretes: Lembrete<Pauta>[];
   onAbrir: (p: Pauta) => void;
   onFechar: (id: string) => void;
@@ -78,14 +82,18 @@ export function LembretePautas({ lembretes, onAbrir, onFechar }: {
     <div className="lembretes" role="alert" aria-label="Lembretes de pauta">
       {lembretes.map(({ pauta: p, faltam }) => (
         <div key={p.id} className={`lembrete ${faltam < 0 ? "atrasada" : faltam === 0 ? "agora" : ""}`}>
-          <span className="lembrete-sino" aria-hidden>⏰</span>
+          {p.locutor_id && locutores.get(p.locutor_id) ? (
+            <span className="lembrete-foto"><Avatar sb={sb} locutor={locutores.get(p.locutor_id)!} tamanho={56} /></span>
+          ) : (
+            <span className="lembrete-sino" aria-hidden>⏰</span>
+          )}
           <div className="lembrete-texto">
             <span className="lembrete-quando">{textoFaltam(faltam)} · Partiu Rádio Disney</span>
             <strong>
               {horaCurta(p.horario)} · {p.cliente}
             </strong>
             <span>
-              🎙 {p.locutor} · <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
+              {p.locutor_id && locutores.get(p.locutor_id) ? "" : "🎙 "}{p.locutor} · <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
             </span>
           </div>
           <div className="lembrete-acoes">
