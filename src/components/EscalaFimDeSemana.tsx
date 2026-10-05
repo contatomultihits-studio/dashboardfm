@@ -37,8 +37,11 @@ export function EscalaFimDeSemana({ sb, hoje, locutores, escala, noAr }: {
 
   return (
     <section className="card secao-fds" aria-label="Escala do fim de semana">
-      <div className="secao-topo">
-        <h2>Escala do fim de semana · {fmtDiaMes(sabado)} e {fmtDiaMes(domingo)}</h2>
+      <div className="secao-topo fds-topo">
+        <h2>
+          <span>Escala do fim de semana</span>
+          <span className="fds-datas">{fmtDiaMes(sabado)} e {fmtDiaMes(domingo)}</span>
+        </h2>
         {sabados.length > 1 && (
           <div className="carrossel-nav">
             <button type="button" className="icone branco" aria-label="Fim de semana anterior" disabled={indice === 0} onClick={() => setEscolhido(sabados[indice - 1])}>◀</button>
@@ -54,7 +57,9 @@ export function EscalaFimDeSemana({ sb, hoje, locutores, escala, noAr }: {
           <div className="fds-dias">
             {dias.map((d) => (
               <div key={d.data} className="fds-dia">
-                <h3>{d.rotulo} <span>{fmtDiaMes(d.data)}</span></h3>
+                <h3 className={`fds-dia-titulo ${d.rotulo === "Sábado" ? "sabado" : "domingo"}`}>
+                  {d.rotulo} <span>{fmtDiaMes(d.data)}</span>
+                </h3>
                 {d.faixas.length === 0 ? (
                   <p className="dica">Ninguém escalado: programação gravada.</p>
                 ) : (
