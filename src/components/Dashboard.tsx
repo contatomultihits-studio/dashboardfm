@@ -465,18 +465,16 @@ export function Dashboard() {
               carregando={carregando}
               vazio="Sem convidados programados."
               render={(c) => (
-                <button type="button" className={`item-card foto-card ${c.jaVeio ? "ja-veio" : ""}`} onClick={() => abrir({ tipo: "convidado", item: c })}>
-                  <div className="foto-wrap">
-                    <Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
+                <button type="button" className={`item-card ${c.jaVeio ? "ja-veio" : ""}`} onClick={() => abrir({ tipo: "convidado", item: c })}>
+                  <span className="thumb-wrap">
+                    <Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="thumb" />
                     <Folhinha data={c.data_visita} />
-                    <div className="foto-overlay">
-                      <span className="foto-etiquetas">
-                        {c.jaVeio && <span className="etiqueta cinza">Já veio</span>}
-                        <Quando data={c.data_visita} hora={c.jaVeio ? null : c.horario} />
-                      </span>
-                      <strong>{c.nome}</strong>
-                    </div>
-                  </div>
+                  </span>
+                  <span className="item-titulo">{c.nome}</span>
+                  <span className="item-rodape rodape-etiquetas">
+                    {c.jaVeio && <span className="etiqueta cinza">Já veio</span>}
+                    <Quando data={c.data_visita} hora={c.jaVeio ? null : c.horario} />
+                  </span>
                 </button>
               )}
             />
@@ -488,19 +486,17 @@ export function Dashboard() {
               carregando={carregando}
               vazio="Sem eventos na agenda."
               render={(e) => (
-                <button type="button" className="item-card foto-card" onClick={() => abrir({ tipo: "evento", item: e })}>
-                  <div className="foto-wrap">
-                    <Imagem src={urlImagem(sb, e.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
+                <button type="button" className="item-card" onClick={() => abrir({ tipo: "evento", item: e })}>
+                  <span className="thumb-wrap">
+                    <Imagem src={urlImagem(sb, e.imagem_path)} alt="" className="thumb" />
                     <Folhinha data={e.data_evento} />
-                    <div className="foto-overlay">
-                      <span className="foto-etiquetas">
-                        <Quando data={e.data_evento} />
-                        <span className={`etiqueta ${e.vinculo === "RADIO_OFICIAL" ? "oficial" : "apoio"}`}>{VINCULO_LABEL[e.vinculo]}</span>
-                      </span>
-                      <strong>{e.nome}</strong>
-                      {e.local && <small>📍 {e.local}</small>}
-                    </div>
-                  </div>
+                  </span>
+                  <span className="item-titulo">{e.nome}</span>
+                  {e.local && <span className="item-local">📍 {e.local}</span>}
+                  <span className="item-rodape rodape-etiquetas">
+                    <Quando data={e.data_evento} />
+                    <span className={`etiqueta ${e.vinculo === "RADIO_OFICIAL" ? "oficial" : "apoio"}`}>{VINCULO_LABEL[e.vinculo]}</span>
+                  </span>
                 </button>
               )}
             />
@@ -512,16 +508,10 @@ export function Dashboard() {
               carregando={carregando}
               vazio="Sem conexões no ar."
               render={(x) => (
-                <button type="button" className="item-card foto-card" onClick={() => abrir({ tipo: "conexao", item: x })}>
-                  <div className="foto-wrap">
-                    <Imagem src={urlImagem(sb, x.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
-                    <div className="foto-overlay">
-                      {dia && !ehSemPrazo(x.data_fim) && (
-                        <span className="foto-etiquetas"><AteQuando p={x} dia={dia} /></span>
-                      )}
-                      <strong>{x.titulo || textoPuro(x.conteudo_html) || "Conexão"}</strong>
-                    </div>
-                  </div>
+                <button type="button" className="item-card" onClick={() => abrir({ tipo: "conexao", item: x })}>
+                  <Imagem src={urlImagem(sb, x.imagem_path)} alt="" className="thumb" />
+                  <span className="item-titulo">{x.titulo || textoPuro(x.conteudo_html) || "Conexão"}</span>
+                  <span className="item-rodape">{dia && <AteQuando p={x} dia={dia} />}</span>
                 </button>
               )}
             />

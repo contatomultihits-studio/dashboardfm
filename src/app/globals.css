@@ -373,3 +373,13 @@ fieldset.grupo legend { font-weight: 900; font-size: 0.8rem; text-transform: upp
   .fds-horario { grid-column: 1 / -1; }
 }
 .etiqueta.no-ar-agora { background: var(--vermelho); color: #fff; border-color: #7f1d1d; }
+
+/* Convidados e eventos no mesmo card das prioridades: foto 16:9 com a folhinha no canto */
+.thumb-wrap { position: relative; display: block; }
+.thumb-wrap .folhinha { top: 8px; left: 8px; min-width: 54px; }
+.thumb-wrap .folhinha-dia { font-size: 1.7rem; }
+.rodape-etiquetas { justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
+.item-local { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; color: var(--muted); }
+.item-card.ja-veio .thumb { filter: grayscale(1); opacity: 0.85; }
+.item-card.ja-veio .item-titulo { color: #6b7280; }
+.item-card.ja-veio .folhinha-semana { background: #6b7280; }
