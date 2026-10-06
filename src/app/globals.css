@@ -383,3 +383,10 @@ fieldset.grupo legend { font-weight: 900; font-size: 0.8rem; text-transform: upp
 .item-card.ja-veio .thumb { filter: grayscale(1); opacity: 0.85; }
 .item-card.ja-veio .item-titulo { color: #6b7280; }
 .item-card.ja-veio .folhinha-semana { background: #6b7280; }
+
+/* Foto que não tem a proporção do card: inteira, com ela mesma desfocada no fundo */
+.imagem-moldura { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; line-height: 0; }
+.imagem-moldura > .thumb { height: 100%; }
+.imagem-fundo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(18px) brightness(0.85) saturate(1.2); transform: scale(1.2); }
+.thumb.inteira { position: relative; object-fit: contain; background: transparent; }
+.ja-veio .imagem-fundo { filter: blur(18px) brightness(0.85) grayscale(1); }

@@ -424,7 +424,7 @@ export function Dashboard() {
               vazio="Sem prioridades para este dia."
               render={(p) => (
                 <button type="button" className="item-card" onClick={() => abrir({ tipo: "prioridade", item: p })}>
-                  <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" prioridade={prioridadesNoAr.indexOf(p) < 3} />
+                  <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" ajustar prioridade={prioridadesNoAr.indexOf(p) < 3} />
                   <span className="item-titulo">{p.titulo || textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
                   <span className="item-rodape">{dia && <AteQuando p={p} dia={dia} />}</span>
                 </button>
@@ -467,7 +467,7 @@ export function Dashboard() {
               render={(c) => (
                 <button type="button" className={`item-card ${c.jaVeio ? "ja-veio" : ""}`} onClick={() => abrir({ tipo: "convidado", item: c })}>
                   <span className="thumb-wrap">
-                    <Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="thumb" />
+                    <Imagem src={urlImagem(sb, c.imagem_path)} alt="" className="thumb" ajustar />
                     <Folhinha data={c.data_visita} />
                   </span>
                   <span className="item-titulo">{c.nome}</span>
@@ -488,7 +488,7 @@ export function Dashboard() {
               render={(e) => (
                 <button type="button" className="item-card" onClick={() => abrir({ tipo: "evento", item: e })}>
                   <span className="thumb-wrap">
-                    <Imagem src={urlImagem(sb, e.imagem_path)} alt="" className="thumb" />
+                    <Imagem src={urlImagem(sb, e.imagem_path)} alt="" className="thumb" ajustar />
                     <Folhinha data={e.data_evento} />
                   </span>
                   <span className="item-titulo">{e.nome}</span>
@@ -509,7 +509,7 @@ export function Dashboard() {
               vazio="Sem conexões no ar."
               render={(x) => (
                 <button type="button" className="item-card" onClick={() => abrir({ tipo: "conexao", item: x })}>
-                  <Imagem src={urlImagem(sb, x.imagem_path)} alt="" className="thumb" />
+                  <Imagem src={urlImagem(sb, x.imagem_path)} alt="" className="thumb" ajustar />
                   <span className="item-titulo">{x.titulo || textoPuro(x.conteudo_html) || "Conexão"}</span>
                   <span className="item-rodape">{dia && <AteQuando p={x} dia={dia} />}</span>
                 </button>
