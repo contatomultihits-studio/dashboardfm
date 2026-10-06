@@ -459,21 +459,6 @@ export function Dashboard() {
             />
 
             <Carrossel
-              key={`conex-${dia}`}
-              titulo="Conexões"
-              itens={conexoesNoAr}
-              carregando={carregando}
-              vazio="Sem conexões no ar."
-              render={(x) => (
-                <button type="button" className="item-card conexao-card" onClick={() => abrir({ tipo: "conexao", item: x })}>
-                  <Imagem src={urlImagem(sb, x.imagem_path)} alt="" className="thumb" />
-                  <span className="item-titulo">{x.titulo || textoPuro(x.conteudo_html) || "Conexão"}</span>
-                  <span className="item-rodape">{dia && <AteQuando p={x} dia={dia} />}</span>
-                </button>
-              )}
-            />
-
-            <Carrossel
               key={`conv-${dia}`}
               titulo={convidados.some((c) => !c.jaVeio) || convidados.length === 0 ? "Próximos convidados" : "Últimos convidados"}
               itens={convidados}
@@ -514,6 +499,27 @@ export function Dashboard() {
                       </span>
                       <strong>{e.nome}</strong>
                       {e.local && <small>📍 {e.local}</small>}
+                    </div>
+                  </div>
+                </button>
+              )}
+            />
+
+            <Carrossel
+              key={`conex-${dia}`}
+              titulo="Conexões"
+              itens={conexoesNoAr}
+              carregando={carregando}
+              vazio="Sem conexões no ar."
+              render={(x) => (
+                <button type="button" className="item-card foto-card" onClick={() => abrir({ tipo: "conexao", item: x })}>
+                  <div className="foto-wrap">
+                    <Imagem src={urlImagem(sb, x.imagem_path)} alt="" className="thumb" largura={600} altura={600} />
+                    <div className="foto-overlay">
+                      {dia && !ehSemPrazo(x.data_fim) && (
+                        <span className="foto-etiquetas"><AteQuando p={x} dia={dia} /></span>
+                      )}
+                      <strong>{x.titulo || textoPuro(x.conteudo_html) || "Conexão"}</strong>
                     </div>
                   </div>
                 </button>
