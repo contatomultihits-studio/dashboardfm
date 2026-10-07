@@ -99,6 +99,7 @@ que já vem com tudo.
 | `006_conexoes_pautas.sql` | Conexões (institucional, pode ficar sem prazo) e Partiu Rádio Disney: pautas com cliente, locutor, horário e tipo, e o "feito" do locutor para o relatório. |
 | `007_locutores_escala.sql` | Locutores (foto, cor, horário fixo da semana) e escala por data (fins de semana e trocas); a pauta passa a guardar o locutor escolhido. |
 | `008_fixar.sql` | "Fixar em primeiro" nas prioridades e conexões. |
+| `009_leituras.sql` | Registro de cada leitura de prioridade/conexão na dashboard (relatório de leituras). |
 
 ### Deu problema?
 

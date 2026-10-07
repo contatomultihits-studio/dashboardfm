@@ -102,3 +102,14 @@ export type ItemEscala = {
   hora_inicio: string;
   hora_fim: string;
 };
+
+/** Uma leitura de prioridade/conexão na dashboard (para o relatório de leituras). */
+export type Leitura = {
+  id: string;
+  tipo: "prioridade" | "conexao";
+  item_id: string;
+  titulo: string;
+  dia: string;
+  lido_em: string;
+  locutor: string;
+};

@@ -16,7 +16,7 @@ import { agoraHHMM, ehSemPrazo, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeI
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
-import { noArEm, quemVemDepois } from "@/lib/escala";
+import { noArEm, nomesFaixa, quemVemDepois } from "@/lib/escala";
 import { lerLeituras, ordenarPorLeitura, salvarLeituras, type Leituras } from "@/lib/leituras";
 import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
@@ -144,6 +144,8 @@ export function Dashboard() {
   const fechar = useCallback(() => setAberto(null), []);
   // "Já lido vai para o fim": quando cada card foi aberto nesta tela, hoje.
   const [lidos, setLidos] = useState<Leituras>({});
+  // Quem está no ar, para registrar junto com a leitura (o relatório mostra quem leu).
+  const noArRef = useRef("");
   const abrir = useCallback((a: Aberto) => {
     setMsgPauta(null);
     setAberto(a);
@@ -154,8 +156,10 @@ export function Dashboard() {
         salvarLeituras(hoje, novo);
         return novo;
       });
+      // Também no banco, para o relatório de leituras (se falhar, a dashboard segue normal).
+      sb?.rpc("registrar_leitura", { p_tipo: a.tipo, p_item: a.item.id, p_locutor: noArRef.current }).then(() => {}, () => {});
     }
-  }, []);
+  }, [sb]);
   const ultimaBusca = useRef(0);
 
   // O dia só é definido no navegador, para usar o fuso de quem está vendo.
@@ -318,6 +322,9 @@ export function Dashboard() {
   // Leituras guardadas nesta tela; virou o dia, começa do zero.
   useEffect(() => setLidos(lerLeituras(hojeAgora)), [hojeAgora]);
   const noAr = useMemo(() => noArEm(hojeAgora, agora, locutores, escala), [hojeAgora, agora, locutores, escala]);
+  useEffect(() => {
+    noArRef.current = noAr ? nomesFaixa(noAr) : "";
+  }, [noAr]);
   const depois = useMemo(() => quemVemDepois(hojeAgora, agora, locutores, escala), [hojeAgora, agora, locutores, escala]);
   // Lembrete na tela 5 min antes de cada pauta de hoje (o locutor pode fechar o aviso).
   const [dispensadas, setDispensadas] = useState<Set<string>>(() => new Set());

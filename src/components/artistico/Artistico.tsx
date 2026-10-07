@@ -13,6 +13,7 @@ import { Locutores } from "./Locutores";
 import { Pautas } from "./Pautas";
 import { Prioridades } from "./Prioridades";
 import { Recados } from "./Recados";
+import { RelatorioLeituras } from "./RelatorioLeituras";
 import { RelatorioPautas } from "./RelatorioPautas";
 
 const ABAS = [
@@ -23,6 +24,7 @@ const ABAS = [
   { id: "convidados", rotulo: "Convidados" },
   { id: "eventos", rotulo: "Eventos" },
   { id: "relatorio", rotulo: "Relatório de pautas" },
+  { id: "leituras", rotulo: "Relatório de leituras" },
   { id: "locutores", rotulo: "Locutores" },
   { id: "escala", rotulo: "Escala" },
 ] as const;
@@ -101,6 +103,7 @@ export function Artistico() {
             {aba === "convidados" && <Convidados sb={sb} avisar={avisar} />}
             {aba === "eventos" && <Eventos sb={sb} avisar={avisar} />}
             {aba === "relatorio" && <RelatorioPautas sb={sb} avisar={avisar} />}
+            {aba === "leituras" && <RelatorioLeituras sb={sb} avisar={avisar} />}
             {aba === "locutores" && <Locutores sb={sb} avisar={avisar} />}
             {aba === "escala" && <Escala sb={sb} avisar={avisar} />}
           </>
