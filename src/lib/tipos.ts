@@ -20,6 +20,8 @@ export type ItemNoAr = {
   locutor_id?: string | null;
   horario?: string;
   tipo?: TipoPauta;
+  secao?: SecaoPauta;
+  aviso?: boolean;
 };
 
 export type Prioridade = ItemNoAr & { imagem_path: string | null };
@@ -30,15 +32,65 @@ export type Recado = ItemNoAr & { destaque: boolean };
 /** Conexões: institucional e atemporal da emissora (igual às prioridades). */
 export type Conexao = Prioridade;
 
-export type TipoPauta = "EXPECTATIVA" | "VALENDO";
+/** Seção da pauta: Partiu Rádio Disney (ações externas) ou Jornalismo. */
+export type SecaoPauta = "partiu" | "jornalismo";
+
+export const SECAO_PAUTA_LABEL: Record<SecaoPauta, string> = {
+  partiu: "Partiu Rádio Disney",
+  jornalismo: "Jornalismo",
+};
+
+export type TipoPauta =
+  | "EXPECTATIVA"
+  | "VALENDO"
+  | "ESPN"
+  | "NOTA"
+  | "CONTA_TUDO"
+  | "CE_VIU"
+  | "CLASSICOS"
+  | "EM_CARTAZ"
+  | "DESAFIO_RD";
 
 export const TIPO_PAUTA_LABEL: Record<TipoPauta, string> = {
   EXPECTATIVA: "Expectativa",
   VALENDO: "Valendo",
+  ESPN: "ESPN",
+  NOTA: "Nota",
+  CONTA_TUDO: "Conta Tudo",
+  CE_VIU: "Cê Viu?",
+  CLASSICOS: "Clássicos",
+  EM_CARTAZ: "Em Cartaz",
+  DESAFIO_RD: "Desafio RD",
 };
 
+export const TIPOS_POR_SECAO: Record<SecaoPauta, TipoPauta[]> = {
+  partiu: ["EXPECTATIVA", "VALENDO"],
+  jornalismo: ["ESPN", "NOTA", "CONTA_TUDO", "CE_VIU", "CLASSICOS", "EM_CARTAZ", "DESAFIO_RD"],
+};
+
+/** Classe da etiqueta de cada tipo (cor). */
+export function classeTipo(t: TipoPauta | undefined): string {
+  if (t === "EXPECTATIVA") return "expectativa";
+  if (t === "VALENDO" || !t) return "valendo";
+  return `jornal jornal-${t.toLowerCase()}`;
+}
+
+/** Nome principal da pauta: o cliente no Partiu, o assunto no Jornalismo. */
+export function nomePauta(p: { secao?: SecaoPauta; cliente?: string; titulo?: string }): string {
+  return p.secao === "jornalismo" ? p.titulo || "Jornalismo" : p.cliente || p.titulo || "Pauta";
+}
+
 /** Pauta de ação externa ("Partiu Rádio Disney"): vai ao ar num horário, lida por um locutor. */
-export type Pauta = ItemNoAr & { cliente: string; locutor: string; locutor_id?: string | null; horario: string; tipo: TipoPauta };
+export type Pauta = ItemNoAr & {
+  cliente: string;
+  locutor: string;
+  locutor_id?: string | null;
+  horario: string;
+  tipo: TipoPauta;
+  /** Antigas (antes da migração 010) não têm: valem como Partiu, com aviso. */
+  secao?: SecaoPauta;
+  aviso?: boolean;
+};
 
 /** O "feito" do locutor: uma por pauta por dia. */
 export type PautaRealizada = {

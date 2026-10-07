@@ -8,7 +8,7 @@ import { EtiquetaSituacao } from "@/components/EtiquetaSituacao";
 import { agoraHHMM, diasNoPeriodo, ehSemPrazo, fimDoPeriodo, fmtData, hojeISO, horaCurta, SEM_PRAZO, situacaoPeriodo, somarDias, type Duracao } from "@/lib/datas";
 import { sanitizarHtml, textoPuro } from "@/lib/html";
 import { removerImagemSemUso, urlImagem } from "@/lib/imagens";
-import { TIPO_PAUTA_LABEL, type ItemNoAr, type TipoPauta } from "@/lib/tipos";
+import { classeTipo, nomePauta, TIPO_PAUTA_LABEL, TIPOS_POR_SECAO, type ItemNoAr, type SecaoPauta, type TipoPauta } from "@/lib/tipos";
 import { CampoImagem, useImagemForm } from "./CampoImagem";
 import { CampoLocutor } from "./CampoLocutor";
 import { CabecalhoLista, erroMsg, useLista, useLocutoresEquipe, type Avisar } from "./comum";
@@ -33,6 +33,8 @@ export type ConfigItensNoAr = {
   semPrazo?: boolean;
   /** Pautas do Partiu Rádio Disney: cliente, locutor, horário no ar e tipo; título opcional. */
   pauta?: boolean;
+  /** Seção da pauta (Partiu ou Jornalismo); só com `pauta`. */
+  secao?: SecaoPauta;
 };
 
 type Atalho = { rotulo: string; fim: (inicio: string) => string };
@@ -62,7 +64,7 @@ function atalhosDe(c: ConfigItensNoAr): Atalho[] {
   return ATALHOS_PADRAO;
 }
 
-function novo(padrao: Atalho) {
+function novo(padrao: Atalho, secao: SecaoPauta = "partiu") {
   const inicio = hojeISO();
   return {
     data_inicio: inicio,
@@ -78,13 +80,15 @@ function novo(padrao: Atalho) {
     locutor: "",
     locutor_id: null as string | null,
     horario: "",
-    tipo: "VALENDO" as TipoPauta,
+    tipo: (secao === "jornalismo" ? "NOTA" : "VALENDO") as TipoPauta,
+    // No Partiu o aviso de 5 min é sempre ligado; no Jornalismo, só onde a produção marcar.
+    aviso: secao !== "jornalismo",
   };
 }
 
 /** Campos das pautas, copiados ao editar e ao duplicar. */
 function camposPauta(p: ItemNoAr) {
-  return { cliente: p.cliente ?? "", locutor: p.locutor ?? "", locutor_id: p.locutor_id ?? null, horario: horaCurta(p.horario) ?? "", tipo: p.tipo ?? ("VALENDO" as TipoPauta) };
+  return { cliente: p.cliente ?? "", locutor: p.locutor ?? "", locutor_id: p.locutor_id ?? null, horario: horaCurta(p.horario) ?? "", tipo: p.tipo ?? ("VALENDO" as TipoPauta), aviso: p.aviso !== false };
 }
 
 export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisar: Avisar; config: ConfigItensNoAr }) {
@@ -92,13 +96,15 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
   const Nome = c.nome[0].toUpperCase() + c.nome.slice(1);
   const hoje = hojeISO();
   // Lista: o que ainda está no ar ou vai entrar (sai do ar hoje ou depois), pela data de entrada.
-  const lista = useLista<ItemNoAr>(sb, c.tabela, "data_inicio", hoje, c.pauta ? "horario" : "data_fim", "data_fim");
+  const secao = c.secao ?? "partiu";
+  const jornal = Boolean(c.pauta) && secao === "jornalismo";
+  const lista = useLista<ItemNoAr>(sb, c.tabela, "data_inicio", hoje, c.pauta ? "horario" : "data_fim", "data_fim", c.pauta ? ["secao", secao] : undefined);
   const imagem = useImagemForm();
   const atalhos = atalhosDe(c);
   const { locutores } = useLocutoresEquipe(sb);
   const locutorDe = (p: ItemNoAr) => (p.locutor_id ? locutores.find((l) => l.id === p.locutor_id) : undefined);
   const padrao = atalhos[0];
-  const [form, setForm] = useState(() => novo(padrao));
+  const [form, setForm] = useState(() => novo(padrao, secao));
   // Atalho escolhido: se a data de entrada mudar, a saída acompanha.
   const [atalho, setAtalho] = useState<Atalho | null>(padrao);
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -106,7 +112,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
   const [salvando, setSalvando] = useState(false);
 
   function limpar() {
-    setForm(novo(padrao));
+    setForm(novo(padrao, secao));
     setAtalho(padrao);
     setEditandoId(null);
     imagem.reiniciar(null);
@@ -182,11 +188,11 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
       avisar("No mesmo dia, o horário de saída precisa ser depois do de entrada.", true);
       return;
     }
-    if (c.pauta && (!form.cliente.trim() || !form.locutor.trim() || !form.horario)) {
-      avisar("Preencha cliente, locutor e o horário que a pauta vai ao ar.", true);
+    if (c.pauta && (!(jornal ? form.titulo : form.cliente).trim() || !form.locutor.trim() || !form.horario)) {
+      avisar(`Preencha ${jornal ? "assunto" : "cliente"}, locutor e o horário que a pauta vai ao ar.`, true);
       return;
     }
-    if (!c.pauta && !form.titulo.trim()) {
+    if ((!c.pauta || jornal) && !form.titulo.trim()) {
       avisar(`Dê um título para ${g("a", "o")} ${c.nome} (é o que aparece no card).`, true);
       return;
     }
@@ -201,7 +207,15 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
         data_inicio: form.data_inicio,
         data_fim: form.data_fim,
         ...(c.pauta
-          ? { horario: form.horario, cliente: form.cliente.trim(), locutor: form.locutor.trim(), locutor_id: form.locutor_id, tipo: form.tipo }
+          ? {
+              secao,
+              horario: form.horario,
+              cliente: jornal ? "" : form.cliente.trim(),
+              locutor: form.locutor.trim(),
+              locutor_id: form.locutor_id,
+              tipo: form.tipo,
+              aviso: jornal ? form.aviso : true,
+            }
           : { hora_inicio: form.hora_inicio || null, hora_fim: semPrazo ? null : form.hora_fim || null }),
         titulo: form.titulo.trim(),
         conteudo_html: sanitizarHtml(form.conteudo_html),
@@ -262,10 +276,17 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
         {c.pauta && (
           <>
             <div className="form-grade pauta-grade">
-              <label className="campo">
-                Cliente
-                <input type="text" required maxLength={80} placeholder="Ex.: Shopping Eldorado" value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} />
-              </label>
+              {jornal ? (
+                <label className="campo">
+                  Assunto (aparece no card)
+                  <input type="text" required maxLength={80} placeholder={`Ex.: ${c.exemploTitulo}`} value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
+                </label>
+              ) : (
+                <label className="campo">
+                  Cliente
+                  <input type="text" required maxLength={80} placeholder="Ex.: Shopping Eldorado" value={form.cliente} onChange={(e) => setForm({ ...form, cliente: e.target.value })} />
+                </label>
+              )}
               <CampoLocutor
                 key={`loc-${versao}`}
                 sb={sb}
@@ -282,21 +303,28 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
             </div>
             <div className="atalhos" role="radiogroup" aria-label="Tipo da pauta">
               <span>Tipo:</span>
-              {(Object.keys(TIPO_PAUTA_LABEL) as TipoPauta[]).map((t) => (
+              {TIPOS_POR_SECAO[secao].map((t) => (
                 <button
                   key={t}
                   type="button"
                   role="radio"
                   aria-checked={form.tipo === t}
-                  className={`pequeno ${form.tipo === t ? (t === "VALENDO" ? "vermelho" : "amarelo") : "branco"}`}
+                  className={`pequeno ${form.tipo === t ? (t === "VALENDO" ? "vermelho" : jornal ? "verde" : "amarelo") : "branco"}`}
                   onClick={() => setForm({ ...form, tipo: t })}
                 >
                   {TIPO_PAUTA_LABEL[t]}
                 </button>
               ))}
             </div>
+            {jornal && (
+              <label className="check">
+                <input type="checkbox" checked={form.aviso} onChange={(e) => setForm({ ...form, aviso: e.target.checked })} />
+                ⏰ Avisar 5 min antes na dashboard (com som e "Abrir pauta")
+              </label>
+            )}
           </>
         )}
+        {!jornal && (
         <label className="campo">
           {c.rotuloTitulo}
           <input
@@ -308,6 +336,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
             onChange={(e) => setForm({ ...form, titulo: e.target.value })}
           />
         </label>
+        )}
         <div className={`form-grade ${c.pauta ? "" : "periodo-grade"}`}>
           <label className="campo">
             Entra no ar
@@ -441,9 +470,10 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
                       {p.fixado && <span className="etiqueta fixado" style={{ marginRight: 6 }}>⭐ Fixado</span>}
                       {c.pauta ? (
                         <>
-                          <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`} style={{ marginRight: 6 }}>{TIPO_PAUTA_LABEL[p.tipo ?? "VALENDO"]}</span>
-                          <strong>{p.cliente}</strong> · {locutorDe(p) ? <Avatar sb={sb} locutor={locutorDe(p)!} tamanho={24} /> : "🎙"} {p.locutor}
-                          {p.titulo && <div className="trecho">{p.titulo}</div>}
+                          <span className={`etiqueta ${classeTipo(p.tipo)}`} style={{ marginRight: 6 }}>{TIPO_PAUTA_LABEL[p.tipo ?? "VALENDO"]}</span>
+                          {jornal && p.aviso && <span className="etiqueta cinza" style={{ marginRight: 6 }} title="Avisa 5 min antes">⏰ Aviso</span>}
+                          <strong>{nomePauta(p)}</strong> · {locutorDe(p) ? <Avatar sb={sb} locutor={locutorDe(p)!} tamanho={24} /> : "🎙"} {p.locutor}
+                          {!jornal && p.titulo && <div className="trecho">{p.titulo}</div>}
                         </>
                       ) : p.titulo ? <strong>{p.titulo}</strong> : <em className="sem-titulo">Sem título</em>}
                       <div className="trecho">{textoPuro(p.conteudo_html).slice(0, 100) || "—"}</div>

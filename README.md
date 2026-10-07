@@ -12,6 +12,8 @@ Tudo o que o locutor precisa para tocar o horário, numa tela só:
 - **Partiu Rádio Disney**: pautas das ações externas com cliente, locutor, horário e *Expectativa* / *Valendo*.
   Lembrete na tela 5 min antes (com som e "Abrir pauta"). O locutor marca "feita" na própria pauta, e isso vira o **Relatório de pautas** do dia (Artístico),
   pronto para copiar no e-mail da Opec e dos produtores ou baixar em planilha.
+- **Jornalismo** (logo abaixo do Partiu): pautas do jornalismo — ESPN, Nota, Conta Tudo, Cê Viu?, Clássicos,
+  Em Cartaz, Desafio RD — com o mesmo "feita" e relatório próprio; o aviso de 5 min é opcional por pauta.
 - **Conexões**: conteúdo institucional e atemporal da emissora (pode ficar "sem prazo").
 - **Próximos convidados**, com foto, data e horário. Clicando, abre a mini pauta.
 - **Agenda de eventos**, com etiqueta *Rádio oficial* ou *Apoio*, data e local.

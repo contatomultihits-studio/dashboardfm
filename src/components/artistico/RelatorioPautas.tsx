@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fmtData, fmtDiaSemana, hojeISO, somarDias } from "@/lib/datas";
 import { csvRelatorio, instanteNoFuso, linhasRelatorio, resumoRelatorio, textoRelatorio } from "@/lib/pautas";
-import { TIPO_PAUTA_LABEL, type Pauta, type PautaRealizada } from "@/lib/tipos";
+import { classeTipo, nomePauta, SECAO_PAUTA_LABEL, TIPO_PAUTA_LABEL, type Pauta, type PautaRealizada, type SecaoPauta } from "@/lib/tipos";
 import { erroMsg, type Avisar } from "./comum";
 
 /** Relatório do dia: horário previsto x horário em que o locutor marcou "feita". */
-export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) {
+export function RelatorioPautas({ sb, avisar, secao = "partiu" }: { sb: SupabaseClient; avisar: Avisar; secao?: SecaoPauta }) {
+  const jornal = secao === "jornalismo";
   const [dia, setDia] = useState(hojeISO);
   const [pautas, setPautas] = useState<Pauta[]>([]);
   const [realizadas, setRealizadas] = useState<PautaRealizada[]>([]);
@@ -19,7 +20,7 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
   const carregar = useCallback(async () => {
     setCarregando(true);
     const [p, r] = await Promise.all([
-      sb.from("pautas").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true).order("horario"),
+      sb.from("pautas").select("*").eq("secao", secao).lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true).order("horario"),
       sb.from("pautas_realizadas").select("*").eq("dia", dia),
     ]);
     const falha = p.error ?? r.error;
@@ -29,7 +30,7 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
       setRealizadas(r.data as PautaRealizada[]);
     }
     setCarregando(false);
-  }, [sb, dia]);
+  }, [sb, dia, secao]);
 
   useEffect(() => {
     carregar();
@@ -37,8 +38,8 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
 
   const linhas = useMemo(() => linhasRelatorio(pautas, realizadas), [pautas, realizadas]);
   const resumo = resumoRelatorio(linhas);
-  const texto = useMemo(() => textoRelatorio(dia, linhas), [dia, linhas]);
-  const assunto = `Partiu Rádio Disney — pautas de ${fmtData(dia)}`;
+  const texto = useMemo(() => textoRelatorio(dia, linhas, secao), [dia, linhas, secao]);
+  const assunto = `${SECAO_PAUTA_LABEL[secao]} — pautas de ${fmtData(dia)}`;
 
   async function copiar() {
     try {
@@ -50,10 +51,10 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
   }
 
   function baixar() {
-    const url = URL.createObjectURL(new Blob([csvRelatorio(dia, linhas)], { type: "text/csv;charset=utf-8" }));
+    const url = URL.createObjectURL(new Blob([csvRelatorio(dia, linhas, secao)], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `pautas-${dia}.csv`;
+    a.download = `${jornal ? "jornalismo" : "pautas"}-${dia}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
@@ -66,7 +67,7 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
         .from("pautas_realizadas")
         .insert({ pauta_id: pauta.id, dia, realizado_em: instanteNoFuso(dia, hora), origem: "producao" });
       if (error) throw new Error(error.message);
-      avisar(`${pauta.cliente}: registrada às ${hora}`);
+      avisar(`${nomePauta(pauta)}: registrada às ${hora}`);
       carregar();
     } catch (e) {
       avisar(erroMsg(e), true);
@@ -74,7 +75,7 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
   }
 
   async function desfazer(pauta: Pauta) {
-    if (!confirm(`Desmarcar a pauta de ${pauta.cliente} como feita?`)) return;
+    if (!confirm(`Desmarcar a pauta de ${nomePauta(pauta)} como feita?`)) return;
     const { error } = await sb.from("pautas_realizadas").delete().eq("pauta_id", pauta.id).eq("dia", dia);
     if (error) return avisar(error.message, true);
     avisar("Pauta desmarcada");
@@ -84,7 +85,7 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
   return (
     <section className="card">
       <div className="secao-topo" style={{ flexWrap: "wrap" }}>
-        <h2>Relatório de pautas · {fmtDiaSemana(dia)}</h2>
+        <h2>Relatório {jornal ? "do Jornalismo" : "do Partiu"} · {fmtDiaSemana(dia)}</h2>
         <div className="tabela-acoes">
           <button type="button" className="pequeno verde" onClick={() => setDia((d) => somarDias(d, -1))}>◀ Dia anterior</button>
           <input type="date" aria-label="Dia do relatório" value={dia} onChange={(e) => e.target.value && setDia(e.target.value)} />
@@ -96,7 +97,7 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
       {erro && <div className="aviso erro">{erro}</div>}
 
       {!carregando && linhas.length === 0 ? (
-        <div className="vazio">Nenhuma pauta do Partiu Rádio Disney neste dia.</div>
+        <div className="vazio">Nenhuma pauta {jornal ? "do Jornalismo" : "do Partiu Rádio Disney"} neste dia.</div>
       ) : (
         <>
           <div className="relatorio-resumo" aria-label="Resumo do dia">
@@ -107,17 +108,17 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
           <div className="tabela-wrap">
             <table>
               <thead>
-                <tr><th>Previsto</th><th>Cliente</th><th>Tipo</th><th>Locutor</th><th>Feita às</th><th>Situação</th><th>Ajuste</th></tr>
+                <tr><th>Previsto</th><th>{jornal ? "Assunto" : "Cliente"}</th><th>Tipo</th><th>Locutor</th><th>Feita às</th><th>Situação</th><th>Ajuste</th></tr>
               </thead>
               <tbody>
                 {linhas.map((l) => (
                   <tr key={l.pauta.id}>
                     <td><strong>{l.previsto}</strong></td>
                     <td className="texto">
-                      <strong>{l.pauta.cliente}</strong>
-                      {l.pauta.titulo && <div className="trecho">{l.pauta.titulo}</div>}
+                      <strong>{nomePauta(l.pauta)}</strong>
+                      {!jornal && l.pauta.titulo && <div className="trecho">{l.pauta.titulo}</div>}
                     </td>
-                    <td><span className={`etiqueta ${l.pauta.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`}>{TIPO_PAUTA_LABEL[l.pauta.tipo]}</span></td>
+                    <td><span className={`etiqueta ${classeTipo(l.pauta.tipo)}`}>{TIPO_PAUTA_LABEL[l.pauta.tipo]}</span></td>
                     <td>{l.pauta.locutor}</td>
                     <td>
                       {l.realizado ? <strong>{l.realizado}</strong> : "—"}
@@ -133,7 +134,7 @@ export function RelatorioPautas({ sb, avisar }: { sb: SupabaseClient; avisar: Av
                         <div className="tabela-acoes">
                           <input
                             type="time"
-                            aria-label={`Horário em que a pauta de ${l.pauta.cliente} foi feita`}
+                            aria-label={`Horário em que a pauta de ${nomePauta(l.pauta)} foi feita`}
                             value={horaManual[l.pauta.id] ?? ""}
                             onChange={(e) => setHoraManual((h) => ({ ...h, [l.pauta.id]: e.target.value }))}
                           />

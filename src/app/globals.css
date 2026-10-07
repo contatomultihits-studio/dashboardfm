@@ -400,3 +400,14 @@ fieldset.grupo legend { font-weight: 900; font-size: 0.8rem; text-transform: upp
 .leituras-horarios { display: flex; flex-wrap: wrap; gap: 6px; }
 .leitura-horario { border: 2px solid var(--ink); border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; background: #f0fdf4; white-space: nowrap; }
 tr.nao-lido td { background: #fff1f2; }
+
+/* Jornalismo: card em lilás e uma cor por tipo */
+.item-card.pauta-card.jornal:not(.pauta-feita):not(.pauta-agora) { background: #ede9fe; }
+.etiqueta.jornal { color: #fff; border-color: var(--ink); }
+.etiqueta.jornal-espn { background: #c8102e; }
+.etiqueta.jornal-nota { background: #2563eb; }
+.etiqueta.jornal-conta_tudo { background: #7c3aed; }
+.etiqueta.jornal-ce_viu { background: #db2777; }
+.etiqueta.jornal-classicos { background: #92400e; }
+.etiqueta.jornal-em_cartaz { background: #0f766e; }
+.etiqueta.jornal-desafio_rd { background: #ea580c; }

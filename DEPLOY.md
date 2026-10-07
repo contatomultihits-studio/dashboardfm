@@ -100,6 +100,7 @@ que já vem com tudo.
 | `007_locutores_escala.sql` | Locutores (foto, cor, horário fixo da semana) e escala por data (fins de semana e trocas); a pauta passa a guardar o locutor escolhido. |
 | `008_fixar.sql` | "Fixar em primeiro" nas prioridades e conexões. |
 | `009_leituras.sql` | Registro de cada leitura de prioridade/conexão na dashboard (relatório de leituras). |
+| `010_jornalismo.sql` | Jornalismo: pautas com seção própria (ESPN, Nota, Conta Tudo…) e aviso de 5 min opcional. |
 
 ### Deu problema?
 

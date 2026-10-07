@@ -2,7 +2,7 @@
 
 import { FUSO, LEMBRETE_ATRASO_MAX_MIN, LEMBRETE_PAUTA_MIN, TOLERANCIA_PAUTA_MIN } from "@/lib/config";
 import { fmtData, horaCurta } from "@/lib/datas";
-import { TIPO_PAUTA_LABEL, type Pauta, type PautaRealizada } from "@/lib/tipos";
+import { nomePauta, SECAO_PAUTA_LABEL, TIPO_PAUTA_LABEL, type Pauta, type PautaRealizada, type SecaoPauta } from "@/lib/tipos";
 
 const relogio = new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
@@ -94,7 +94,7 @@ export type LinhaRelatorio = {
 export function linhasRelatorio(pautas: Pauta[], realizadas: PautaRealizada[]): LinhaRelatorio[] {
   const porPauta = new Map(realizadas.map((r) => [r.pauta_id, r]));
   return [...pautas]
-    .sort((a, b) => a.horario.localeCompare(b.horario) || a.cliente.localeCompare(b.cliente))
+    .sort((a, b) => a.horario.localeCompare(b.horario) || nomePauta(a).localeCompare(nomePauta(b)))
     .map((p) => {
       const previsto = horaCurta(p.horario) ?? "--:--";
       const r = porPauta.get(p.id);
@@ -118,17 +118,17 @@ export function resumoRelatorio(linhas: LinhaRelatorio[]) {
 }
 
 /** Texto pronto para colar no e-mail da Opec e dos produtores. */
-export function textoRelatorio(dia: string, linhas: LinhaRelatorio[]): string {
+export function textoRelatorio(dia: string, linhas: LinhaRelatorio[], secao: SecaoPauta = "partiu"): string {
   const r = resumoRelatorio(linhas);
   const cab = [
-    `PARTIU RÁDIO DISNEY — Relatório de pautas de ${fmtData(dia)}`,
+    `${SECAO_PAUTA_LABEL[secao].toUpperCase()} — Relatório de pautas de ${fmtData(dia)}`,
     `${r.feitas} de ${r.total} pautas feitas · ${r.noHorario} no horário · ${r.naoFeitas} não feitas`,
     "",
   ];
   const corpo = linhas.map((l) => {
     const tipo = TIPO_PAUTA_LABEL[l.pauta.tipo].toUpperCase();
     const feita = l.realizado ? `feita às ${l.realizado} (${l.situacao.toLowerCase()})${l.ajusteProducao ? " [registrada pela produção]" : ""}` : "NÃO FEITA";
-    return `${l.previsto} · ${l.pauta.cliente} · ${tipo} · ${l.pauta.locutor || "sem locutor"} → ${feita}`;
+    return `${l.previsto} · ${nomePauta(l.pauta)} · ${tipo} · ${l.pauta.locutor || "sem locutor"} → ${feita}`;
   });
   return [...cab, ...corpo].join("\n");
 }
@@ -136,13 +136,14 @@ export function textoRelatorio(dia: string, linhas: LinhaRelatorio[]): string {
 const celula = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
 
 /** Planilha (CSV com ";", abre direto no Excel em português). */
-export function csvRelatorio(dia: string, linhas: LinhaRelatorio[]): string {
-  const cab = ["Data", "Horário previsto", "Cliente", "Ação", "Locutor", "Tipo", "Feita às", "Diferença (min)", "Situação", "Registro"];
+export function csvRelatorio(dia: string, linhas: LinhaRelatorio[], secao: SecaoPauta = "partiu"): string {
+  const jornal = secao === "jornalismo";
+  const cab = ["Data", "Horário previsto", ...(jornal ? ["Assunto"] : ["Cliente", "Ação"]), "Locutor", "Tipo", "Feita às", "Diferença (min)", "Situação", "Registro"];
   const corpo = linhas.map((l) => [
     fmtData(dia),
     l.previsto,
-    l.pauta.cliente,
-    l.pauta.titulo ?? "",
+    nomePauta(l.pauta),
+    ...(jornal ? [] : [l.pauta.titulo ?? ""]),
     l.pauta.locutor ?? "",
     TIPO_PAUTA_LABEL[l.pauta.tipo],
     l.realizado ?? "",

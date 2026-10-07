@@ -21,7 +21,7 @@ import { lerLeituras, ordenarPorLeitura, salvarLeituras, type Leituras } from "@
 import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
 import { horaNoFuso, ordenarPautas, pautasParaLembrar, situacaoPauta } from "@/lib/pautas";
-import { TIPO_PAUTA_LABEL, VINCULO_LABEL, type Conexao, type Convidado, type ItemEscala, type Locutor, type Evento, type Pauta, type PautaRealizada, type Prioridade, type Recado } from "@/lib/tipos";
+import { classeTipo, nomePauta, SECAO_PAUTA_LABEL, TIPO_PAUTA_LABEL, VINCULO_LABEL, type Conexao, type Convidado, type ItemEscala, type Locutor, type Evento, type Pauta, type PautaRealizada, type Prioridade, type Recado } from "@/lib/tipos";
 
 /** Convidado na dashboard: os que já vieram aparecem depois dos próximos, em preto e branco. */
 type ConvidadoCard = Convidado & { jaVeio: boolean };
@@ -315,7 +315,9 @@ export function Dashboard() {
     [conexoes, dia, agora, lidos],
   );
   const feitas = useMemo(() => new Map(realizadas.map((x) => [x.pauta_id, x])), [realizadas]);
-  const pautasDoDia = useMemo(() => ordenarPautas(pautas, feitas), [pautas, feitas]);
+  // Partiu Rádio Disney e Jornalismo usam as mesmas pautas, separadas pela seção.
+  const pautasDoDia = useMemo(() => ordenarPautas(pautas.filter((p) => (p.secao ?? "partiu") === "partiu"), feitas), [pautas, feitas]);
+  const jornalismoDoDia = useMemo(() => ordenarPautas(pautas.filter((p) => p.secao === "jornalismo"), feitas), [pautas, feitas]);
   const locutorPorId = useMemo(() => new Map(locutores.map((l) => [l.id, l])), [locutores]);
   // Quem está no ar é sempre sobre agora (mesmo olhando outro dia); `agora` muda a cada 15s.
   const hojeAgora = useMemo(() => hojeISO(), [agora]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -329,7 +331,7 @@ export function Dashboard() {
   // Lembrete na tela 5 min antes de cada pauta de hoje (o locutor pode fechar o aviso).
   const [dispensadas, setDispensadas] = useState<Set<string>>(() => new Set());
   const lembretes = useMemo(
-    () => (ehHoje ? pautasParaLembrar(pautas, feitas, dispensadas, agora) : []),
+    () => (ehHoje ? pautasParaLembrar(pautas.filter((p) => p.aviso !== false), feitas, dispensadas, agora) : []),
     [ehHoje, pautas, feitas, dispensadas, agora],
   );
   const [marcando, setMarcando] = useState(false);
@@ -367,6 +369,26 @@ export function Dashboard() {
     ],
     [datasDoDia, recadosNoAr],
   );
+
+  /** Card de pauta (Partiu ou Jornalismo): tipo, situação, horário grande, nome e locutor. */
+  const cardPauta = (p: Pauta) => {
+    const st = situacaoPauta(p.horario, feitas.get(p.id), dia ?? "", hojeISO(), agora);
+    const loc = p.locutor_id ? locutorPorId.get(p.locutor_id) : undefined;
+    return (
+      <button type="button" className={`item-card pauta-card pauta-${st.tipo} ${p.secao === "jornalismo" ? "jornal" : ""}`} onClick={() => abrir({ tipo: "pauta", item: p })}>
+        <span className="pauta-topo">
+          <span className={`etiqueta ${classeTipo(p.tipo)}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
+          <span className={`etiqueta pauta-status status-${st.tipo}`}>{st.tipo === "feita" ? "✓ " : ""}{st.texto}</span>
+        </span>
+        <span className="pauta-hora">{horaCurta(p.horario)}</span>
+        <span className="pauta-cliente">{nomePauta(p)}</span>
+        {p.secao !== "jornalismo" && p.titulo && <span className="pauta-acao">{p.titulo}</span>}
+        <span className="pauta-locutor">
+          {loc ? <Avatar sb={sb} locutor={loc} tamanho={30} /> : "🎙"} {p.locutor}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <>
@@ -469,23 +491,18 @@ export function Dashboard() {
               carregando={carregando}
               porPaginaMax={4}
               vazio="Sem pautas de ação externa para este dia."
-              render={(p) => {
-                const st = situacaoPauta(p.horario, feitas.get(p.id), dia ?? "", hojeISO(), agora);
-                return (
-                  <button type="button" className={`item-card pauta-card pauta-${st.tipo}`} onClick={() => abrir({ tipo: "pauta", item: p })}>
-                    <span className="pauta-topo">
-                      <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
-                      <span className={`etiqueta pauta-status status-${st.tipo}`}>{st.tipo === "feita" ? "✓ " : ""}{st.texto}</span>
-                    </span>
-                    <span className="pauta-hora">{horaCurta(p.horario)}</span>
-                    <span className="pauta-cliente">{p.cliente}</span>
-                    {p.titulo && <span className="pauta-acao">{p.titulo}</span>}
-                    <span className="pauta-locutor">
-                      {p.locutor_id && locutorPorId.get(p.locutor_id) ? <Avatar sb={sb} locutor={locutorPorId.get(p.locutor_id)!} tamanho={30} /> : "🎙"} {p.locutor}
-                    </span>
-                  </button>
-                );
-              }}
+              render={cardPauta}
+            />
+
+            <Carrossel
+              key={`jornal-${dia}`}
+              titulo="Jornalismo"
+              className="secao-pautas secao-jornalismo"
+              itens={jornalismoDoDia}
+              carregando={carregando}
+              porPaginaMax={4}
+              vazio="Sem pautas do jornalismo para este dia."
+              render={cardPauta}
             />
 
             <Carrossel
@@ -608,9 +625,10 @@ export function Dashboard() {
         const feita = feitas.get(p.id);
         const podeDesfazer = feita && feita.origem === "locutor" && Date.now() - Date.parse(feita.realizado_em) < DESFAZER_PAUTA_MS;
         return (
-          <Modal titulo={`${p.cliente} · ${horaCurta(p.horario)}`} onFechar={fechar} leitura>
+          <Modal titulo={`${nomePauta(p)} · ${horaCurta(p.horario)}`} onFechar={fechar} leitura>
             <div className="modal-meta">
-              <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
+              <span className="etiqueta cinza">{SECAO_PAUTA_LABEL[p.secao ?? "partiu"]}</span>
+              <span className={`etiqueta ${classeTipo(p.tipo)}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
               <span className="etiqueta cinza">🎙 {p.locutor}</span>
               <span className="etiqueta cinza">No ar às {horaCurta(p.horario)}</span>
               {p.titulo && <span className="etiqueta cinza">{p.titulo}</span>}

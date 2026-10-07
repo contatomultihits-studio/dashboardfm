@@ -100,6 +100,17 @@ describe("pautas", () => {
     expect(textoFaltam(-3)).toBe("Atrasada 3 min");
   });
 
+  it("jornalismo: nome é o assunto, relatório com cabeçalho e colunas próprios", () => {
+    const j = pauta("j1", "11:00:00", { secao: "jornalismo", tipo: "CE_VIU", titulo: "Show surpresa", cliente: "" });
+    const linhas = linhasRelatorio([j], [feita("j1", "2026-10-02T14:01:00Z")]);
+    const texto = textoRelatorio("2026-10-02", linhas, "jornalismo");
+    expect(texto).toContain("JORNALISMO — Relatório de pautas de 02/10/2026");
+    expect(texto).toContain("11:00 · Show surpresa · CÊ VIU? · Ana → feita às 11:01 (no horário)");
+    const csv = csvRelatorio("2026-10-02", linhas, "jornalismo");
+    expect(csv.split("\r\n")[0]).toBe("\uFEFFData;Horário previsto;Assunto;Locutor;Tipo;Feita às;Diferença (min);Situação;Registro");
+    expect(csv).toContain("02/10/2026;11:00;Show surpresa;Ana;Cê Viu?;11:01");
+  });
+
   it("duração em dias e 'sem prazo'", () => {
     expect(fimDoPeriodo("2026-10-02", { qtd: 1, unidade: "dia" })).toBe("2026-10-02");
     expect(fimDoPeriodo("2026-10-02", { qtd: 3, unidade: "dia" })).toBe("2026-10-04");

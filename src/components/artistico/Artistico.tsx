@@ -9,6 +9,7 @@ import { Conexoes } from "./Conexoes";
 import { Convidados } from "./Convidados";
 import { Escala } from "./Escala";
 import { Eventos } from "./Eventos";
+import { Jornalismo } from "./Jornalismo";
 import { Locutores } from "./Locutores";
 import { Pautas } from "./Pautas";
 import { Prioridades } from "./Prioridades";
@@ -20,10 +21,12 @@ const ABAS = [
   { id: "prioridades", rotulo: "Prioridades do ar" },
   { id: "recados", rotulo: "Recados" },
   { id: "pautas", rotulo: "Partiu Rádio Disney" },
+  { id: "jornalismo", rotulo: "Jornalismo" },
   { id: "conexoes", rotulo: "Conexões" },
   { id: "convidados", rotulo: "Convidados" },
   { id: "eventos", rotulo: "Eventos" },
-  { id: "relatorio", rotulo: "Relatório de pautas" },
+  { id: "relatorio", rotulo: "Relatório do Partiu" },
+  { id: "relatorio-jornalismo", rotulo: "Relatório do Jornalismo" },
   { id: "leituras", rotulo: "Relatório de leituras" },
   { id: "locutores", rotulo: "Locutores" },
   { id: "escala", rotulo: "Escala" },
@@ -99,10 +102,12 @@ export function Artistico() {
             {aba === "prioridades" && <Prioridades sb={sb} avisar={avisar} />}
             {aba === "recados" && <Recados sb={sb} avisar={avisar} />}
             {aba === "pautas" && <Pautas sb={sb} avisar={avisar} />}
+            {aba === "jornalismo" && <Jornalismo sb={sb} avisar={avisar} />}
             {aba === "conexoes" && <Conexoes sb={sb} avisar={avisar} />}
             {aba === "convidados" && <Convidados sb={sb} avisar={avisar} />}
             {aba === "eventos" && <Eventos sb={sb} avisar={avisar} />}
-            {aba === "relatorio" && <RelatorioPautas sb={sb} avisar={avisar} />}
+            {aba === "relatorio" && <RelatorioPautas key="partiu" sb={sb} avisar={avisar} secao="partiu" />}
+            {aba === "relatorio-jornalismo" && <RelatorioPautas key="jornalismo" sb={sb} avisar={avisar} secao="jornalismo" />}
             {aba === "leituras" && <RelatorioLeituras sb={sb} avisar={avisar} />}
             {aba === "locutores" && <Locutores sb={sb} avisar={avisar} />}
             {aba === "escala" && <Escala sb={sb} avisar={avisar} />}

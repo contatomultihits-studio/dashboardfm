@@ -532,6 +532,23 @@ grant execute on function public.registrar_leitura(text, uuid, text) to anon, au
 
 
 -- ---------------------------------------------------------------------
+-- Jornalismo: pautas com secao = 'jornalismo' e aviso opcional. Migração 010.
+-- ---------------------------------------------------------------------
+alter table public.pautas add column if not exists secao text not null default 'partiu';
+alter table public.pautas add column if not exists aviso boolean not null default true;
+alter table public.pautas alter column cliente set default '';
+
+alter table public.pautas drop constraint if exists pautas_tipo_check;
+alter table public.pautas drop constraint if exists pautas_secao_tipo_check;
+alter table public.pautas add constraint pautas_secao_tipo_check check (
+  (secao = 'partiu' and tipo in ('EXPECTATIVA', 'VALENDO'))
+  or (secao = 'jornalismo' and tipo in ('ESPN', 'NOTA', 'CONTA_TUDO', 'CE_VIU', 'CLASSICOS', 'EM_CARTAZ', 'DESAFIO_RD'))
+);
+
+create index if not exists pautas_secao_idx on public.pautas (secao, data_inicio, data_fim);
+
+
+-- ---------------------------------------------------------------------
 -- Fotos: bucket "imagens" (leitura pública pelo link, envio só da equipe)
 -- ---------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

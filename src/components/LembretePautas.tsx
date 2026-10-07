@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Avatar } from "@/components/Avatar";
 import { horaCurta } from "@/lib/datas";
 import { textoFaltam, type Lembrete } from "@/lib/pautas";
-import { TIPO_PAUTA_LABEL, type Locutor, type Pauta } from "@/lib/tipos";
+import { classeTipo, nomePauta, SECAO_PAUTA_LABEL, TIPO_PAUTA_LABEL, type Locutor, type Pauta } from "@/lib/tipos";
 
 /** "Ding-dong" curto, gerado no navegador (sem arquivo de som). Se o navegador bloquear, segue sem som. */
 function tocarAviso() {
@@ -61,7 +61,7 @@ export function LembretePautas({ sb, locutores, lembretes, onAbrir, onFechar }: 
 
   // Título da aba piscando enquanto houver aviso.
   const primeiro = lembretes[0];
-  const tituloAviso = primeiro ? `⏰ ${horaCurta(primeiro.pauta.horario)} ${primeiro.pauta.cliente}` : "";
+  const tituloAviso = primeiro ? `⏰ ${horaCurta(primeiro.pauta.horario)} ${nomePauta(primeiro.pauta)}` : "";
   useEffect(() => {
     if (!tituloAviso) return;
     const original = document.title;
@@ -88,17 +88,17 @@ export function LembretePautas({ sb, locutores, lembretes, onAbrir, onFechar }: 
             <span className="lembrete-sino" aria-hidden>⏰</span>
           )}
           <div className="lembrete-texto">
-            <span className="lembrete-quando">{textoFaltam(faltam)} · Partiu Rádio Disney</span>
+            <span className="lembrete-quando">{textoFaltam(faltam)} · {SECAO_PAUTA_LABEL[p.secao ?? "partiu"]}</span>
             <strong>
-              {horaCurta(p.horario)} · {p.cliente}
+              {horaCurta(p.horario)} · {nomePauta(p)}
             </strong>
             <span>
-              {p.locutor_id && locutores.get(p.locutor_id) ? "" : "🎙 "}{p.locutor} · <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
+              {p.locutor_id && locutores.get(p.locutor_id) ? "" : "🎙 "}{p.locutor} · <span className={`etiqueta ${classeTipo(p.tipo)}`}>{TIPO_PAUTA_LABEL[p.tipo]}</span>
             </span>
           </div>
           <div className="lembrete-acoes">
             <button type="button" className="verde" onClick={() => onAbrir(p)}>Abrir pauta</button>
-            <button type="button" className="branco pequeno" aria-label={`Fechar aviso da pauta de ${p.cliente}`} onClick={() => onFechar(p.id)}>✕</button>
+            <button type="button" className="branco pequeno" aria-label={`Fechar aviso da pauta de ${nomePauta(p)}`} onClick={() => onFechar(p.id)}>✕</button>
           </div>
         </div>
       ))}

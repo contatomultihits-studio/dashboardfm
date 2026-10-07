@@ -17,6 +17,8 @@ export function useLista<T>(
   desde: string,
   ordemExtra?: string,
   colunaFiltro: string = colunaData,
+  /** Filtro fixo de igualdade, ex.: ["secao", "jornalismo"]. */
+  filtro?: [string, string],
 ) {
   const [itens, setItens] = useState<T[]>([]);
   const [anteriores, setAnteriores] = useState(false);
@@ -26,6 +28,7 @@ export function useLista<T>(
   const recarregar = useCallback(async () => {
     setCarregando(true);
     let q = sb.from(tabela).select("*");
+    if (filtro) q = q.eq(filtro[0], filtro[1]);
     if (!anteriores) q = q.gte(colunaFiltro, desde);
     q = q.order(colunaData, { ascending: !anteriores });
     if (ordemExtra) q = q.order(ordemExtra, { nullsFirst: false });
@@ -33,7 +36,7 @@ export function useLista<T>(
     setErro(error?.message ?? null);
     if (!error) setItens(data as T[]);
     setCarregando(false);
-  }, [sb, tabela, colunaData, desde, ordemExtra, colunaFiltro, anteriores]);
+  }, [sb, tabela, colunaData, desde, ordemExtra, colunaFiltro, anteriores, filtro?.[0], filtro?.[1]]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     recarregar();

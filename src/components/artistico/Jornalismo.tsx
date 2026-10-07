@@ -10,14 +10,14 @@ const CONFIG: ConfigItensNoAr = {
   comDestaque: false,
   feminino: true,
   nome: "pauta",
-  plural: "Pautas do Partiu Rádio Disney",
-  tituloNovo: "Nova pauta — Partiu Rádio Disney",
-  rotuloTitulo: "Ação (opcional)",
-  exemploTitulo: "Encontro de fãs na praça de eventos",
+  plural: "Pautas do Jornalismo",
+  tituloNovo: "Nova pauta — Jornalismo",
+  rotuloTitulo: "Assunto",
+  exemploTitulo: "Final da Libertadores hoje às 21h30",
   pauta: true,
-  secao: "partiu",
+  secao: "jornalismo",
 };
 
-export function Pautas({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) {
+export function Jornalismo({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) {
   return <ItensNoAr sb={sb} avisar={avisar} config={CONFIG} />;
 }
