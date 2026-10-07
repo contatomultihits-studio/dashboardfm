@@ -19,6 +19,8 @@ export type ConfigItensNoAr = {
   tabela: "prioridades" | "recados" | "conexoes" | "pautas";
   comImagem: boolean;
   comDestaque: boolean;
+  /** Prioridades e conexões: "Fixar em primeiro" (fica na frente, fora do rodízio de "já lido"). */
+  comFixar?: boolean;
   feminino: boolean;
   /** "prioridade" / "recado" */
   nome: string;
@@ -71,6 +73,7 @@ function novo(padrao: Atalho) {
     conteudo_html: "",
     ativo: true,
     destaque: false,
+    fixado: false,
     cliente: "",
     locutor: "",
     locutor_id: null as string | null,
@@ -120,6 +123,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
       conteudo_html: p.conteudo_html,
       ativo: p.ativo,
       destaque: Boolean(p.destaque),
+      fixado: Boolean(p.fixado),
       ...camposPauta(p),
     });
     setAtalho(ehSemPrazo(p.data_fim) ? SEM_PRAZO_ATALHO : null);
@@ -141,6 +145,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
       conteudo_html: p.conteudo_html,
       ativo: p.ativo,
       destaque: Boolean(p.destaque),
+      fixado: Boolean(p.fixado),
       ...camposPauta(p),
     });
     setAtalho(null);
@@ -203,6 +208,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
         ativo: form.ativo,
         ...(img ? { imagem_path: img.path } : {}),
         ...(c.comDestaque ? { destaque: form.destaque } : {}),
+        ...(c.comFixar ? { fixado: form.fixado } : {}),
       };
       const { error } = editandoId
         ? await sb.from(c.tabela).update(dados).eq("id", editandoId)
@@ -375,6 +381,12 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
             Destacar (fica em vermelho e aparece primeiro)
           </label>
         )}
+        {c.comFixar && (
+          <label className="check">
+            <input type="checkbox" checked={form.fixado} onChange={(e) => setForm({ ...form, fixado: e.target.checked })} />
+            ⭐ Fixar em primeiro (fica sempre na frente na dashboard, fora do rodízio)
+          </label>
+        )}
         <label className="check">
           <input type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} />
           Exibir na dashboard
@@ -426,6 +438,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
                     </td>
                     <td className="texto">
                       {p.destaque && <span className="etiqueta destaque" style={{ marginRight: 6 }}>Destaque</span>}
+                      {p.fixado && <span className="etiqueta fixado" style={{ marginRight: 6 }}>⭐ Fixado</span>}
                       {c.pauta ? (
                         <>
                           <span className={`etiqueta ${p.tipo === "EXPECTATIVA" ? "expectativa" : "valendo"}`} style={{ marginRight: 6 }}>{TIPO_PAUTA_LABEL[p.tipo ?? "VALENDO"]}</span>

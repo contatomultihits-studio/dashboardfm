@@ -468,6 +468,11 @@ drop policy if exists escala_select_publico on public.escala;
 create policy escala_select_publico on public.escala for select to anon, authenticated using (true);
 
 
+-- "Fixar em primeiro" (migração 008).
+alter table public.prioridades add column if not exists fixado boolean not null default false;
+alter table public.conexoes add column if not exists fixado boolean not null default false;
+
+
 -- ---------------------------------------------------------------------
 -- Fotos: bucket "imagens" (leitura pública pelo link, envio só da equipe)
 -- ---------------------------------------------------------------------

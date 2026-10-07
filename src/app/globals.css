@@ -390,3 +390,8 @@ fieldset.grupo legend { font-weight: 900; font-size: 0.8rem; text-transform: upp
 .imagem-fundo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(18px) brightness(0.85) saturate(1.2); transform: scale(1.2); }
 .thumb.inteira { position: relative; object-fit: contain; background: transparent; }
 .ja-veio .imagem-fundo { filter: blur(18px) brightness(0.85) grayscale(1); }
+
+/* Fixar em primeiro / já lido */
+.etiqueta.fixado { background: var(--amarelo); }
+.etiqueta.lido { background: #dcfce7; color: #166534; border-color: #166534; }
+.item-rodape { flex-wrap: wrap; }

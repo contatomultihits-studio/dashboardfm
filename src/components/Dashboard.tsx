@@ -17,6 +17,7 @@ import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
 import { datasEntre, type DataComemorativa } from "@/lib/datasComemorativas";
 import { noArEm, quemVemDepois } from "@/lib/escala";
+import { lerLeituras, ordenarPorLeitura, salvarLeituras, type Leituras } from "@/lib/leituras";
 import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
 import { horaNoFuso, ordenarPautas, pautasParaLembrar, situacaoPauta } from "@/lib/pautas";
@@ -61,6 +62,13 @@ function AteQuando({ p, dia }: { p: PeriodoComHora; dia: string }) {
   const hf = horaCurta(p.hora_fim);
   if (p.data_fim === dia) return <span className="etiqueta ultimo-dia">{hf ? `Até ${hf}` : "Último dia"}</span>;
   return <span className="etiqueta cinza">Até {fmtDiaMes(p.data_fim)}{hf ? ` às ${hf}` : ""}</span>;
+}
+
+/** "⭐ Fixado" (fica na frente) ou "Lido às 10:32" (foi para o fim da fila). */
+function MarcaLeitura({ fixado, lido }: { fixado?: boolean; lido?: string }) {
+  if (fixado) return <span className="etiqueta fixado">⭐ Fixado</span>;
+  if (!lido) return null;
+  return <span className="etiqueta lido">✓ Lido às {agoraHHMM(new Date(lido))}</span>;
 }
 
 /** "No ar de 01/10 08:00 a 03/10 18:00" */
@@ -134,9 +142,19 @@ export function Dashboard() {
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
   const [aberto, setAberto] = useState<Aberto>(null);
   const fechar = useCallback(() => setAberto(null), []);
+  // "Já lido vai para o fim": quando cada card foi aberto nesta tela, hoje.
+  const [lidos, setLidos] = useState<Leituras>({});
   const abrir = useCallback((a: Aberto) => {
     setMsgPauta(null);
     setAberto(a);
+    if (a && (a.tipo === "prioridade" || a.tipo === "conexao")) {
+      const hoje = hojeISO();
+      setLidos((l) => {
+        const novo = { ...lerLeituras(hoje), ...l, [a.item.id]: new Date().toISOString() };
+        salvarLeituras(hoje, novo);
+        return novo;
+      });
+    }
   }, []);
   const ultimaBusca = useRef(0);
 
@@ -281,22 +299,24 @@ export function Dashboard() {
 
   const ehHoje = dia === hojeISO();
   const prioridadesNoAr = useMemo(
-    () => (dia ? prioridades.filter((p) => noArAgora(p, dia, hojeISO(), agora)) : prioridades),
-    [prioridades, dia, agora],
+    () => ordenarPorLeitura(dia ? prioridades.filter((p) => noArAgora(p, dia, hojeISO(), agora)) : prioridades, lidos),
+    [prioridades, dia, agora, lidos],
   );
   const recadosNoAr = useMemo(
     () => (dia ? recados.filter((r) => noArAgora(r, dia, hojeISO(), agora)) : recados),
     [recados, dia, agora],
   );
   const conexoesNoAr = useMemo(
-    () => (dia ? conexoes.filter((x) => noArAgora(x, dia, hojeISO(), agora)) : conexoes),
-    [conexoes, dia, agora],
+    () => ordenarPorLeitura(dia ? conexoes.filter((x) => noArAgora(x, dia, hojeISO(), agora)) : conexoes, lidos),
+    [conexoes, dia, agora, lidos],
   );
   const feitas = useMemo(() => new Map(realizadas.map((x) => [x.pauta_id, x])), [realizadas]);
   const pautasDoDia = useMemo(() => ordenarPautas(pautas, feitas), [pautas, feitas]);
   const locutorPorId = useMemo(() => new Map(locutores.map((l) => [l.id, l])), [locutores]);
   // Quem está no ar é sempre sobre agora (mesmo olhando outro dia); `agora` muda a cada 15s.
   const hojeAgora = useMemo(() => hojeISO(), [agora]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Leituras guardadas nesta tela; virou o dia, começa do zero.
+  useEffect(() => setLidos(lerLeituras(hojeAgora)), [hojeAgora]);
   const noAr = useMemo(() => noArEm(hojeAgora, agora, locutores, escala), [hojeAgora, agora, locutores, escala]);
   const depois = useMemo(() => quemVemDepois(hojeAgora, agora, locutores, escala), [hojeAgora, agora, locutores, escala]);
   // Lembrete na tela 5 min antes de cada pauta de hoje (o locutor pode fechar o aviso).
@@ -426,7 +446,10 @@ export function Dashboard() {
                 <button type="button" className="item-card" onClick={() => abrir({ tipo: "prioridade", item: p })}>
                   <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" ajustar prioridade={prioridadesNoAr.indexOf(p) < 3} />
                   <span className="item-titulo">{p.titulo || textoPuro(p.conteudo_html) || "Prioridade do ar"}</span>
-                  <span className="item-rodape">{dia && <AteQuando p={p} dia={dia} />}</span>
+                  <span className="item-rodape">
+                    {dia && <AteQuando p={p} dia={dia} />}
+                    <MarcaLeitura fixado={p.fixado} lido={lidos[p.id]} />
+                  </span>
                 </button>
               )}
             />
@@ -511,7 +534,10 @@ export function Dashboard() {
                 <button type="button" className="item-card" onClick={() => abrir({ tipo: "conexao", item: x })}>
                   <Imagem src={urlImagem(sb, x.imagem_path)} alt="" className="thumb" ajustar />
                   <span className="item-titulo">{x.titulo || textoPuro(x.conteudo_html) || "Conexão"}</span>
-                  <span className="item-rodape">{dia && <AteQuando p={x} dia={dia} />}</span>
+                  <span className="item-rodape">
+                    {dia && <AteQuando p={x} dia={dia} />}
+                    <MarcaLeitura fixado={x.fixado} lido={lidos[x.id]} />
+                  </span>
                 </button>
               )}
             />

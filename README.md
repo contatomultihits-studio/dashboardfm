@@ -6,7 +6,8 @@ Tudo o que o locutor precisa para tocar o horário, numa tela só:
 - **No ar agora** na barra do topo (foto, até quando e quem vem a seguir) e a **escala do fim de semana**
   (sábado e domingo, com quem está de folga). Segunda a sexta vem do horário fixo de cada locutor;
   fins de semana e trocas, da aba Escala.
-- **Prioridades no ar** do dia, com imagem e texto (3 por vez, com setas).
+- **Prioridades no ar** do dia, com imagem e texto (3 por vez, com setas). A produção pode **fixar em primeiro**;
+  os demais entram no rodízio "já lido vai para o fim" (cada tela lembra o que o locutor já abriu no dia).
 - **Partiu Rádio Disney**: pautas das ações externas com cliente, locutor, horário e *Expectativa* / *Valendo*.
   Lembrete na tela 5 min antes (com som e "Abrir pauta"). O locutor marca "feita" na própria pauta, e isso vira o **Relatório de pautas** do dia (Artístico),
   pronto para copiar no e-mail da Opec e dos produtores ou baixar em planilha.

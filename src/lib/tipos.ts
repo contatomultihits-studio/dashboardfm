@@ -12,6 +12,8 @@ export type ItemNoAr = {
   ativo: boolean;
   imagem_path?: string | null;
   destaque?: boolean;
+  /** Prioridades e conexões: fica na frente, fora do rodízio. */
+  fixado?: boolean;
   /** Só nas pautas do "Partiu Rádio Disney". */
   cliente?: string;
   locutor?: string;

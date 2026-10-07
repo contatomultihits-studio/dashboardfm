@@ -98,6 +98,7 @@ que já vem com tudo.
 | `005_horarios.sql` | Horário de entrada e saída (opcionais) em prioridades e recados. |
 | `006_conexoes_pautas.sql` | Conexões (institucional, pode ficar sem prazo) e Partiu Rádio Disney: pautas com cliente, locutor, horário e tipo, e o "feito" do locutor para o relatório. |
 | `007_locutores_escala.sql` | Locutores (foto, cor, horário fixo da semana) e escala por data (fins de semana e trocas); a pauta passa a guardar o locutor escolhido. |
+| `008_fixar.sql` | "Fixar em primeiro" nas prioridades e conexões. |
 
 ### Deu problema?
 
