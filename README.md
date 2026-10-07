@@ -17,7 +17,7 @@ Tudo o que o locutor precisa para tocar o horário, numa tela só:
 - **Conexões**: conteúdo institucional e atemporal da emissora (pode ficar "sem prazo").
 - **Próximos convidados**, com foto, data e horário. Clicando, abre a mini pauta.
 - **Agenda de eventos**, com etiqueta *Rádio oficial* ou *Apoio*, data e local.
-- **Últimos vídeos do YouTube** (a data comemorativa do dia fica no topo, junto dos recados).
+- **Últimos vídeos do YouTube**: desligado por enquanto (`MOSTRAR_YOUTUBE` em `src/lib/config.ts`).
 
 A **dashboard é aberta** (sem login) e mostra só o que foi marcado como "Exibir na dashboard".
 A aba **Artístico** exige login e é onde a produção cadastra, edita, oculta e exclui cada item.

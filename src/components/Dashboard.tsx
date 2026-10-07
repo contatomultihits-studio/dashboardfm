@@ -11,7 +11,7 @@ import { LembretePautas } from "@/components/LembretePautas";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { Topbar } from "@/components/Topbar";
-import { ATUALIZAR_A_CADA_MS, VOLTAR_PARA_HOJE_MS } from "@/lib/config";
+import { ATUALIZAR_A_CADA_MS, MOSTRAR_YOUTUBE, VOLTAR_PARA_HOJE_MS } from "@/lib/config";
 import { agoraHHMM, ehSemPrazo, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, horaCurta, noArAgora, partesData, quando, somarDias, type PeriodoComHora } from "@/lib/datas";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
@@ -280,6 +280,7 @@ export function Dashboard() {
 
   // Últimos vídeos do canal no YouTube (o servidor guarda por 10 min; aqui pedimos a cada 10 min).
   useEffect(() => {
+    if (!MOSTRAR_YOUTUBE) return;
     const buscar = async () => {
       try {
         const r = await fetch("/api/youtube");
@@ -566,7 +567,7 @@ export function Dashboard() {
               )}
             />
 
-            {videos.length > 0 && (
+            {MOSTRAR_YOUTUBE && videos.length > 0 && (
               <Carrossel
                 titulo="Últimos vídeos no YouTube"
                 className="secao-youtube"
