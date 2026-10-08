@@ -578,6 +578,12 @@ create table if not exists public.promo_rodadas (
 
 create index if not exists promo_rodadas_dia_idx on public.promo_rodadas (data, horario);
 
+-- Faixa do prêmio (migração 013): fica na tela do locutor até horario_fim; sem fim, vale 1 hora.
+alter table public.promo_rodadas add column if not exists horario_fim time;
+alter table public.promo_rodadas drop constraint if exists promo_rodadas_faixa_check;
+alter table public.promo_rodadas add constraint promo_rodadas_faixa_check
+  check (horario_fim is null or horario_fim > horario);
+
 -- Mesmas regras das outras tabelas: público vê o que está ativo; equipe faz tudo.
 do $$
 declare

@@ -18,7 +18,10 @@ export type Premio = {
 export type Rodada = {
   id: string;
   data: string;
+  /** Começo da faixa em que o prêmio fica na tela do locutor. */
   horario: string;
+  /** Fim da faixa; sem fim (horários antigos), vale DURACAO_PADRAO_PREMIO_MIN. */
+  horario_fim?: string | null;
   premio_id: string | null;
   /** Pop-up 5 min antes na tela do locutor. */
   aviso: boolean;
@@ -103,24 +106,42 @@ export function datasEntre(inicio: string, fim: string): string[] {
   return Array.from({ length: Math.min(n, 62) }, (_, i) => somarDias(inicio, i));
 }
 
-/** Quanto tempo o último prêmio do dia fica como "prêmio da hora" (não tem um seguinte para substituir). */
-export const JANELA_ULTIMO_PREMIO_MIN = 60;
+/** Prêmio sem horário de fim fica na tela por este tempo. */
+export const DURACAO_PADRAO_PREMIO_MIN = 60;
+
+type ComFaixa = Pick<Rodada, "horario" | "horario_fim">;
+const inicioMin = (r: ComFaixa) => minutos(horaCurta(r.horario)!);
+const fimMin = (r: ComFaixa) => (r.horario_fim ? minutos(horaCurta(r.horario_fim)!) : inicioMin(r) + DURACAO_PADRAO_PREMIO_MIN);
+
+/** Situação de um prêmio agora: na tela, já passou ou ainda vem. */
+export function estadoPremio(r: ComFaixa, agora: string): "agora" | "passou" | "depois" {
+  const ag = minutos(agora);
+  if (ag < inicioMin(r)) return "depois";
+  return ag < fimMin(r) ? "agora" : "passou";
+}
+
+/** "06h às 09h" / "15h30 às 16h" */
+export function faixaPremio(r: ComFaixa): string {
+  const h = (m: number) => {
+    const hh = String(Math.floor(m / 60) % 24).padStart(2, "0");
+    return m % 60 ? `${hh}h${String(m % 60).padStart(2, "0")}` : `${hh}h`;
+  };
+  return `${h(inicioMin(r))} às ${h(fimMin(r))}`;
+}
 
 /**
- * O carrossel do locutor: o prêmio da hora é a última rodada que já começou (vale até a próxima);
- * o último é a anterior a ela; o próximo, a seguinte.
+ * O carrossel do locutor: o prêmio da hora é o que está na faixa agora (se dois se cruzam, o que
+ * começou por último); o último é o que terminou mais recentemente; o próximo, o que começa a seguir.
  */
-export function momentoPromo<T extends Pick<Rodada, "horario">>(rodadas: T[], agora: string): { ultimo: T | null; daHora: T | null; proximo: T | null } {
-  const ord = [...rodadas].sort((a, b) => a.horario.localeCompare(b.horario));
-  const ag = minutos(agora);
-  let i = -1;
-  ord.forEach((r, k) => {
-    if (minutos(horaCurta(r.horario)!) <= ag) i = k;
-  });
-  if (i === -1) return { ultimo: null, daHora: null, proximo: ord[0] ?? null };
-  const fimDoUltimo = i === ord.length - 1 && ag >= minutos(horaCurta(ord[i].horario)!) + JANELA_ULTIMO_PREMIO_MIN;
-  if (fimDoUltimo) return { ultimo: ord[i], daHora: null, proximo: null };
-  return { ultimo: ord[i - 1] ?? null, daHora: ord[i], proximo: ord[i + 1] ?? null };
+export function momentoPromo<T extends ComFaixa>(rodadas: T[], agora: string): { ultimo: T | null; daHora: T | null; proximo: T | null } {
+  const ord = [...rodadas].sort((a, b) => inicioMin(a) - inicioMin(b) || fimMin(a) - fimMin(b));
+  const noAr = ord.filter((r) => estadoPremio(r, agora) === "agora");
+  const passados = ord.filter((r) => estadoPremio(r, agora) === "passou").sort((a, b) => fimMin(a) - fimMin(b) || inicioMin(a) - inicioMin(b));
+  return {
+    daHora: noAr[noAr.length - 1] ?? null,
+    ultimo: passados[passados.length - 1] ?? null,
+    proximo: ord.find((r) => estadoPremio(r, agora) === "depois") ?? null,
+  };
 }
 
 export type LinhaGanhador = Ganhador & { ouvinte: Ouvinte | undefined; horario: string | null };

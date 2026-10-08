@@ -103,6 +103,7 @@ que já vem com tudo.
 | `010_jornalismo.sql` | Jornalismo: pautas com seção própria (ESPN, Nota, Conta Tudo…) e aviso de 5 min opcional. |
 | `011_promocao.sql` | Promoção: prêmios, grade por horário (com aviso opcional), ouvintes, bloqueados e ganhadores (regra dos 30 dias no banco). |
 | `012_camarote.sql` | Eventos: novo vínculo "Camarote Rádio Disney". |
+| `013_faixa_premio.sql` | Promoção: prêmio com faixa de horário (das 06h às 09h). |
 
 ### Deu problema?
 

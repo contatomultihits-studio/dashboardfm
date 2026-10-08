@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Modal } from "@/components/Modal";
-import { fmtData, horaCurta } from "@/lib/datas";
-import { fmtTelefone, localOuvinte, normalizarBusca, normalizarTelefone, situacaoOuvinte, type Ganhador, type Ouvinte, type Premio, type Rodada } from "@/lib/promocao";
+import { fmtData } from "@/lib/datas";
+import { faixaPremio, fmtTelefone, localOuvinte, normalizarBusca, normalizarTelefone, situacaoOuvinte, type Ganhador, type Ouvinte, type Premio, type Rodada } from "@/lib/promocao";
 import { erroMsg, type Avisar } from "../comum";
 
 type Resultado = { ouvinte: Ouvinte; vitorias: Pick<Ganhador, "data" | "premio_nome">[] };
@@ -30,11 +30,32 @@ export async function comVitorias(sb: SupabaseClient, ouvintes: Ouvinte[]): Prom
   return ouvintes.map((o) => ({ ouvinte: o, vitorias: por.get(o.id) ?? [] }));
 }
 
-const NOVO = { nome: "", telefone: "", bairro: "", cidade: "" };
+/** Ouvintes da base parecidos com o que está sendo digitado: mesmo pedaço de nome ou de telefone. */
+async function buscarParecidos(sb: SupabaseClient, nome: string, telefone: string): Promise<Resultado[]> {
+  const n = normalizarBusca(nome);
+  const t = normalizarTelefone(telefone);
+  const consultas = [];
+  if (n.length >= 3) consultas.push(sb.from("ouvintes").select("*").ilike("nome_busca", `%${n}%`).order("nome").limit(15));
+  if (t.length >= 4) consultas.push(sb.from("ouvintes").select("*").ilike("telefone", `%${t.slice(-8)}%`).limit(10));
+  if (!consultas.length) return [];
+  const respostas = await Promise.all(consultas);
+  const por = new Map<string, Ouvinte>();
+  for (const r of respostas) {
+    if (r.error) throw new Error(r.error.message);
+    for (const o of r.data as Ouvinte[]) por.set(o.id, o);
+  }
+  // Quem tem o mesmo telefone vem primeiro.
+  const lista = [...por.values()].sort((a, b) => Number(Boolean(t) && b.telefone.endsWith(t.slice(-8))) - Number(Boolean(t) && a.telefone.endsWith(t.slice(-8))));
+  return comVitorias(sb, lista);
+}
+
+const VAZIO = { nome: "", telefone: "", bairro: "", cidade: "" };
 
 /**
- * Registrar quem ganhou: procura o ouvinte (e mostra se pode ganhar) ou cadastra um novo.
- * Com `rodada`, o prêmio e a data vêm do horário; sem, escolhe o prêmio e a data aqui.
+ * Incluir o ganhador de um prêmio: a produção preenche o cadastro e, enquanto digita, o sistema
+ * mostra quem já está na base (e se pode ganhar). Dá para usar um cadastro existente ou criar um novo.
+ * O ganhador entra direto na lista de ganhadores (relatório e planilha).
+ * Com `rodada`, o prêmio e a data vêm da grade; sem, escolhe o prêmio e a data aqui.
  */
 export function RegistrarGanhador({ sb, avisar, rodada, premios, dia, locutorSugerido, onSalvo, onFechar }: {
   sb: SupabaseClient;
@@ -46,12 +67,10 @@ export function RegistrarGanhador({ sb, avisar, rodada, premios, dia, locutorSug
   onSalvo: () => void;
   onFechar: () => void;
 }) {
-  const [termo, setTermo] = useState("");
-  const [resultados, setResultados] = useState<Resultado[] | null>(null);
-  const [buscando, setBuscando] = useState(false);
+  const [form, setForm] = useState(VAZIO);
   const [escolhido, setEscolhido] = useState<Resultado | null>(null);
-  const [novo, setNovo] = useState<typeof NOVO | null>(null);
   const [parecidos, setParecidos] = useState<Resultado[]>([]);
+  const [buscando, setBuscando] = useState(false);
   const [premioId, setPremioId] = useState(rodada?.premio_id ?? "");
   const [data, setData] = useState(rodada?.data ?? dia);
   const [locutor, setLocutor] = useState(locutorSugerido);
@@ -59,19 +78,15 @@ export function RegistrarGanhador({ sb, avisar, rodada, premios, dia, locutorSug
   const [salvando, setSalvando] = useState(false);
   const premio = premios.find((p) => p.id === premioId);
 
-  // Busca enquanto digita (espera a pessoa parar um pouco).
+  // Enquanto digita nome ou telefone, procura na base.
   useEffect(() => {
-    const t = termo.trim();
-    if (t.length < 2) {
-      setResultados(null);
-      return;
-    }
+    if (escolhido) return;
     let vivo = true;
     setBuscando(true);
     const timer = setTimeout(async () => {
       try {
-        const r = await buscarOuvintes(sb, t);
-        if (vivo) setResultados(r);
+        const r = await buscarParecidos(sb, form.nome, form.telefone);
+        if (vivo) setParecidos(r);
       } catch (e) {
         if (vivo) avisar(erroMsg(e), true);
       } finally {
@@ -82,52 +97,41 @@ export function RegistrarGanhador({ sb, avisar, rodada, premios, dia, locutorSug
       vivo = false;
       clearTimeout(timer);
     };
-  }, [sb, termo, avisar]);
-
-  // Cadastro novo: avisa se já existe alguém com o mesmo telefone ou o mesmo nome.
-  useEffect(() => {
-    if (!novo) return setParecidos([]);
-    const tel = normalizarTelefone(novo.telefone);
-    const nome = normalizarBusca(novo.nome);
-    if (tel.length < 8 && nome.length < 3) return setParecidos([]);
-    let vivo = true;
-    const timer = setTimeout(async () => {
-      const achados = new Map<string, Ouvinte>();
-      if (tel.length >= 8) {
-        const { data } = await sb.from("ouvintes").select("*").eq("telefone", tel).limit(5);
-        for (const o of (data as Ouvinte[]) ?? []) achados.set(o.id, o);
-      }
-      if (nome.length >= 3) {
-        const { data } = await sb.from("ouvintes").select("*").eq("nome_busca", nome).limit(5);
-        for (const o of (data as Ouvinte[]) ?? []) achados.set(o.id, o);
-      }
-      const r = await comVitorias(sb, [...achados.values()]).catch(() => []);
-      if (vivo) setParecidos(r);
-    }, 300);
-    return () => {
-      vivo = false;
-      clearTimeout(timer);
-    };
-  }, [sb, novo]);
+  }, [sb, form.nome, form.telefone, escolhido, avisar]);
 
   const situacao = useMemo(() => (escolhido ? situacaoOuvinte(escolhido.ouvinte, escolhido.vitorias, data) : null), [escolhido, data]);
+  // Cadastro novo com o telefone de alguém que não pode ganhar: barra (é a mesma pessoa).
+  const tel = normalizarTelefone(form.telefone);
+  const mesmoTelefone = !escolhido && tel.length >= 8 ? parecidos.find((p) => p.ouvinte.telefone && p.ouvinte.telefone.slice(-8) === tel.slice(-8)) : undefined;
+  const situacaoTelefone = mesmoTelefone ? situacaoOuvinte(mesmoTelefone.ouvinte, mesmoTelefone.vitorias, data) : null;
+  const bloqueio = situacao && situacao.tipo !== "livre" ? situacao.texto : situacaoTelefone && situacaoTelefone.tipo !== "livre" ? `Esse telefone é de ${mesmoTelefone!.ouvinte.nome}. ${situacaoTelefone.texto}` : null;
+
+  function usar(r: Resultado) {
+    setEscolhido(r);
+    setForm({ nome: r.ouvinte.nome, telefone: fmtTelefone(r.ouvinte.telefone), bairro: r.ouvinte.bairro, cidade: r.ouvinte.cidade });
+  }
+
+  function trocar() {
+    setEscolhido(null);
+    setForm(VAZIO);
+  }
 
   async function salvar() {
     if (!premio && !rodada) return avisar("Escolha o prêmio.", true);
-    if (!escolhido && !novo?.nome.trim()) return avisar("Escolha um ouvinte da busca ou cadastre um novo (o nome é obrigatório).", true);
-    if (situacao && situacao.tipo !== "livre") return avisar(situacao.texto, true);
+    if (!form.nome.trim()) return avisar("O nome do ganhador é obrigatório.", true);
+    if (bloqueio) return avisar(bloqueio, true);
     setSalvando(true);
     try {
       let ouvinteId = escolhido?.ouvinte.id;
-      if (!ouvinteId && novo) {
+      const dados = { nome: form.nome.trim(), telefone: tel, bairro: form.bairro.trim(), cidade: form.cidade.trim() };
+      if (ouvinteId) {
+        // Completa o cadastro antigo com o que a produção acrescentou (ex.: bairro).
+        const o = escolhido!.ouvinte;
+        const extra = Object.fromEntries(Object.entries(dados).filter(([k, v]) => v && v !== o[k as keyof typeof dados]));
+        if (Object.keys(extra).length) await sb.from("ouvintes").update(extra).eq("id", ouvinteId);
+      } else {
         ouvinteId = crypto.randomUUID();
-        const { error } = await sb.from("ouvintes").insert({
-          id: ouvinteId,
-          nome: novo.nome.trim(),
-          telefone: normalizarTelefone(novo.telefone),
-          bairro: novo.bairro.trim(),
-          cidade: novo.cidade.trim(),
-        });
+        const { error } = await sb.from("ouvintes").insert({ id: ouvinteId, ...dados });
         if (error) throw new Error(error.message);
       }
       const { error } = await sb.from("ganhadores").insert({
@@ -140,7 +144,7 @@ export function RegistrarGanhador({ sb, avisar, rodada, premios, dia, locutorSug
         obs: obs.trim(),
       });
       if (error) throw new Error(error.message);
-      avisar(`Ganhador registrado: ${escolhido?.ouvinte.nome ?? novo?.nome.trim()}`);
+      avisar(`Ganhador registrado: ${dados.nome}`);
       onSalvo();
     } catch (e) {
       avisar(erroMsg(e), true);
@@ -149,15 +153,20 @@ export function RegistrarGanhador({ sb, avisar, rodada, premios, dia, locutorSug
     }
   }
 
-  const titulo = rodada ? `Ganhador do prêmio das ${horaCurta(rodada.horario)}` : "Lançar ganhador";
+  const titulo = rodada ? `Ganhador do prêmio das ${faixaPremio(rodada)}` : "Lançar ganhador";
+  const campo = (k: keyof typeof VAZIO) => ({
+    value: form[k],
+    disabled: Boolean(escolhido) && k !== "bairro" && k !== "cidade",
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [k]: e.target.value }),
+  });
 
   return (
     <Modal titulo={titulo} onFechar={onFechar}>
       <div className="form">
         {rodada ? (
           <div className="ganhador-premio">
-            <strong>{premio?.nome ?? "Horário sem prêmio definido"}</strong>
-            <span>{fmtData(rodada.data)} às {horaCurta(rodada.horario)}</span>
+            <strong>{premio?.titulo || premio?.nome || "Horário sem prêmio definido"}</strong>
+            <span>{fmtData(rodada.data)} · {faixaPremio(rodada)}{premio?.patrocinador ? ` · ${premio.patrocinador}` : ""}</span>
           </div>
         ) : (
           <div className="form-grade">
@@ -175,71 +184,52 @@ export function RegistrarGanhador({ sb, avisar, rodada, premios, dia, locutorSug
           </div>
         )}
 
+        <h3>Dados do ganhador</h3>
+        <div className="form-grade">
+          <label className="campo">
+            Nome
+            <input type="text" required maxLength={80} autoFocus placeholder="Nome do ouvinte" {...campo("nome")} />
+          </label>
+          <label className="campo">
+            Telefone (opcional)
+            <input type="tel" maxLength={20} placeholder="(11) 99999-8888" {...campo("telefone")} />
+          </label>
+          <label className="campo">
+            Bairro (opcional)
+            <input type="text" maxLength={60} {...campo("bairro")} />
+          </label>
+          <label className="campo">
+            Cidade (opcional)
+            <input type="text" maxLength={60} {...campo("cidade")} />
+          </label>
+        </div>
+
         {escolhido ? (
           <div className={`ouvinte-escolhido situacao-${situacao?.tipo}`}>
             <div>
-              <strong>{escolhido.ouvinte.nome}</strong>
-              <div className="trecho">{[fmtTelefone(escolhido.ouvinte.telefone), localOuvinte(escolhido.ouvinte)].filter(Boolean).join(" · ") || "Sem telefone e endereço"}</div>
+              <strong>Cadastro já existente: {escolhido.ouvinte.nome}</strong>
+              <div className="trecho">
+                {escolhido.vitorias.length ? `${escolhido.vitorias.length} ${escolhido.vitorias.length === 1 ? "prêmio" : "prêmios"} · último em ${fmtData(escolhido.vitorias[0].data)} (${escolhido.vitorias[0].premio_nome})` : "Nunca ganhou"}
+              </div>
               <div className={`situacao-ouvinte ${situacao?.tipo}`} role="status">{situacao?.texto}</div>
             </div>
-            <button type="button" className="pequeno branco" onClick={() => setEscolhido(null)}>Trocar</button>
-          </div>
-        ) : novo ? (
-          <div className="form">
-            <h3>Novo ouvinte</h3>
-            <div className="form-grade">
-              <label className="campo">
-                Nome
-                <input type="text" required maxLength={80} autoFocus value={novo.nome} onChange={(e) => setNovo({ ...novo, nome: e.target.value })} />
-              </label>
-              <label className="campo">
-                Telefone (opcional)
-                <input type="tel" maxLength={20} placeholder="(11) 99999-8888" value={novo.telefone} onChange={(e) => setNovo({ ...novo, telefone: e.target.value })} />
-              </label>
-              <label className="campo">
-                Bairro (opcional)
-                <input type="text" maxLength={60} value={novo.bairro} onChange={(e) => setNovo({ ...novo, bairro: e.target.value })} />
-              </label>
-              <label className="campo">
-                Cidade (opcional)
-                <input type="text" maxLength={60} value={novo.cidade} onChange={(e) => setNovo({ ...novo, cidade: e.target.value })} />
-              </label>
-            </div>
-            {parecidos.length > 0 && (
-              <div className="aviso" role="alert">
-                <strong>Já existe ouvinte parecido. É a mesma pessoa?</strong>
-                <ListaOuvintes resultados={parecidos} dia={data} onEscolher={(r) => { setEscolhido(r); setNovo(null); }} />
-              </div>
-            )}
-            <div className="acoes">
-              <button type="button" className="pequeno branco" onClick={() => setNovo(null)}>Voltar para a busca</button>
-            </div>
+            <button type="button" className="pequeno branco" onClick={trocar}>Trocar</button>
           </div>
         ) : (
-          <>
-            <label className="campo">
-              Buscar ouvinte (nome ou telefone)
-              <input type="search" autoFocus placeholder="Ex.: Maria Silva ou 99999-8888" value={termo} onChange={(e) => setTermo(e.target.value)} />
-            </label>
-            {buscando && <span className="dica">Buscando…</span>}
-            {resultados && !buscando && (
-              resultados.length ? (
-                <ListaOuvintes resultados={resultados} dia={data} onEscolher={setEscolhido} />
-              ) : (
-                <div className="vazio">Ninguém encontrado com “{termo.trim()}”.</div>
-              )
+          <div className="parecidos" aria-label="Já está na base?">
+            <span className="rotulo-campo">Já ganhou? Na base de ouvintes</span>
+            {form.nome.trim().length < 3 && tel.length < 4 ? (
+              <span className="dica">Digite o nome ou o telefone: o sistema mostra aqui se a pessoa já está na base e se pode ganhar.</span>
+            ) : buscando ? (
+              <span className="dica">Procurando…</span>
+            ) : parecidos.length ? (
+              <ListaOuvintes resultados={parecidos} dia={data} onEscolher={usar} />
+            ) : (
+              <span className="situacao-ouvinte livre">Ninguém parecido na base: vai entrar como ouvinte novo.</span>
             )}
-            <div className="acoes">
-              <button
-                type="button"
-                className="amarelo"
-                onClick={() => setNovo({ ...NOVO, ...(normalizarTelefone(termo).length >= 8 ? { telefone: termo } : { nome: termo.trim() }) })}
-              >
-                + Cadastrar novo ouvinte
-              </button>
-            </div>
-          </>
+          </div>
         )}
+        {bloqueio && <div className="aviso erro" role="alert">{bloqueio}</div>}
 
         <div className="form-grade">
           <label className="campo">
@@ -251,8 +241,9 @@ export function RegistrarGanhador({ sb, avisar, rodada, premios, dia, locutorSug
             <input type="text" maxLength={200} placeholder="Ex.: retira na recepção" value={obs} onChange={(e) => setObs(e.target.value)} />
           </label>
         </div>
+        <p className="dica">Ao registrar, o ganhador aparece no card do locutor e entra na lista de ganhadores (relatório e planilha).</p>
         <div className="acoes">
-          <button type="button" className="verde" disabled={salvando || (!escolhido && !novo) || (situacao !== null && situacao.tipo !== "livre")} onClick={salvar}>
+          <button type="button" className="verde" disabled={salvando || !form.nome.trim() || Boolean(bloqueio)} onClick={salvar}>
             {salvando ? "Salvando…" : "🏆 Registrar ganhador"}
           </button>
           <button type="button" className="branco" onClick={onFechar}>Cancelar</button>
@@ -281,7 +272,7 @@ export function ListaOuvintes({ resultados, dia, onEscolher }: { resultados: Res
               <div className={`situacao-ouvinte ${s.tipo}`}>{s.texto}</div>
             </div>
             <button type="button" className={`pequeno ${s.tipo === "livre" ? "verde" : "branco"}`} disabled={s.tipo !== "livre"} onClick={() => onEscolher(r)}>
-              {s.tipo === "livre" ? "Escolher" : "Não pode"}
+              {s.tipo === "livre" ? "É este" : "Não pode"}
             </button>
           </li>
         );

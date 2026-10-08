@@ -12,6 +12,15 @@ import { erroMsg, useLocutoresEquipe, type Avisar } from "../comum";
 import type { usePremios } from "./comum";
 import { RegistrarGanhador } from "./RegistrarGanhador";
 
+type Faixa = { inicio: string; fim: string };
+
+/** Junta faixas sem repetir o mesmo começo, em ordem. */
+function juntarFaixas(a: Faixa[], b: Faixa[]): Faixa[] {
+  const por = new Map<string, Faixa>();
+  for (const f of [...a, ...b]) por.set(f.inicio, f);
+  return [...por.values()].sort((x, y) => x.inicio.localeCompare(y.inicio));
+}
+
 /** Grade do dia: em que horários sai prêmio, qual prêmio, com aviso ou não, e quem ganhou. */
 export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avisar: Avisar; premiosLista: ReturnType<typeof usePremios> }) {
   const { premios } = premiosLista;
@@ -23,7 +32,7 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [registrando, setRegistrando] = useState<Rodada | null>(null);
-  const [gerar, setGerar] = useState(() => ({ de: hojeISO(), ate: hojeISO(), horario: "", horarios: [] as string[], premio_id: "", aviso: false }));
+  const [gerar, setGerar] = useState(() => ({ de: hojeISO(), ate: hojeISO(), inicio: "", fim: "", faixas: [] as Faixa[], premio_id: "", aviso: false }));
   const [gerando, setGerando] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -61,16 +70,21 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
   };
 
   // Os horários exatos escolhidos (e o que ficou digitado no campo, se não clicou em "adicionar").
-  const horariosNovos = [...new Set([...gerar.horarios, ...(gerar.horario ? [gerar.horario] : [])])].sort();
-  function adicionarHorario() {
-    if (!gerar.horario) return;
-    setGerar((g) => ({ ...g, horarios: [...new Set([...g.horarios, g.horario])].sort(), horario: "" }));
+  // As faixas escolhidas (e a que ficou digitada nos campos, se não clicou em "adicionar").
+  const digitada = gerar.inicio && gerar.fim && gerar.fim > gerar.inicio ? [{ inicio: gerar.inicio, fim: gerar.fim }] : [];
+  const faixasNovas = juntarFaixas(gerar.faixas, digitada);
+  function adicionarFaixa() {
+    if (!gerar.inicio || !gerar.fim) return avisar("Preencha o horário de começo e de fim.", true);
+    if (gerar.fim <= gerar.inicio) return avisar("O fim precisa ser depois do começo (para passar da meia-noite, vá até 23:59 e cadastre o resto no dia seguinte).", true);
+    // A próxima faixa já começa onde esta terminou.
+    setGerar((g) => ({ ...g, faixas: juntarFaixas(g.faixas, [{ inicio: g.inicio, fim: g.fim }]), inicio: g.fim, fim: "" }));
   }
   const diasNovos = datasEntre(gerar.de, gerar.ate);
 
   async function criarGrade(e: React.FormEvent) {
     e.preventDefault();
-    if (!horariosNovos.length || !diasNovos.length) return avisar("Confira as datas e os horários.", true);
+    if (gerar.inicio && gerar.fim && gerar.fim <= gerar.inicio) return avisar("O fim precisa ser depois do começo.", true);
+    if (!faixasNovas.length || !diasNovos.length) return avisar("Coloque pelo menos uma faixa de horário (das … até …).", true);
     setGerando(true);
     try {
       // Não repete horário que já existe no dia.
@@ -78,17 +92,17 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
       if (error) throw new Error(error.message);
       const existe = new Set((data as Pick<Rodada, "data" | "horario">[]).map((x) => `${x.data} ${horaCurta(x.horario)}`));
       const novas = diasNovos.flatMap((d) =>
-        horariosNovos.filter((h) => !existe.has(`${d} ${h}`)).map((h) => ({ data: d, horario: h, premio_id: gerar.premio_id || null, aviso: gerar.aviso })),
+        faixasNovas.filter((h) => !existe.has(`${d} ${h.inicio}`)).map((h) => ({ data: d, horario: h.inicio, horario_fim: h.fim, premio_id: gerar.premio_id || null, aviso: gerar.aviso })),
       );
       if (!novas.length) {
-        setGerar((g) => ({ ...g, horario: "", horarios: [] }));
+        setGerar((g) => ({ ...g, inicio: "", fim: "", faixas: [] }));
         return avisar("Esses horários já estão na grade.");
       }
       const { error: e2 } = await sb.from("promo_rodadas").insert(novas);
       if (e2) throw new Error(e2.message);
-      const pulados = diasNovos.length * horariosNovos.length - novas.length;
-      avisar(`${novas.length} ${novas.length === 1 ? "horário criado" : "horários criados"}${pulados ? ` (${pulados} já existiam)` : ""}`);
-      setGerar((g) => ({ ...g, horario: "", horarios: [] }));
+      const pulados = diasNovos.length * faixasNovas.length - novas.length;
+      avisar(`${novas.length} ${novas.length === 1 ? "prêmio colocado na grade" : "prêmios colocados na grade"}${pulados ? ` (${pulados} já existiam)` : ""}`);
+      setGerar((g) => ({ ...g, inicio: "", fim: "", faixas: [] }));
       carregar();
     } catch (err) {
       avisar(erroMsg(err), true);
@@ -104,7 +118,7 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
     const existe = new Set(rodadas.map((r) => horaCurta(r.horario)));
     const novas = (data as Rodada[])
       .filter((r) => !existe.has(horaCurta(r.horario)))
-      .map((r) => ({ data: dia, horario: horaCurta(r.horario), premio_id: r.premio_id, aviso: r.aviso, ativo: r.ativo }));
+      .map((r) => ({ data: dia, horario: horaCurta(r.horario), horario_fim: horaCurta(r.horario_fim), premio_id: r.premio_id, aviso: r.aviso, ativo: r.ativo }));
     if (!novas.length) return avisar(`Nada para copiar de ${fmtData(ontem)}.`, true);
     const { error: e2 } = await sb.from("promo_rodadas").insert(novas);
     if (e2) return avisar(e2.message, true);
@@ -168,7 +182,26 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
                   const gs = ganhadores.filter((g) => g.rodada_id === r.id);
                   return (
                     <tr key={r.id} className={r.ativo ? "" : "oculto"}>
-                      <td><strong className="rodada-hora">{horaCurta(r.horario)}</strong></td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <strong className="rodada-hora">{horaCurta(r.horario)}</strong>
+                        <span className="rodada-ate"> às </span>
+                        <input
+                          type="time"
+                          className="rodada-fim"
+                          aria-label={`Fim do prêmio das ${horaCurta(r.horario)}`}
+                          defaultValue={horaCurta(r.horario_fim) ?? ""}
+                          key={`${r.id}-${r.horario_fim}`}
+                          onBlur={(e) => {
+                            const v = e.target.value;
+                            if (v === (horaCurta(r.horario_fim) ?? "")) return;
+                            if (v && v <= horaCurta(r.horario)!) {
+                              e.target.value = horaCurta(r.horario_fim) ?? "";
+                              return avisar("O fim precisa ser depois do começo.", true);
+                            }
+                            mudar(r, { horario_fim: v || null });
+                          }}
+                        />
+                      </td>
                       <td>
                         <div className="rodada-premio">
                           <Imagem src={urlImagem(sb, p?.imagem_path)} alt="" className="mini-thumb" largura={88} altura={88} sizes="44px" />
@@ -205,7 +238,7 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
 
       <form className="card form" onSubmit={criarGrade}>
         <h2>Colocar prêmio na grade</h2>
-        <p className="dica">Escolha o horário exato em que o prêmio entra na tela do locutor (pode adicionar vários). Depois de sortear, a promoção volta na tabela acima e clica em “Incluir ganhador”.</p>
+        <p className="dica">Escolha de que horas até que horas o prêmio fica na tela do locutor (ex.: das 06:00 às 09:00). Dá para adicionar várias faixas de uma vez: depois de adicionar uma, a próxima já começa onde ela terminou. Depois do sorteio, a promoção clica em “Incluir ganhador” na tabela acima.</p>
         <div className="form-grade">
           <label className="campo">
             Dia
@@ -215,22 +248,24 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
             Repetir até o dia (opcional)
             <input type="date" required min={gerar.de} value={gerar.ate} onChange={(e) => e.target.value && setGerar({ ...gerar, ate: e.target.value })} />
           </label>
-          <div className="campo">
-            <label htmlFor="grade-horario" className="rotulo-campo">Horário no ar</label>
-            <div className="campo-locutor-linha">
+          <div className="campo campo-faixa">
+            <span className="rotulo-campo">Fica na tela do locutor</span>
+            <div className="faixa-linha">
+              <input type="time" aria-label="Das" value={gerar.inicio} onChange={(e) => setGerar({ ...gerar, inicio: e.target.value })} />
+              <span className="rodada-ate">às</span>
               <input
-                id="grade-horario"
                 type="time"
-                value={gerar.horario}
-                onChange={(e) => setGerar({ ...gerar, horario: e.target.value })}
+                aria-label="Até"
+                value={gerar.fim}
+                onChange={(e) => setGerar({ ...gerar, fim: e.target.value })}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    adicionarHorario();
+                    adicionarFaixa();
                   }
                 }}
               />
-              <button type="button" className="pequeno branco" style={{ whiteSpace: "nowrap" }} disabled={!gerar.horario} onClick={adicionarHorario}>+ Adicionar</button>
+              <button type="button" className="pequeno branco" style={{ whiteSpace: "nowrap" }} disabled={!gerar.inicio || !gerar.fim} onClick={adicionarFaixa}>+ Adicionar</button>
             </div>
           </div>
           <label className="campo">
@@ -241,12 +276,12 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
             </select>
           </label>
         </div>
-        {gerar.horarios.length > 0 && (
-          <div className="atalhos" aria-label="Horários escolhidos">
-            <span>Horários:</span>
-            {gerar.horarios.map((h) => (
-              <button key={h} type="button" className="pequeno amarelo" title="Tirar este horário" onClick={() => setGerar((g) => ({ ...g, horarios: g.horarios.filter((x) => x !== h) }))}>
-                {h} ✕
+        {gerar.faixas.length > 0 && (
+          <div className="atalhos" aria-label="Faixas escolhidas">
+            <span>Faixas:</span>
+            {gerar.faixas.map((h) => (
+              <button key={h.inicio} type="button" className="pequeno amarelo" title="Tirar esta faixa" onClick={() => setGerar((g) => ({ ...g, faixas: g.faixas.filter((x) => x.inicio !== h.inicio) }))}>
+                {h.inicio} às {h.fim} ✕
               </button>
             ))}
           </div>
@@ -256,12 +291,12 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
           ⏰ Avisar 5 min antes na tela do locutor (pop-up com som)
         </label>
         <div className="acoes">
-          <button type="submit" className="verde" disabled={gerando || !horariosNovos.length || !diasNovos.length}>
-            {gerando ? "Salvando…" : horariosNovos.length * diasNovos.length <= 1 ? "Colocar na grade" : `Colocar ${horariosNovos.length * diasNovos.length} horários na grade`}
+          <button type="submit" className="verde" disabled={gerando || !faixasNovas.length || !diasNovos.length}>
+            {gerando ? "Salvando…" : faixasNovas.length * diasNovos.length <= 1 ? "Colocar na grade" : `Colocar ${faixasNovas.length * diasNovos.length} prêmios na grade`}
           </button>
-          {horariosNovos.length > 0 && (
+          {faixasNovas.length > 0 && (
             <span className="resumo-periodo">
-              {horariosNovos.join(", ")}
+              {faixasNovas.map((h) => `${h.inicio} às ${h.fim}`).join(", ")}
               {diasNovos.length > 1 ? ` · todos os dias de ${fmtData(gerar.de)} a ${fmtData(gerar.ate)}` : ` · ${fmtData(gerar.de)}`}
             </span>
           )}

@@ -21,7 +21,7 @@ Tudo o que o locutor precisa para tocar o horário, numa tela só:
 - **Promoção** (em teste na página `/promocao`, ainda fora da dashboard): último prêmio, **prêmio da hora** e
   próximo prêmio, com foto, espaço do ganhador e pop-up opcional 5 min antes. Quando a promoção inclui o ganhador
   (ou troca o prêmio), a tela do locutor avisa em até 30 s. No Artístico, a aba Promoção tem o catálogo
-  de prêmios, a grade com o horário exato de cada prêmio, o registro de ganhadores com a busca
+  de prêmios, a grade com a faixa de horário de cada prêmio (ex.: das 06h às 09h), o registro de ganhadores com a busca
   "já ganhou?" e a lista de bloqueados. Quem ganhou só ganha de novo depois de 30 dias (o banco garante).
   Telefone e dados dos ouvintes ficam só para a equipe; a tela do locutor mostra nome, bairro e cidade.
 

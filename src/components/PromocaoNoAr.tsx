@@ -11,7 +11,7 @@ import { agoraHHMM, hojeISO, horaCurta, somarDias } from "@/lib/datas";
 import { noArEm, nomesFaixa, type Faixa } from "@/lib/escala";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
-import { fotoPromo, localOuvinte, momentoPromo, novidadesPromo, premiosParaLembrar, textoFaltamPremio, type FotoPromo, type GanhadorPublico, type NovidadePromo, type Premio, type Rodada } from "@/lib/promocao";
+import { estadoPremio, faixaPremio, fotoPromo, localOuvinte, momentoPromo, novidadesPromo, premiosParaLembrar, textoFaltamPremio, type FotoPromo, type GanhadorPublico, type NovidadePromo, type Premio, type Rodada } from "@/lib/promocao";
 import type { ItemEscala, Locutor } from "@/lib/tipos";
 
 type Papel = "ultimo" | "daHora" | "proximo";
@@ -168,7 +168,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
         </span>
         <span className="promo-foto">
           <Imagem src={urlImagem(sb, p?.imagem_path)} alt="" className="thumb" ajustar prioridade={papel === "daHora"} />
-          <span className="promo-hora">{horaH(r.horario)}</span>
+          <span className="promo-hora">{faixaPremio(r)}</span>
         </span>
         <span className="promo-info">
           <span className="promo-nome">{p?.titulo || p?.nome || "Prêmio a definir"}</span>
@@ -198,7 +198,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
         <h2>🎁 Promoção</h2>
         <ol className="promo-linha" aria-label="Prêmios de hoje">
           {rodadas.map((r) => {
-            const estado = r.id === momento.daHora?.id ? "agora" : horaCurta(r.horario)! < agora ? "passou" : "depois";
+            const estado = estadoPremio(r, agora);
             return (
               <li key={r.id}>
                 <button type="button" className={`promo-chip ${estado} ${comGanhador.has(r.id) ? "ganho" : ""}`} onClick={() => abrir(r)} title={premioPorId.get(r.premio_id ?? "")?.nome ?? "Prêmio a definir"}>
@@ -217,26 +217,26 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
       </div>
 
       {aberta && (
-        <Modal titulo={`${premioAberto?.nome ?? "Prêmio"} · ${horaH(aberta.horario)}`} onFechar={() => setAberta(null)} leitura>
-          <div className="modal-meta">
-            <span className="etiqueta cinza">Prêmio das {horaCurta(aberta.horario)}</span>
-            {premioAberto?.titulo && <span className="etiqueta cinza">{premioAberto.titulo}</span>}
-            {premioAberto?.patrocinador && <span className="etiqueta cinza">Oferecimento: {premioAberto.patrocinador}</span>}
-            {faixaDe(aberta) && <span className="etiqueta cinza">🎙 {nomesFaixa(faixaDe(aberta)!)}</span>}
-          </div>
-          {premioAberto?.imagem_path && (
-            <Imagem src={urlImagem(sb, premioAberto.imagem_path)} alt={premioAberto.nome} className="promo-modal-foto" largura={1200} altura={675} sizes="(max-width: 900px) 100vw, 880px" ajustar prioridade />
-          )}
-          {textoPuro(premioAberto?.descricao_html) ? <TextoRico html={premioAberto!.descricao_html} /> : <p className="dica">Sem descrição cadastrada.</p>}
+        <Modal titulo={`${premioAberto?.titulo || premioAberto?.nome || "Prêmio"} · ${faixaPremio(aberta)}`} onFechar={() => setAberta(null)} leitura>
+          <dl className="promo-ficha">
+            <div><dt>Prêmio</dt><dd>{premioAberto?.nome ?? "A definir"}</dd></div>
+            {premioAberto?.titulo && <div><dt>Chamada</dt><dd>{premioAberto.titulo}</dd></div>}
+            <div><dt>Cliente / oferecimento</dt><dd>{premioAberto?.patrocinador || "—"}</dd></div>
+            <div><dt>Na tela</dt><dd>{faixaPremio(aberta)}</dd></div>
+            {faixaDe(aberta) && <div><dt>Locutor</dt><dd>🎙 {nomesFaixa(faixaDe(aberta)!)}</dd></div>}
+          </dl>
           <div className={`promo-modal-ganhador ${ganhadoresDe(aberta.id).length ? "com" : ""}`}>
+            <span className="promo-ganhador-rotulo">🏆 Ganhador</span>
             {ganhadoresDe(aberta.id).length ? (
               ganhadoresDe(aberta.id).map((g, i) => (
-                <strong key={i}>🏆 {g.nome}{localOuvinte(g) ? ` · ${localOuvinte(g)}` : ""}</strong>
+                <strong key={i}>{g.nome}{localOuvinte(g) ? ` · ${localOuvinte(g)}` : ""}</strong>
               ))
             ) : (
-              <span>Ganhador ainda não registrado pela promoção.</span>
+              <span>Ainda não registrado pela promoção.</span>
             )}
           </div>
+          <h3>Texto para ler no ar</h3>
+          {textoPuro(premioAberto?.descricao_html) ? <TextoRico html={premioAberto!.descricao_html} /> : <p className="dica">Sem texto cadastrado para este prêmio.</p>}
         </Modal>
       )}
 

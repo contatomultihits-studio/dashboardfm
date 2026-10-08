@@ -98,12 +98,12 @@ export function Premios({ sb, avisar, lista }: { sb: SupabaseClient; avisar: Avi
             <input type="text" maxLength={80} placeholder="Ex.: Par de ingressos + pipoca" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
           </label>
           <label className="campo">
-            Patrocinador (opcional)
+            Cliente / patrocinador (opcional)
             <input type="text" maxLength={80} placeholder="Ex.: Shopping Eldorado" value={form.patrocinador} onChange={(e) => setForm({ ...form, patrocinador: e.target.value })} />
           </label>
         </div>
         <CampoImagem sb={sb} imagem={imagem} rotulo="Foto do prêmio" />
-        <EditorTexto key={`premio-${versao}`} rotulo="Descrição (o que o locutor fala no ar)" valorInicial={form.descricao_html} placeholder="Regras, como participar, o que o ouvinte ganha…" onChange={(html) => setForm((f) => ({ ...f, descricao_html: html }))} />
+        <EditorTexto key={`premio-${versao}`} rotulo="Texto do prêmio (o que o locutor fala no ar)" valorInicial={form.descricao_html} placeholder="Regras, como participar, o que o ouvinte ganha…" onChange={(html) => setForm((f) => ({ ...f, descricao_html: html }))} />
         <label className="check">
           <input type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} />
           Ativo (aparece para escolher na grade)
@@ -123,7 +123,7 @@ export function Premios({ sb, avisar, lista }: { sb: SupabaseClient; avisar: Avi
           <div className="tabela-wrap">
             <table>
               <thead>
-                <tr><th>Foto</th><th>Prêmio</th><th>Patrocinador</th><th>Ativo</th><th>Ações</th></tr>
+                <tr><th>Foto</th><th>Prêmio</th><th>Cliente</th><th>Ativo</th><th>Ações</th></tr>
               </thead>
               <tbody>
                 {lista.premios.map((p) => (

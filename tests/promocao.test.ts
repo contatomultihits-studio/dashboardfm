@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csvGanhadores, datasEntre, fmtTelefone, fotoPromo, novidadesPromo, localOuvinte, momentoPromo, normalizarBusca, normalizarTelefone, premiosParaLembrar, situacaoOuvinte, textoFaltamPremio } from "@/lib/promocao";
+import { csvGanhadores, datasEntre, estadoPremio, faixaPremio, fmtTelefone, fotoPromo, novidadesPromo, localOuvinte, momentoPromo, normalizarBusca, normalizarTelefone, premiosParaLembrar, situacaoOuvinte, textoFaltamPremio } from "@/lib/promocao";
 
 const livre = { bloqueado: false, motivo_bloqueio: "" };
 
@@ -58,20 +58,36 @@ describe("grade", () => {
 });
 
 describe("carrossel: último, da hora, próximo", () => {
-  const r = (h: string) => ({ id: h, horario: `${h}:00` });
-  const dia = [r("12:00"), r("10:00"), r("11:00")];
+  const r = (id: string, ini: string, fim: string | null = null) => ({ id, horario: `${ini}:00`, horario_fim: fim ? `${fim}:00` : null });
+  const dia = [r("manha", "06:00", "09:00"), r("tarde", "14:00", "16:00"), r("meio", "09:00", "10:00")];
   it("antes do primeiro: só o próximo", () => {
-    expect(momentoPromo(dia, "09:30")).toEqual({ ultimo: null, daHora: null, proximo: r("10:00") });
+    expect(momentoPromo(dia, "05:30")).toEqual({ ultimo: null, daHora: null, proximo: dia[0] });
   });
-  it("no meio do dia", () => {
-    expect(momentoPromo(dia, "11:20")).toEqual({ ultimo: r("10:00"), daHora: r("11:00"), proximo: r("12:00") });
+  it("dentro da faixa é o da hora (até o minuto antes do fim)", () => {
+    expect(momentoPromo(dia, "08:59")).toEqual({ ultimo: null, daHora: dia[0], proximo: dia[2] });
+    expect(momentoPromo(dia, "09:00")).toEqual({ ultimo: dia[0], daHora: dia[2], proximo: dia[1] });
   });
-  it("no minuto exato vira o da hora", () => {
-    expect(momentoPromo(dia, "10:00").daHora).toEqual(r("10:00"));
+  it("buraco entre faixas: nenhum da hora", () => {
+    expect(momentoPromo(dia, "11:00")).toEqual({ ultimo: dia[2], daHora: null, proximo: dia[1] });
   });
-  it("o último do dia vale por 1 hora, depois vira 'último'", () => {
-    expect(momentoPromo(dia, "12:59").daHora).toEqual(r("12:00"));
-    expect(momentoPromo(dia, "13:00")).toEqual({ ultimo: r("12:00"), daHora: null, proximo: null });
+  it("depois do último: só o último", () => {
+    expect(momentoPromo(dia, "16:00")).toEqual({ ultimo: dia[1], daHora: null, proximo: null });
+  });
+  it("sem horário de fim vale 1 hora", () => {
+    const antigo = [r("x", "10:00")];
+    expect(momentoPromo(antigo, "10:59").daHora).toEqual(antigo[0]);
+    expect(momentoPromo(antigo, "11:00").ultimo).toEqual(antigo[0]);
+  });
+  it("faixas que se cruzam: o que começou por último", () => {
+    const cruz = [r("a", "06:00", "12:00"), r("b", "09:00", "10:00")];
+    expect(momentoPromo(cruz, "09:30").daHora).toEqual(cruz[1]);
+  });
+  it("textos e estado da faixa", () => {
+    expect(faixaPremio(r("a", "06:00", "09:00"))).toBe("06h às 09h");
+    expect(faixaPremio(r("a", "15:30"))).toBe("15h30 às 16h30");
+    expect(estadoPremio(r("a", "06:00", "09:00"), "07:00")).toBe("agora");
+    expect(estadoPremio(r("a", "06:00", "09:00"), "09:00")).toBe("passou");
+    expect(estadoPremio(r("a", "06:00", "09:00"), "05:00")).toBe("depois");
   });
   it("sem rodadas: tudo vazio", () => {
     expect(momentoPromo([], "10:00")).toEqual({ ultimo: null, daHora: null, proximo: null });

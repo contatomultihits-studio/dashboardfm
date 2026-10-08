@@ -215,7 +215,7 @@ label.campo { display: grid; gap: 6px; font-weight: 800; font-size: 0.8rem; text
 div.campo { display: grid; gap: 6px; align-content: start; }
 .rotulo-campo { font-weight: 800; font-size: 0.8rem; text-transform: uppercase; }
 .campo-locutor-linha input { flex: 1; min-width: 0; }
-input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="time"], select {
+input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="time"], input[type="search"], input[type="tel"], select {
   width: 100%; border: 2px solid var(--ink); border-radius: 12px; background: #fff;
   padding: 10px 12px; font: inherit; font-weight: 700; color: var(--ink);
 }
@@ -440,7 +440,7 @@ tr.nao-lido td { background: #fff1f2; }
 .promo-foto .thumb, .promo-foto .imagem-moldura { border-radius: 0; }
 .promo-hora {
   position: absolute; left: 12px; bottom: 12px; padding: 4px 12px; border: 2px solid var(--ink); border-radius: 12px;
-  background: var(--amarelo); font-size: 1.5rem; font-weight: 900; line-height: 1.1; box-shadow: 3px 3px 0 var(--ink);
+  background: var(--amarelo); font-size: 1.15rem; font-weight: 900; line-height: 1.1; box-shadow: 3px 3px 0 var(--ink);
 }
 .promo-info { display: grid; gap: 4px; padding: 12px 14px 14px; align-content: start; }
 .promo-nome { font-size: 1.1rem; font-weight: 900; text-transform: uppercase; line-height: 1.15; overflow-wrap: anywhere; }
@@ -451,7 +451,7 @@ tr.nao-lido td { background: #fff1f2; }
 .papel-daHora .promo-fita { background: linear-gradient(90deg, #ff4d57, #ff9f1c, #ff4d57); background-size: 200% 100%; animation: promo-brilho 3s linear infinite; font-size: 0.95rem; }
 .papel-daHora .promo-fita::before { content: "★ "; }
 .papel-daHora .promo-nome { font-size: 1.4rem; }
-.papel-daHora .promo-hora { font-size: 1.9rem; background: #ff9f1c; }
+.papel-daHora .promo-hora { font-size: 1.45rem; background: #ff9f1c; }
 .papel-ultimo .promo-fita { background: #4b5563; }
 .papel-ultimo .promo-hora { background: #e5e7eb; }
 .papel-proximo .promo-fita { background: #2563eb; }
@@ -459,7 +459,6 @@ tr.nao-lido td { background: #fff1f2; }
 .promo-card.vazio-card { grid-template-rows: auto 1fr; border-style: dashed; box-shadow: none; background: #f6f6f6; min-height: 180px; }
 .promo-vazio { display: grid; place-items: center; padding: 20px; color: var(--muted); font-weight: 800; text-transform: uppercase; text-align: center; font-size: 0.85rem; }
 @keyframes promo-brilho { to { background-position: -200% 0; } }
-.promo-modal-foto { width: 100%; border-radius: 14px; }
 .promo-modal-ganhador { border: 2px dashed #9ca3af; border-radius: 14px; padding: 12px 14px; display: grid; gap: 4px; font-weight: 800; color: var(--muted); }
 .promo-modal-ganhador.com { border: 2px solid var(--ink); background: var(--verde); color: var(--ink); font-size: 1.15rem; }
 .lembrete.lembrete-premio { background: linear-gradient(135deg, #fff6c2, #ffd43b); }
@@ -512,3 +511,13 @@ tr.nao-lido td { background: #fff1f2; }
 .lista-ouvintes li.situacao-bloqueado { background: #ffe1e3; }
 tr.historico td { background: #fafafa; }
 tr.historico ul { margin: 0; padding-left: 1.2em; }
+.rodada-ate { font-weight: 800; font-size: 0.85rem; }
+input.rodada-fim { width: 8.5em; padding: 6px 8px; }
+.parecidos { display: grid; gap: 8px; padding: 12px; border: 2px dashed #9ca3af; border-radius: 14px; }
+.promo-ficha { margin: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.promo-ficha > div { padding: 8px 12px; border: 2px solid var(--ink); border-radius: 12px; background: #fffbe6; }
+.promo-ficha dt { font-size: 0.7rem; font-weight: 900; text-transform: uppercase; color: var(--muted); }
+.promo-ficha dd { margin: 2px 0 0; font-size: 1.1rem; font-weight: 800; overflow-wrap: anywhere; }
+.campo-faixa { grid-column: 1 / -1; }
+.faixa-linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.faixa-linha input { width: 9em; }
