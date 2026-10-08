@@ -12,8 +12,7 @@ import { Rodadas } from "./Rodadas";
 const SUBABAS = [
   { id: "grade", rotulo: "Grade do dia" },
   { id: "premios", rotulo: "Cliente / Evento / Prêmio" },
-  { id: "ganhadores", rotulo: "Ganhadores e bloqueados" },
-  { id: "ouvintes", rotulo: "Base de ouvintes" },
+  { id: "ouvintes", rotulo: "Ouvintes e ganhadores" },
 ] as const;
 
 /** Departamento de Promoção: prêmios, grade por horário, ganhadores e base de ouvintes. */
@@ -35,13 +34,13 @@ export function Promocao({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar })
       </div>
       {aba === "grade" && <Rodadas sb={sb} avisar={avisar} premiosLista={premios} />}
       {aba === "premios" && <Premios sb={sb} avisar={avisar} lista={premios} />}
-      {aba === "ganhadores" && (
+      {aba === "ouvintes" && (
         <>
+          {/* Uma aba só: a base (busca, cadastro, bloqueados) e, embaixo, quem ganhou o quê no período. */}
+          <Ouvintes sb={sb} avisar={avisar} />
           <Ganhadores sb={sb} avisar={avisar} premiosLista={premios} />
-          <Ouvintes sb={sb} avisar={avisar} bloqueados />
         </>
       )}
-      {aba === "ouvintes" && <Ouvintes sb={sb} avisar={avisar} />}
     </>
   );
 }

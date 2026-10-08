@@ -19,9 +19,16 @@ export function Topbar({
     <header className="topbar">
       <div className="container topbar-conteudo">
         {meio && <div className="topbar-meio">{meio}</div>}
-        {acesso && (
+        {acesso && atual === "dashboard" ? (
+          // Tela do estúdio: limpa, só o atalho para o Artístico (quem tem acesso).
+          entraNoArtistico(acesso) && (
+            <nav className="nav" aria-label="Principal">
+              <Link href="/artistico" prefetch={false} className="pill">Artístico</Link>
+            </nav>
+          )
+        ) : acesso && (
           <nav className="nav" aria-label="Principal">
-            <Link href="/" className={`pill ${atual === "dashboard" ? "ativo" : ""}`}>Dashboard</Link>
+            <Link href="/" className="pill">Dashboard</Link>
             {entraNoArtistico(acesso) && (
               <Link href="/artistico" prefetch={false} className={`pill ${atual === "artistico" ? "ativo" : ""}`}>Artístico</Link>
             )}
