@@ -15,3 +15,6 @@ export const TOLERANCIA_PAUTA_MIN = 5;
 export const LEMBRETE_PAUTA_MIN = 5;
 /** Até quantos minutos de atraso o lembrete continua na tela (depois fica só o card "atrasada"). */
 export const LEMBRETE_ATRASO_MAX_MIN = 30;
+
+/** Promoção: quem ganhou só pode ganhar de novo depois deste número de dias (igual ao banco). */
+export const CARENCIA_PROMO_DIAS = 30;

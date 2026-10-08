@@ -5,7 +5,7 @@ export function Topbar({
   meio,
   children,
 }: {
-  atual: "dashboard" | "artistico" | "login";
+  atual: "dashboard" | "artistico" | "login" | "promocao";
   /** Conteúdo antes do menu (na dashboard: dia e botões de navegação). */
   meio?: React.ReactNode;
   children?: React.ReactNode;

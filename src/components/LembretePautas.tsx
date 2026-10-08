@@ -8,7 +8,7 @@ import { textoFaltam, type Lembrete } from "@/lib/pautas";
 import { classeTipo, nomePauta, SECAO_PAUTA_LABEL, TIPO_PAUTA_LABEL, type Locutor, type Pauta } from "@/lib/tipos";
 
 /** "Ding-dong" curto, gerado no navegador (sem arquivo de som). Se o navegador bloquear, segue sem som. */
-function tocarAviso() {
+export function tocarAviso() {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctx) return;

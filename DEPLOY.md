@@ -101,6 +101,7 @@ que já vem com tudo.
 | `008_fixar.sql` | "Fixar em primeiro" nas prioridades e conexões. |
 | `009_leituras.sql` | Registro de cada leitura de prioridade/conexão na dashboard (relatório de leituras). |
 | `010_jornalismo.sql` | Jornalismo: pautas com seção própria (ESPN, Nota, Conta Tudo…) e aviso de 5 min opcional. |
+| `011_promocao.sql` | Promoção: prêmios, grade por horário (com aviso opcional), ouvintes, bloqueados e ganhadores (regra dos 30 dias no banco). |
 
 ### Deu problema?
 

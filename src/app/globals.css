@@ -414,3 +414,86 @@ tr.nao-lido td { background: #fff1f2; }
 .etiqueta.jornal-classicos { background: #92400e; }
 .etiqueta.jornal-em_cartaz { background: #0f766e; }
 .etiqueta.jornal-desafio_rd { background: #ea580c; }
+
+/* ---------- Promoção (tela do locutor) ---------- */
+.previa-aviso { background: #fff6c2; }
+.secao-promo .secao-topo h2 { font-size: 1.25rem; }
+.promo-linha { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.promo-chip { padding: 4px 10px; font-size: 0.8rem; border-radius: 999px; box-shadow: none; background: var(--surface); }
+.promo-chip.passou { background: #e5e7eb; color: #4b5563; border-color: #9ca3af; }
+.promo-chip.ganho { background: var(--verde); color: var(--ink); border-color: var(--ink); }
+.promo-chip.agora { background: linear-gradient(135deg, #ffe066, #ff9f1c); box-shadow: 0 3px 0 var(--ink); }
+.promo-trio { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr); align-items: stretch; }
+.promo-card {
+  position: relative; display: grid; grid-template-rows: auto auto 1fr; align-content: start; gap: 0;
+  padding: 0; overflow: hidden; text-align: left; text-transform: none; font-weight: 700;
+  background: var(--surface); border: 3px solid var(--ink); border-radius: 20px; box-shadow: var(--sombra);
+}
+.promo-card:hover:not(:disabled) { transform: translateY(-3px); }
+.promo-card:active:not(:disabled) { transform: translateY(2px); box-shadow: 3px 3px 0 var(--ink); }
+.promo-fita { display: block; padding: 8px 14px; background: var(--ink); color: #fff; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.promo-foto { position: relative; display: block; }
+.promo-foto .thumb, .promo-foto .imagem-moldura { border-radius: 0; }
+.promo-hora {
+  position: absolute; left: 12px; bottom: 12px; padding: 4px 12px; border: 2px solid var(--ink); border-radius: 12px;
+  background: var(--amarelo); font-size: 1.5rem; font-weight: 900; line-height: 1.1; box-shadow: 3px 3px 0 var(--ink);
+}
+.promo-info { display: grid; gap: 4px; padding: 12px 14px 14px; align-content: start; }
+.promo-nome { font-size: 1.1rem; font-weight: 900; text-transform: uppercase; line-height: 1.15; overflow-wrap: anywhere; }
+.promo-sub { color: var(--muted); font-size: 0.85rem; font-weight: 700; }
+.promo-rodape { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.promo-locutor { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 0.85rem; }
+.promo-ganhador { padding: 3px 10px; border: 2px solid var(--ink); border-radius: 999px; background: var(--verde); font-weight: 900; font-size: 0.8rem; overflow-wrap: anywhere; }
+/* O prêmio da hora é o destaque: dourado, maior e com brilho na faixa. */
+.promo-card.papel-daHora { background: linear-gradient(160deg, #fffbe6 0%, #fff0a8 100%); border-color: #92400e; box-shadow: 7px 7px 0 #92400e; }
+.papel-daHora .promo-fita { background: linear-gradient(90deg, #ff4d57, #ff9f1c, #ff4d57); background-size: 200% 100%; animation: promo-brilho 3s linear infinite; font-size: 0.95rem; }
+.papel-daHora .promo-fita::before { content: "★ "; }
+.papel-daHora .promo-nome { font-size: 1.4rem; }
+.papel-daHora .promo-hora { font-size: 1.9rem; background: #ff9f1c; }
+.papel-ultimo .promo-fita { background: #4b5563; }
+.papel-ultimo .promo-hora { background: #e5e7eb; }
+.papel-proximo .promo-fita { background: #2563eb; }
+.papel-proximo .promo-hora { background: #bfdbfe; }
+.promo-card.vazio-card { grid-template-rows: auto 1fr; border-style: dashed; box-shadow: none; background: #f6f6f6; min-height: 180px; }
+.promo-vazio { display: grid; place-items: center; padding: 20px; color: var(--muted); font-weight: 800; text-transform: uppercase; text-align: center; font-size: 0.85rem; }
+@keyframes promo-brilho { to { background-position: -200% 0; } }
+.promo-modal-foto { width: 100%; border-radius: 14px; }
+.promo-modal-ganhador { border: 2px dashed #9ca3af; border-radius: 14px; padding: 12px 14px; display: grid; gap: 4px; font-weight: 800; color: var(--muted); }
+.promo-modal-ganhador.com { border: 2px solid var(--ink); background: var(--verde); color: var(--ink); font-size: 1.15rem; }
+.lembrete.lembrete-premio { background: linear-gradient(135deg, #fff6c2, #ffd43b); }
+.lembrete-premio-foto { display: block; width: 56px; height: 56px; border-radius: 12px; overflow: hidden; border: 2px solid var(--ink); }
+.lembrete-premio-foto .thumb { width: 100%; height: 100%; aspect-ratio: 1; border-radius: 0; }
+/* Com aviso de pauta e de prêmio ao mesmo tempo, o de prêmio fica em cima. */
+.lembretes + .lembretes-premio, .lembretes-premio:has(~ .lembretes) { bottom: auto; top: 96px; }
+@media (max-width: 900px) {
+  /* Carrossel no celular/tablet: arrasta para o lado; o prêmio da hora aparece primeiro. */
+  .promo-trio { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; }
+  .promo-trio > * { flex: 0 0 min(82%, 360px); scroll-snap-align: start; }
+  .promo-trio > .papel-daHora { order: -1; }
+  .promo-trio > .papel-ultimo { order: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .papel-daHora .promo-fita { animation: none; } }
+
+/* ---------- Promoção (Artístico) ---------- */
+.promo-subabas { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; }
+.promo-subabas .botao { text-decoration: none; }
+.rodada-hora { font-size: 1.15rem; }
+.rodada-premio { display: flex; gap: 8px; align-items: center; }
+.rodada-premio select { min-width: 200px; }
+.rodada-ganhador { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.ganhador-premio { display: grid; gap: 2px; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 14px; background: var(--amarelo); }
+.ganhador-premio strong { font-size: 1.1rem; text-transform: uppercase; }
+.ouvinte-escolhido { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; border: 2px solid var(--ink); border-radius: 14px; }
+.situacao-livre.ouvinte-escolhido { background: #dcfce7; }
+.situacao-carencia.ouvinte-escolhido { background: #fff3c4; }
+.situacao-bloqueado.ouvinte-escolhido { background: #ffe1e3; }
+.situacao-ouvinte { font-weight: 800; font-size: 0.8rem; text-transform: uppercase; }
+.situacao-ouvinte.livre { color: #166534; }
+.situacao-ouvinte.carencia { color: #92400e; }
+.situacao-ouvinte.bloqueado { color: #b91c1c; }
+.lista-ouvintes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 340px; overflow: auto; }
+.lista-ouvintes li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 14px; background: var(--surface); }
+.lista-ouvintes li.situacao-carencia { background: #fffbe6; }
+.lista-ouvintes li.situacao-bloqueado { background: #ffe1e3; }
+tr.historico td { background: #fafafa; }
+tr.historico ul { margin: 0; padding-left: 1.2em; }

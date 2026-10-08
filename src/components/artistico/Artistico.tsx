@@ -12,6 +12,7 @@ import { Eventos } from "./Eventos";
 import { Jornalismo } from "./Jornalismo";
 import { Locutores } from "./Locutores";
 import { Pautas } from "./Pautas";
+import { Promocao } from "./promocao/Promocao";
 import { Prioridades } from "./Prioridades";
 import { Recados } from "./Recados";
 import { RelatorioLeituras } from "./RelatorioLeituras";
@@ -22,6 +23,7 @@ const ABAS = [
   { id: "recados", rotulo: "Recados" },
   { id: "pautas", rotulo: "Partiu Rádio Disney" },
   { id: "jornalismo", rotulo: "Jornalismo" },
+  { id: "promocao", rotulo: "Promoção" },
   { id: "conexoes", rotulo: "Conexões" },
   { id: "convidados", rotulo: "Convidados" },
   { id: "eventos", rotulo: "Eventos" },
@@ -103,6 +105,7 @@ export function Artistico() {
             {aba === "recados" && <Recados sb={sb} avisar={avisar} />}
             {aba === "pautas" && <Pautas sb={sb} avisar={avisar} />}
             {aba === "jornalismo" && <Jornalismo sb={sb} avisar={avisar} />}
+            {aba === "promocao" && <Promocao sb={sb} avisar={avisar} />}
             {aba === "conexoes" && <Conexoes sb={sb} avisar={avisar} />}
             {aba === "convidados" && <Convidados sb={sb} avisar={avisar} />}
             {aba === "eventos" && <Eventos sb={sb} avisar={avisar} />}

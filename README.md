@@ -18,6 +18,11 @@ Tudo o que o locutor precisa para tocar o horário, numa tela só:
 - **Próximos convidados**, com foto, data e horário. Clicando, abre a mini pauta.
 - **Agenda de eventos**, com etiqueta *Rádio oficial* ou *Apoio*, data e local.
 - **Últimos vídeos do YouTube**: desligado por enquanto (`MOSTRAR_YOUTUBE` em `src/lib/config.ts`).
+- **Promoção** (em teste na página `/promocao`, ainda fora da dashboard): último prêmio, **prêmio da hora** e
+  próximo prêmio, com foto, ganhador e pop-up opcional 5 min antes. No Artístico, a aba Promoção tem o catálogo
+  de prêmios, a grade por horário (de hora em hora, a cada 2 h…), o registro de ganhadores com a busca
+  "já ganhou?" e a lista de bloqueados. Quem ganhou só ganha de novo depois de 30 dias (o banco garante).
+  Telefone e dados dos ouvintes ficam só para a equipe; a tela do locutor mostra nome, bairro e cidade.
 
 A **dashboard é aberta** (sem login) e mostra só o que foi marcado como "Exibir na dashboard".
 A aba **Artístico** exige login e é onde a produção cadastra, edita, oculta e exclui cada item.
@@ -39,6 +44,7 @@ src/app/login/               login da equipe
 src/app/artistico/           área da equipe
 src/components/Dashboard.tsx carrosséis e janelas de detalhe
 src/components/artistico/    formulários e listas (prioridades, recados, pautas, conexões, convidados, eventos, relatório)
+src/components/PromocaoNoAr.tsx  promoção na tela do locutor (hoje na prévia /promocao)
 src/lib/                     datas, filtro de HTML, imagens, cliente Supabase
 src/proxy.ts                 mantém a sessão e protege /artistico
 tests/                       testes (datas e filtro de HTML)
@@ -57,6 +63,6 @@ Outros comandos: `npm test`, `npm run typecheck`, `npm run build`.
 ## Próximas etapas
 
 - Envio automático do relatório de pautas por e-mail no fim do dia (Opec e produtores).
-- Aba Jornalismo (notas do dia) e aba Novidades do digital.
-- Ganhadores: busca, histórico, "prêmio retirado" e importação do Microsoft Planner (exportação para Excel).
-- Prêmio da hora na dashboard.
+- Aba Novidades do digital.
+- Promoção: levar o carrossel para a dashboard e importar os ganhadores antigos da planilha.
+- Usuários e permissões por área (só ver, editar), com tela do usuário mestre.
