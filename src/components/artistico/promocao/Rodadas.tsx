@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Imagem } from "@/components/Imagem";
+import { Modal } from "@/components/Modal";
 import { fmtData, fmtDiaSemana, hojeISO, horaCurta, somarDias } from "@/lib/datas";
 import { noArEm, nomesFaixa } from "@/lib/escala";
 import { urlImagem } from "@/lib/imagens";
-import { datasEntre, localOuvinte, type Ganhador, type Ouvinte, type Rodada } from "@/lib/promocao";
+import { datasEntre, faixaPremio, localOuvinte, type Ganhador, type Ouvinte, type Premio, type Rodada } from "@/lib/promocao";
 import type { ItemEscala } from "@/lib/tipos";
 import { erroMsg, useLocutoresEquipe, type Avisar } from "../comum";
 import type { usePremios } from "./comum";
@@ -32,6 +33,7 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [registrando, setRegistrando] = useState<Rodada | null>(null);
+  const [editando, setEditando] = useState<Rodada | null>(null);
   const [gerar, setGerar] = useState(() => ({ de: hojeISO(), ate: hojeISO(), inicio: "", fim: "", faixas: [] as Faixa[], premio_id: "", aviso: false }));
   const [gerando, setGerando] = useState(false);
 
@@ -226,7 +228,12 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
                         </button>
                       </td>
                       <td><input type="checkbox" aria-label={`Exibir prêmio das ${horaCurta(r.horario)}`} checked={r.ativo} onChange={() => mudar(r, { ativo: !r.ativo })} /></td>
-                      <td><button type="button" className="pequeno vermelho" onClick={() => excluir(r)}>Excluir</button></td>
+                      <td>
+                        <div className="tabela-acoes">
+                          <button type="button" className="pequeno" aria-label={`Editar prêmio das ${horaCurta(r.horario)}`} onClick={() => setEditando(r)}>Editar</button>
+                          <button type="button" className="pequeno vermelho" onClick={() => excluir(r)}>Excluir</button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -304,6 +311,21 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
         </div>
       </form>
 
+      {editando && (
+        <EditarRodada
+          sb={sb}
+          avisar={avisar}
+          rodada={editando}
+          premios={premios}
+          onSalvo={(novoDia) => {
+            setEditando(null);
+            if (novoDia !== dia) setDia(novoDia);
+            else carregar();
+          }}
+          onFechar={() => setEditando(null)}
+        />
+      )}
+
       {registrando && (
         <RegistrarGanhador
           sb={sb}
@@ -320,5 +342,84 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
         />
       )}
     </>
+  );
+}
+
+/** Editar um prêmio da grade: dia, faixa de horário, prêmio, aviso e se aparece para o locutor. */
+function EditarRodada({ sb, avisar, rodada, premios, onSalvo, onFechar }: {
+  sb: SupabaseClient;
+  avisar: Avisar;
+  rodada: Rodada;
+  premios: Premio[];
+  onSalvo: (dia: string) => void;
+  onFechar: () => void;
+}) {
+  const [form, setForm] = useState({
+    data: rodada.data,
+    inicio: horaCurta(rodada.horario) ?? "",
+    fim: horaCurta(rodada.horario_fim) ?? "",
+    premio_id: rodada.premio_id ?? "",
+    aviso: rodada.aviso,
+    ativo: rodada.ativo,
+  });
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.data || !form.inicio) return avisar("Preencha o dia e o horário de começo.", true);
+    if (form.fim && form.fim <= form.inicio) return avisar("O fim precisa ser depois do começo.", true);
+    setSalvando(true);
+    const { error } = await sb.from("promo_rodadas").update({
+      data: form.data,
+      horario: form.inicio,
+      horario_fim: form.fim || null,
+      premio_id: form.premio_id || null,
+      aviso: form.aviso,
+      ativo: form.ativo,
+    }).eq("id", rodada.id);
+    setSalvando(false);
+    if (error) return avisar(error.message, true);
+    avisar("Prêmio da grade atualizado");
+    onSalvo(form.data);
+  }
+
+  return (
+    <Modal titulo={`Editar prêmio das ${faixaPremio(rodada)}`} onFechar={onFechar}>
+      <form className="form" onSubmit={salvar}>
+        <div className="form-grade">
+          <label className="campo">
+            Dia
+            <input type="date" required value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
+          </label>
+          <label className="campo">
+            Das
+            <input type="time" required value={form.inicio} onChange={(e) => setForm({ ...form, inicio: e.target.value })} />
+          </label>
+          <label className="campo">
+            Até
+            <input type="time" value={form.fim} onChange={(e) => setForm({ ...form, fim: e.target.value })} />
+          </label>
+        </div>
+        <label className="campo">
+          Prêmio
+          <select value={form.premio_id} onChange={(e) => setForm({ ...form, premio_id: e.target.value })}>
+            <option value="">— Escolher prêmio —</option>
+            {premios.filter((p) => p.ativo || p.id === form.premio_id).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+          </select>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={form.aviso} onChange={(e) => setForm({ ...form, aviso: e.target.checked })} />
+          ⏰ Avisar 5 min antes na tela do locutor (pop-up com som)
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} />
+          Exibir na tela do locutor
+        </label>
+        <div className="acoes">
+          <button type="submit" className="verde" disabled={salvando}>{salvando ? "Salvando…" : "Salvar alterações"}</button>
+          <button type="button" className="branco" onClick={onFechar}>Cancelar</button>
+        </div>
+      </form>
+    </Modal>
   );
 }

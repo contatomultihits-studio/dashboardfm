@@ -94,10 +94,6 @@ export function Premios({ sb, avisar, lista }: { sb: SupabaseClient; avisar: Avi
             <input type="text" required maxLength={80} placeholder="Ex.: Ingressos show Disney On Ice" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           </label>
           <label className="campo">
-            Título (chamada no card, opcional)
-            <input type="text" maxLength={80} placeholder="Ex.: Par de ingressos + pipoca" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} />
-          </label>
-          <label className="campo">
             Cliente / patrocinador (opcional)
             <input type="text" maxLength={80} placeholder="Ex.: Shopping Eldorado" value={form.patrocinador} onChange={(e) => setForm({ ...form, patrocinador: e.target.value })} />
           </label>
@@ -131,7 +127,6 @@ export function Premios({ sb, avisar, lista }: { sb: SupabaseClient; avisar: Avi
                     <td><Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="mini-thumb" largura={88} altura={88} sizes="44px" /></td>
                     <td className="texto">
                       <strong>{p.nome}</strong>
-                      {p.titulo && <div className="trecho">{p.titulo}</div>}
                     </td>
                     <td>{p.patrocinador || "—"}</td>
                     <td><input type="checkbox" aria-label={`Prêmio ${p.nome} ativo`} checked={p.ativo} onChange={() => alternarAtivo(p)} /></td>

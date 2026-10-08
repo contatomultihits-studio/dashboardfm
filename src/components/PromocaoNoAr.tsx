@@ -24,7 +24,7 @@ const VAZIO: Record<Papel, string> = {
 };
 
 /** A promoção confere mais seguido que o resto: o ganhador precisa chegar rápido ao locutor. */
-const ATUALIZAR_PROMO_MS = 30_000;
+const ATUALIZAR_PROMO_MS = 15_000;
 
 /** Última versão vista nesta tela (para avisar o que mudou, mesmo depois de recarregar a página). */
 const chaveFoto = (dia: string) => `dashboardfm:promo-foto:${dia}`;
@@ -113,7 +113,13 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
   useEffect(() => {
     carregar();
     const timer = setInterval(carregar, ATUALIZAR_PROMO_MS);
-    return () => clearInterval(timer);
+    // Voltou para a aba (ou o computador acordou): busca na hora.
+    const aoVoltar = () => document.visibilityState === "visible" && carregar();
+    document.addEventListener("visibilitychange", aoVoltar);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", aoVoltar);
+    };
   }, [carregar]);
 
   const premioPorId = useMemo(() => new Map(premios.map((p) => [p.id, p])), [premios]);
@@ -171,9 +177,8 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
           <span className="promo-hora">{faixaPremio(r)}</span>
         </span>
         <span className="promo-info">
-          <span className="promo-nome">{p?.titulo || p?.nome || "Prêmio a definir"}</span>
-          {p?.titulo && <span className="promo-sub">{p.nome}</span>}
-          {p?.patrocinador && <span className="promo-sub">Oferecimento: {p.patrocinador}</span>}
+          <span className="promo-nome">{p?.nome || "Prêmio a definir"}</span>
+          {p?.patrocinador && <span className="promo-sub">Cliente: {p.patrocinador}</span>}
           {f && <span className="promo-locutor"><Avatares sb={sb} locutores={f.locutores} tamanho={28} /> {nomesFaixa(f)}</span>}
           <span className={`promo-ganhador-box ${gs.length ? "com" : ""}`}>
             <span className="promo-ganhador-rotulo">🏆 Ganhador</span>
@@ -217,14 +222,14 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
       </div>
 
       {aberta && (
-        <Modal titulo={`${premioAberto?.titulo || premioAberto?.nome || "Prêmio"} · ${faixaPremio(aberta)}`} onFechar={() => setAberta(null)} leitura>
+        <Modal titulo={`${premioAberto?.nome || "Prêmio"} · ${faixaPremio(aberta)}`} onFechar={() => setAberta(null)} leitura>
           <dl className="promo-ficha">
             <div><dt>Prêmio</dt><dd>{premioAberto?.nome ?? "A definir"}</dd></div>
-            {premioAberto?.titulo && <div><dt>Chamada</dt><dd>{premioAberto.titulo}</dd></div>}
-            <div><dt>Cliente / oferecimento</dt><dd>{premioAberto?.patrocinador || "—"}</dd></div>
+            <div><dt>Cliente</dt><dd>{premioAberto?.patrocinador || "—"}</dd></div>
             <div><dt>Na tela</dt><dd>{faixaPremio(aberta)}</dd></div>
             {faixaDe(aberta) && <div><dt>Locutor</dt><dd>🎙 {nomesFaixa(faixaDe(aberta)!)}</dd></div>}
           </dl>
+          {textoPuro(premioAberto?.descricao_html) ? <TextoRico html={premioAberto!.descricao_html} /> : <p className="dica">Sem descrição cadastrada para este prêmio.</p>}
           <div className={`promo-modal-ganhador ${ganhadoresDe(aberta.id).length ? "com" : ""}`}>
             <span className="promo-ganhador-rotulo">🏆 Ganhador</span>
             {ganhadoresDe(aberta.id).length ? (
@@ -235,8 +240,6 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
               <span>Ainda não registrado pela promoção.</span>
             )}
           </div>
-          <h3>Texto para ler no ar</h3>
-          {textoPuro(premioAberto?.descricao_html) ? <TextoRico html={premioAberto!.descricao_html} /> : <p className="dica">Sem texto cadastrado para este prêmio.</p>}
         </Modal>
       )}
 
@@ -254,7 +257,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
                     <span className="lembrete-quando">
                       {n.tipo === "ganhador" ? `Ganhador do prêmio das ${horaH(r.horario)}` : `Prêmio das ${horaH(r.horario)} foi alterado`} · Promoção
                     </span>
-                    <strong>{n.tipo === "ganhador" ? n.nomes.join(", ") : p?.titulo || p?.nome || "Prêmio"}</strong>
+                    <strong>{n.tipo === "ganhador" ? n.nomes.join(", ") : p?.nome || "Prêmio"}</strong>
                   </div>
                   <div className="lembrete-acoes">
                     <button type="button" className="verde" onClick={() => abrir(r)}>Abrir prêmio</button>
@@ -313,7 +316,7 @@ function LembretePremios({ sb, lembretes, premioPorId, onAbrir, onFechar }: {
             )}
             <div className="lembrete-texto">
               <span className="lembrete-quando">{textoFaltamPremio(faltam)} · Promoção</span>
-              <strong>{horaH(r.horario)} · {p?.titulo || p?.nome || "Prêmio"}</strong>
+              <strong>{horaH(r.horario)} · {p?.nome || "Prêmio"}</strong>
             </div>
             <div className="lembrete-acoes">
               <button type="button" className="verde" onClick={() => onAbrir(r)}>Abrir prêmio</button>

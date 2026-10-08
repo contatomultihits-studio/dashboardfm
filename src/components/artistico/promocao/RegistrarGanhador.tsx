@@ -165,7 +165,7 @@ export function RegistrarGanhador({ sb, avisar, rodada, premios, dia, locutorSug
       <div className="form">
         {rodada ? (
           <div className="ganhador-premio">
-            <strong>{premio?.titulo || premio?.nome || "Horário sem prêmio definido"}</strong>
+            <strong>{premio?.nome || "Horário sem prêmio definido"}</strong>
             <span>{fmtData(rodada.data)} · {faixaPremio(rodada)}{premio?.patrocinador ? ` · ${premio.patrocinador}` : ""}</span>
           </div>
         ) : (
