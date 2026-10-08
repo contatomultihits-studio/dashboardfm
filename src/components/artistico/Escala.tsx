@@ -117,7 +117,7 @@ export function Escala({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) {
                       </span>
                     </td>
                     <td><span className={`etiqueta ${f.origem === "escala" ? "situacao-no-ar" : "cinza"}`}>{f.origem === "escala" ? "Escala do dia" : "Horário fixo"}</span></td>
-                    <td>{f.origem === "escala" && <button type="button" className="pequeno vermelho" onClick={() => remover(f)}>Remover</button>}</td>
+                    <td>{f.origem === "escala" && <button type="button" className="pequeno vermelho" data-edita onClick={() => remover(f)}>Remover</button>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -126,7 +126,7 @@ export function Escala({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) {
         )}
         {fora.length > 0 && <p className="dica"><strong>Fora da escala neste dia (folga):</strong> {fora.map((l) => l.nome).join(", ")}</p>}
         {anterior.length > 0 && (
-          <div className="acoes">
+          <div className="acoes" data-edita>
             <button type="button" className="branco" onClick={copiarSemanaPassada}>Copiar a escala de {fmtData(somarDias(data, -7))}</button>
           </div>
         )}

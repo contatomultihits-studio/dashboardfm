@@ -92,7 +92,7 @@ export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar })
               <input type="checkbox" checked={soBloqueados} onChange={(e) => setSoBloqueados(e.target.checked)} />
               Só bloqueados
             </label>
-            <button type="button" className="pequeno amarelo" onClick={() => setEditando("novo")}>+ Cadastrar ouvinte / bloquear</button>
+            <button type="button" className="pequeno amarelo" data-edita onClick={() => setEditando("novo")}>+ Cadastrar ouvinte / bloquear</button>
           </div>
         </div>
         <label className="campo">

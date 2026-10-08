@@ -799,11 +799,481 @@ create policy imagens_delete_equipe
 
 
 -- =====================================================================
--- DEPOIS de criar os usuários em Authentication > Users, libere cada um
--- para editar rodando (troque o e-mail e o nome):
+-- Acessos por pessoa e por área (migrações 015 e 016)
+-- =====================================================================
+
+
+create table if not exists public.perfis (
+  user_id        uuid primary key references auth.users (id) on delete cascade,
+  nome           text not null check (length(trim(nome)) > 0),
+  email          text not null,
+  tipo           text not null check (tipo in ('admin', 'equipe', 'locutor')),
+  ativo          boolean not null default true,
+  senha_alterada boolean not null default false,
+  criado_em      timestamptz not null default now(),
+  criado_por     uuid references auth.users (id) on delete set null,
+  atualizado_em  timestamptz not null default now()
+);
+
+create table if not exists public.permissoes (
+  user_id uuid not null references public.perfis (user_id) on delete cascade,
+  area    text not null check (area in (
+            'prioridades', 'recados', 'partiu', 'jornalismo', 'promocao', 'conexoes',
+            'convidados', 'eventos', 'locutores', 'relatorios')),
+  nivel   text not null check (nivel in ('ver', 'editar')),
+  primary key (user_id, area)
+);
+
+drop trigger if exists perfis_atualizado on public.perfis;
+create or replace function public.perfis_tocar()
+returns trigger language plpgsql set search_path = '' as $$
+begin
+  new.atualizado_em := now();
+  return new;
+end;
+$$;
+create trigger perfis_atualizado before update on public.perfis
+  for each row execute function public.perfis_tocar();
+
+
+-- ---------------------------------------------------------------------
+-- Funções de checagem (as regras das tabelas chamam estas)
+-- ---------------------------------------------------------------------
+create or replace function public.usuario_autorizado()
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfis p
+    where p.user_id = (select auth.uid()) and p.ativo
+  );
+$$;
+
+create or replace function public.eh_admin()
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfis p
+    where p.user_id = (select auth.uid()) and p.ativo and p.tipo = 'admin'
+  );
+$$;
+
+-- "ver" vale para quem tem ver ou editar; "editar" só para quem tem editar.
+create or replace function public.pode(p_area text, p_nivel text default 'ver')
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfis p
+    where p.user_id = (select auth.uid()) and p.ativo
+      and (
+        p.tipo = 'admin'
+        or (p.tipo = 'equipe' and exists (
+          select 1 from public.permissoes x
+          where x.user_id = p.user_id and x.area = p_area
+            and (p_nivel = 'ver' or x.nivel = 'editar')
+        ))
+      )
+  );
+$$;
+
+-- Pode enviar fotos: quem edita alguma área.
+create or replace function public.pode_editar_algo()
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfis p
+    where p.user_id = (select auth.uid()) and p.ativo
+      and (p.tipo = 'admin' or exists (select 1 from public.permissoes x where x.user_id = p.user_id and x.nivel = 'editar'))
+  );
+$$;
+
+-- O que o site precisa saber de quem entrou (null = não autorizado).
+create or replace function public.meu_acesso()
+returns jsonb
+language sql stable security definer set search_path = ''
+as $$
+  select jsonb_build_object(
+    'nome', p.nome,
+    'email', p.email,
+    'tipo', p.tipo,
+    'ativo', p.ativo,
+    'senha_alterada', p.senha_alterada,
+    'permissoes', coalesce((select jsonb_object_agg(x.area, x.nivel) from public.permissoes x where x.user_id = p.user_id), '{}'::jsonb)
+  )
+  from public.perfis p
+  where p.user_id = (select auth.uid());
+$$;
+
+-- Depois de trocar a senha no primeiro acesso.
+create or replace function public.marcar_senha_alterada()
+returns void
+language sql volatile security definer set search_path = ''
+as $$
+  update public.perfis set senha_alterada = true where user_id = (select auth.uid());
+$$;
+
+-- O administrador muda tipo, ativo e as áreas de alguém (não mexe no próprio acesso de admin).
+create or replace function public.admin_salvar_acesso(p_user uuid, p_nome text, p_tipo text, p_ativo boolean, p_permissoes jsonb)
+returns void
+language plpgsql volatile security definer set search_path = ''
+as $$
+begin
+  if not public.eh_admin() then
+    raise exception 'Só o administrador pode mudar acessos.';
+  end if;
+  if p_user = (select auth.uid()) and (p_tipo <> 'admin' or not p_ativo) then
+    raise exception 'Você não pode tirar o seu próprio acesso de administrador.';
+  end if;
+  if p_tipo not in ('admin', 'equipe', 'locutor') then
+    raise exception 'Tipo inválido.';
+  end if;
+  update public.perfis set nome = trim(p_nome), tipo = p_tipo, ativo = p_ativo where user_id = p_user;
+  if not found then
+    raise exception 'Usuário não encontrado.';
+  end if;
+  delete from public.permissoes where user_id = p_user;
+  if p_tipo = 'equipe' then
+    insert into public.permissoes (user_id, area, nivel)
+    select p_user, e.key, e.value
+    from jsonb_each_text(coalesce(p_permissoes, '{}'::jsonb)) e
+    where e.value in ('ver', 'editar')
+      and e.key in ('prioridades', 'recados', 'partiu', 'jornalismo', 'promocao', 'conexoes',
+                    'convidados', 'eventos', 'locutores', 'relatorios');
+  end if;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------
+-- Regras de perfis e permissões
+-- ---------------------------------------------------------------------
+alter table public.perfis enable row level security;
+alter table public.permissoes enable row level security;
+revoke all on table public.perfis from anon, authenticated;
+revoke all on table public.permissoes from anon, authenticated;
+grant select on table public.perfis to authenticated;
+grant select on table public.permissoes to authenticated;
+
+drop policy if exists perfis_select on public.perfis;
+create policy perfis_select on public.perfis for select to authenticated
+  using (user_id = (select auth.uid()) or (select public.eh_admin()));
+drop policy if exists permissoes_select on public.permissoes;
+create policy permissoes_select on public.permissoes for select to authenticated
+  using (user_id = (select auth.uid()) or (select public.eh_admin()));
+-- Escrita em perfis/permissões: só pelas funções acima e pela Edge Function.
+
+revoke all on function public.usuario_autorizado() from public, anon;
+revoke all on function public.eh_admin() from public, anon;
+revoke all on function public.pode(text, text) from public, anon;
+revoke all on function public.pode_editar_algo() from public, anon;
+revoke all on function public.meu_acesso() from public, anon;
+revoke all on function public.marcar_senha_alterada() from public, anon;
+revoke all on function public.admin_salvar_acesso(uuid, text, text, boolean, jsonb) from public, anon;
+revoke all on function public.perfis_tocar() from public, anon, authenticated;
+grant execute on function public.usuario_autorizado() to authenticated;
+grant execute on function public.eh_admin() to authenticated;
+grant execute on function public.pode(text, text) to authenticated;
+grant execute on function public.pode_editar_algo() to authenticated;
+grant execute on function public.meu_acesso() to authenticated;
+grant execute on function public.marcar_senha_alterada() to authenticated;
+grant execute on function public.admin_salvar_acesso(uuid, text, text, boolean, jsonb) to authenticated;
+
+
+-- ---------------------------------------------------------------------
+-- Novas regras das tabelas (somam com as antigas até a parte 2)
+-- Área de cada tabela; pautas usam a seção (Partiu ou Jornalismo).
+-- ---------------------------------------------------------------------
+do $$
+declare
+  r record;
+begin
+  for r in select * from (values
+      ('prioridades', 'prioridades'), ('recados', 'recados'), ('conexoes', 'conexoes'),
+      ('convidados', 'convidados'), ('eventos', 'eventos'),
+      ('locutores', 'locutores'), ('escala', 'locutores'),
+      ('premios', 'promocao'), ('promo_rodadas', 'promocao')
+    ) as t(tabela, area)
+  loop
+    execute format('drop policy if exists %1$s_ver_autorizado on public.%1$I', r.tabela);
+    execute format('create policy %1$s_ver_autorizado on public.%1$I for select to authenticated using ((select public.usuario_autorizado()))', r.tabela);
+    execute format('drop policy if exists %1$s_inserir_area on public.%1$I', r.tabela);
+    execute format('create policy %1$s_inserir_area on public.%1$I for insert to authenticated with check ((select public.pode(%2$L, ''editar'')))', r.tabela, r.area);
+    execute format('drop policy if exists %1$s_mudar_area on public.%1$I', r.tabela);
+    execute format('create policy %1$s_mudar_area on public.%1$I for update to authenticated using ((select public.pode(%2$L, ''editar''))) with check ((select public.pode(%2$L, ''editar'')))', r.tabela, r.area);
+    execute format('drop policy if exists %1$s_apagar_area on public.%1$I', r.tabela);
+    execute format('create policy %1$s_apagar_area on public.%1$I for delete to authenticated using ((select public.pode(%2$L, ''editar'')))', r.tabela, r.area);
+  end loop;
+end;
+$$;
+
+-- Pautas: a área é a seção.
+drop policy if exists pautas_ver_autorizado on public.pautas;
+create policy pautas_ver_autorizado on public.pautas for select to authenticated using ((select public.usuario_autorizado()));
+drop policy if exists pautas_inserir_area on public.pautas;
+create policy pautas_inserir_area on public.pautas for insert to authenticated
+  with check (public.pode(case when secao = 'jornalismo' then 'jornalismo' else 'partiu' end, 'editar'));
+drop policy if exists pautas_mudar_area on public.pautas;
+create policy pautas_mudar_area on public.pautas for update to authenticated
+  using (public.pode(case when secao = 'jornalismo' then 'jornalismo' else 'partiu' end, 'editar'))
+  with check (public.pode(case when secao = 'jornalismo' then 'jornalismo' else 'partiu' end, 'editar'));
+drop policy if exists pautas_apagar_area on public.pautas;
+create policy pautas_apagar_area on public.pautas for delete to authenticated
+  using (public.pode(case when secao = 'jornalismo' then 'jornalismo' else 'partiu' end, 'editar'));
+
+-- "Feita": todos os autorizados veem; corrigir no relatório = quem edita a seção ou os relatórios.
+create or replace function public.pode_corrigir_pauta(p_pauta uuid)
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select public.pode('relatorios', 'editar') or exists (
+    select 1 from public.pautas pa where pa.id = p_pauta
+      and public.pode(case when pa.secao = 'jornalismo' then 'jornalismo' else 'partiu' end, 'editar')
+  );
+$$;
+revoke all on function public.pode_corrigir_pauta(uuid) from public, anon;
+grant execute on function public.pode_corrigir_pauta(uuid) to authenticated;
+
+drop policy if exists pautas_realizadas_ver_autorizado on public.pautas_realizadas;
+create policy pautas_realizadas_ver_autorizado on public.pautas_realizadas for select to authenticated using ((select public.usuario_autorizado()));
+drop policy if exists pautas_realizadas_inserir_area on public.pautas_realizadas;
+create policy pautas_realizadas_inserir_area on public.pautas_realizadas for insert to authenticated with check (public.pode_corrigir_pauta(pauta_id));
+drop policy if exists pautas_realizadas_mudar_area on public.pautas_realizadas;
+create policy pautas_realizadas_mudar_area on public.pautas_realizadas for update to authenticated using (public.pode_corrigir_pauta(pauta_id)) with check (public.pode_corrigir_pauta(pauta_id));
+drop policy if exists pautas_realizadas_apagar_area on public.pautas_realizadas;
+create policy pautas_realizadas_apagar_area on public.pautas_realizadas for delete to authenticated using (public.pode_corrigir_pauta(pauta_id));
+
+-- Ouvintes e ganhadores (dados pessoais): Promoção; os relatórios só leem.
+do $$
+declare t text;
+begin
+  foreach t in array array['ouvintes', 'ganhadores'] loop
+    execute format('drop policy if exists %1$s_ver_area on public.%1$I', t);
+    execute format('create policy %1$s_ver_area on public.%1$I for select to authenticated using ((select public.pode(''promocao'', ''ver'')) or (select public.pode(''relatorios'', ''ver'')))', t);
+    execute format('drop policy if exists %1$s_inserir_area on public.%1$I', t);
+    execute format('create policy %1$s_inserir_area on public.%1$I for insert to authenticated with check ((select public.pode(''promocao'', ''editar'')))', t);
+    execute format('drop policy if exists %1$s_mudar_area on public.%1$I', t);
+    execute format('create policy %1$s_mudar_area on public.%1$I for update to authenticated using ((select public.pode(''promocao'', ''editar''))) with check ((select public.pode(''promocao'', ''editar'')))', t);
+    execute format('drop policy if exists %1$s_apagar_area on public.%1$I', t);
+    execute format('create policy %1$s_apagar_area on public.%1$I for delete to authenticated using ((select public.pode(''promocao'', ''editar'')))', t);
+  end loop;
+end;
+$$;
+
+-- Leituras: só os relatórios.
+drop policy if exists leituras_ver_area on public.leituras;
+create policy leituras_ver_area on public.leituras for select to authenticated using ((select public.pode('relatorios', 'ver')));
+drop policy if exists leituras_apagar_area on public.leituras;
+create policy leituras_apagar_area on public.leituras for delete to authenticated using ((select public.pode('relatorios', 'editar')));
+
+-- Fotos: quem edita alguma área envia, troca e apaga.
+drop policy if exists imagens_inserir_quem_edita on storage.objects;
+create policy imagens_inserir_quem_edita on storage.objects for insert to authenticated
+  with check (bucket_id = 'imagens' and (select public.pode_editar_algo()));
+drop policy if exists imagens_mudar_quem_edita on storage.objects;
+create policy imagens_mudar_quem_edita on storage.objects for update to authenticated
+  using (bucket_id = 'imagens' and (select public.pode_editar_algo()))
+  with check (bucket_id = 'imagens' and (select public.pode_editar_algo()));
+drop policy if exists imagens_apagar_quem_edita on storage.objects;
+create policy imagens_apagar_quem_edita on storage.objects for delete to authenticated
+  using (bucket_id = 'imagens' and (select public.pode_editar_algo()));
+drop policy if exists imagens_ver_quem_edita on storage.objects;
+create policy imagens_ver_quem_edita on storage.objects for select to authenticated
+  using (bucket_id = 'imagens' and (select public.pode_editar_algo()));
+
+
+
+-- 1) Regras antigas
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['prioridades', 'recados', 'convidados', 'eventos', 'conexoes', 'pautas',
+                           'locutores', 'escala', 'premios', 'promo_rodadas', 'ouvintes', 'ganhadores'] loop
+    execute format('drop policy if exists %1$s_select_publico on public.%1$I', t);
+    execute format('drop policy if exists %1$s_select_equipe on public.%1$I', t);
+    execute format('drop policy if exists %1$s_insert_equipe on public.%1$I', t);
+    execute format('drop policy if exists %1$s_update_equipe on public.%1$I', t);
+    execute format('drop policy if exists %1$s_delete_equipe on public.%1$I', t);
+  end loop;
+end;
+$$;
+drop policy if exists pautas_realizadas_select_publico on public.pautas_realizadas;
+drop policy if exists pautas_realizadas_insert_equipe on public.pautas_realizadas;
+drop policy if exists pautas_realizadas_update_equipe on public.pautas_realizadas;
+drop policy if exists pautas_realizadas_delete_equipe on public.pautas_realizadas;
+drop policy if exists leituras_select_equipe on public.leituras;
+drop policy if exists leituras_delete_equipe on public.leituras;
+drop policy if exists imagens_select_equipe on storage.objects;
+drop policy if exists imagens_insert_equipe on storage.objects;
+drop policy if exists imagens_update_equipe on storage.objects;
+drop policy if exists imagens_delete_equipe on storage.objects;
+
+-- 2) Visitante sem login: nenhuma tabela.
+do $$
+declare
+  t text;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public' loop
+    execute format('revoke all on table public.%I from anon', t);
+  end loop;
+end;
+$$;
+
+-- 3) "Equipe" antiga: agora é quem tem perfil ativo de admin ou equipe.
+create or replace function public.is_equipe()
+returns boolean
+language sql stable security definer set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfis p
+    where p.user_id = (select auth.uid()) and p.ativo and p.tipo in ('admin', 'equipe')
+  );
+$$;
+
+-- 4) Ações da tela do locutor: só com login autorizado.
+create or replace function public.marcar_pauta_feita(p_pauta uuid, p_dia date)
+returns timestamptz
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_em timestamptz;
+begin
+  if not public.usuario_autorizado() then
+    raise exception 'Acesso não autorizado.';
+  end if;
+  if p_dia is distinct from (now() at time zone 'America/Sao_Paulo')::date then
+    raise exception 'Só dá para marcar pautas de hoje.';
+  end if;
+  if not exists (
+    select 1 from public.pautas
+    where id = p_pauta and ativo and p_dia between data_inicio and data_fim
+  ) then
+    raise exception 'Pauta não encontrada para hoje.';
+  end if;
+  insert into public.pautas_realizadas (pauta_id, dia, origem)
+  values (p_pauta, p_dia, 'locutor')
+  on conflict (pauta_id, dia) do nothing;
+  select realizado_em into v_em
+  from public.pautas_realizadas where pauta_id = p_pauta and dia = p_dia;
+  return v_em;
+end;
+$$;
+
+create or replace function public.desmarcar_pauta(p_pauta uuid, p_dia date)
+returns boolean
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if not public.usuario_autorizado() then
+    raise exception 'Acesso não autorizado.';
+  end if;
+  delete from public.pautas_realizadas
+  where pauta_id = p_pauta and dia = p_dia
+    and ((origem = 'locutor' and realizado_em > now() - interval '15 minutes')
+         or public.pode_corrigir_pauta(p_pauta));
+  return found;
+end;
+$$;
+
+create or replace function public.registrar_leitura(p_tipo text, p_item uuid, p_locutor text default '')
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_titulo text;
+begin
+  if not public.usuario_autorizado() then
+    raise exception 'Acesso não autorizado.';
+  end if;
+  if p_tipo = 'prioridade' then
+    select titulo into v_titulo from public.prioridades where id = p_item and ativo;
+  elsif p_tipo = 'conexao' then
+    select titulo into v_titulo from public.conexoes where id = p_item and ativo;
+  else
+    raise exception 'Tipo inválido.';
+  end if;
+  if v_titulo is null then
+    raise exception 'Card não encontrado.';
+  end if;
+  if exists (select 1 from public.leituras where item_id = p_item and lido_em > now() - interval '1 minute') then
+    return;
+  end if;
+  insert into public.leituras (tipo, item_id, titulo, dia, locutor)
+  values (p_tipo, p_item, v_titulo, (now() at time zone 'America/Sao_Paulo')::date, left(coalesce(p_locutor, ''), 80));
+end;
+$$;
+
+create or replace function public.promocao_ganhadores_hoje(p_dia date)
+returns table (rodada_id uuid, nome text, bairro text, cidade text, telefone_final text)
+language sql stable security definer set search_path = ''
+as $$
+  select g.rodada_id, o.nome, o.bairro, o.cidade, right(o.telefone, 4)
+  from public.ganhadores g
+  join public.ouvintes o on o.id = g.ouvinte_id
+  join public.promo_rodadas r on r.id = g.rodada_id
+  where r.data = p_dia and r.ativo and public.usuario_autorizado()
+  order by g.ganho_em;
+$$;
+
+-- 5) Salvar acessos na página Usuários (versão completa, com as áreas)
+create or replace function public.admin_salvar_acesso(p_user uuid, p_nome text, p_tipo text, p_ativo boolean, p_permissoes jsonb)
+returns void
+language plpgsql volatile security definer set search_path = ''
+as $$
+begin
+  if not public.eh_admin() then
+    raise exception 'Só o administrador pode mudar acessos.';
+  end if;
+  if p_user = (select auth.uid()) and (p_tipo <> 'admin' or not p_ativo) then
+    raise exception 'Você não pode tirar o seu próprio acesso de administrador.';
+  end if;
+  if p_tipo not in ('admin', 'equipe', 'locutor') then
+    raise exception 'Tipo inválido.';
+  end if;
+  update public.perfis set nome = trim(p_nome), tipo = p_tipo, ativo = p_ativo where user_id = p_user;
+  if not found then
+    raise exception 'Usuário não encontrado.';
+  end if;
+  delete from public.permissoes where user_id = p_user;
+  if p_tipo = 'equipe' then
+    insert into public.permissoes (user_id, area, nivel)
+    select p_user, e.key, e.value
+    from jsonb_each_text(coalesce(p_permissoes, '{}'::jsonb)) e
+    where e.value in ('ver', 'editar')
+      and e.key in ('prioridades', 'recados', 'partiu', 'jornalismo', 'promocao', 'conexoes',
+                    'convidados', 'eventos', 'locutores', 'relatorios');
+  end if;
+end;
+$$;
+
+-- 6) Quem pode chamar o quê
+revoke all on function public.admin_salvar_acesso(uuid, text, text, boolean, jsonb) from public, anon;
+revoke all on function public.is_equipe() from public, anon;
+revoke all on function public.marcar_pauta_feita(uuid, date) from public, anon;
+revoke all on function public.desmarcar_pauta(uuid, date) from public, anon;
+revoke all on function public.registrar_leitura(text, uuid, text) from public, anon;
+revoke all on function public.promocao_ganhadores_hoje(date) from public, anon;
+revoke all on function public.promocao_ganhadores_dia(date) from public, anon, authenticated; -- versão antiga, sem uso
+revoke all on function public.ganhadores_regras() from public, anon, authenticated;            -- só gatilho
+revoke all on function public.set_updated_at() from public, anon, authenticated;               -- só gatilho
+grant execute on function public.admin_salvar_acesso(uuid, text, text, boolean, jsonb) to authenticated;
+grant execute on function public.is_equipe() to authenticated;
+grant execute on function public.marcar_pauta_feita(uuid, date) to authenticated;
+grant execute on function public.desmarcar_pauta(uuid, date) to authenticated;
+grant execute on function public.registrar_leitura(text, uuid, text) to authenticated;
+grant execute on function public.promocao_ganhadores_hoje(date) to authenticated;
+
+
+-- =====================================================================
+-- DEPOIS: crie o SEU usuário em Authentication > Users (Auto Confirm) e
+-- torne-o administrador (troque o e-mail e o nome). Os outros usuários
+-- você cria pelo site, na página Usuários.
 --
---   insert into public.equipe (user_id, nome)
---   select id, 'Nome da pessoa' from auth.users
---   where email = 'pessoa@exemplo.com'
+--   insert into public.perfis (user_id, nome, email, tipo, senha_alterada)
+--   select id, 'Seu nome', email, 'admin', true from auth.users
+--   where email = 'voce@exemplo.com'
 --   on conflict (user_id) do nothing;
 -- =====================================================================

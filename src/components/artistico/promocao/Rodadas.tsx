@@ -170,7 +170,7 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
         {!carregando && rodadas.length === 0 ? (
           <div className="vazio">
             Sem prêmios neste dia. Monte a grade abaixo
-            <div style={{ marginTop: 10 }}><button type="button" className="pequeno branco" onClick={copiarDiaAnterior}>Copiar a grade de {fmtData(somarDias(dia, -1))}</button></div>
+            <div style={{ marginTop: 10 }} data-edita><button type="button" className="pequeno branco" onClick={copiarDiaAnterior}>Copiar a grade de {fmtData(somarDias(dia, -1))}</button></div>
           </div>
         ) : (
           <div className="tabela-wrap">
@@ -220,10 +220,10 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
                           <div key={g.id} className="rodada-ganhador">
                             🏆 <strong>{g.ouvinte?.nome ?? "Ouvinte"}</strong>
                             {g.ouvinte && localOuvinte(g.ouvinte) && <span className="trecho"> · {localOuvinte(g.ouvinte)}</span>}
-                            <button type="button" className="pequeno branco" aria-label={`Desfazer ganhador ${g.ouvinte?.nome ?? ""}`} onClick={() => desfazerGanhador(g)}>✕</button>
+                            <button type="button" className="pequeno branco" data-edita aria-label={`Desfazer ganhador ${g.ouvinte?.nome ?? ""}`} onClick={() => desfazerGanhador(g)}>✕</button>
                           </div>
                         ))}
-                        <button type="button" className={`pequeno ${gs.length ? "branco" : "amarelo"}`} onClick={() => setRegistrando(r)}>
+                        <button type="button" className={`pequeno ${gs.length ? "branco" : "amarelo"}`} data-edita onClick={() => setRegistrando(r)}>
                           {gs.length ? "+ Outro ganhador" : "🏆 Incluir ganhador"}
                         </button>
                       </td>

@@ -129,7 +129,7 @@ export function RelatorioPautas({ sb, avisar, secao = "partiu" }: { sb: Supabase
                     </td>
                     <td>
                       {l.realizado ? (
-                        <button type="button" className="pequeno branco" onClick={() => desfazer(l.pauta)}>Desmarcar</button>
+                        <button type="button" className="pequeno branco" data-edita onClick={() => desfazer(l.pauta)}>Desmarcar</button>
                       ) : (
                         <div className="tabela-acoes">
                           <input

@@ -535,3 +535,21 @@ input.rodada-fim { width: 8.5em; padding: 6px 8px; }
 .relatorio-card-texto { color: var(--muted); font-size: 0.85rem; }
 .relatorio-card.ativo .relatorio-card-texto { color: var(--ink); }
 .relatorio-card.em-breve { border-style: dashed; box-shadow: none; background: #f6f6f6; opacity: 0.8; }
+
+/* Acesso "só ver": esconde o que edita (o banco também recusa). */
+.somente-leitura form.card,
+.somente-leitura td .tabela-acoes,
+.somente-leitura [data-edita] { display: none !important; }
+.somente-leitura td input,
+.somente-leitura td select { pointer-events: none; opacity: 0.6; }
+.aviso-leitura { margin-bottom: 14px; }
+
+/* Usuários */
+.usuarios-matriz { width: 100%; border-collapse: collapse; }
+.usuarios-matriz th, .usuarios-matriz td { padding: 6px 8px; border-bottom: 1px solid #e5e5e5; text-align: left; }
+.usuarios-matriz td.niveis { white-space: nowrap; }
+.usuarios-matriz label { display: inline-flex; gap: 4px; align-items: center; margin-right: 10px; font-weight: 700; }
+.modelos { display: flex; gap: 8px; flex-wrap: wrap; }
+.senha-gerada { white-space: pre-wrap; background: #fff8d6; border: 2px solid #f4c430; border-radius: 12px; padding: 12px; font-size: 0.95rem; }
+.usuario-areas { font-size: 0.85rem; color: var(--muted); font-weight: 700; }
+.campo-rotulo { font-weight: 800; font-size: 0.8rem; text-transform: uppercase; }

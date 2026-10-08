@@ -80,7 +80,7 @@ export function Ganhadores({ sb, avisar, premiosLista }: { sb: SupabaseClient; a
       </div>
       {erro && <div className="aviso erro">{erro}</div>}
       <div className="acoes" style={{ marginBottom: 12 }}>
-        <button type="button" className="amarelo" onClick={() => setLancando(true)}>+ Lançar ganhador sem horário</button>
+        <button type="button" className="amarelo" data-edita onClick={() => setLancando(true)}>+ Lançar ganhador sem horário</button>
         {linhas.length > 0 && <button type="button" className="branco" onClick={baixar}>Baixar planilha (.csv)</button>}
         {!carregando && <span className="resumo-periodo">{linhas.length} {linhas.length === 1 ? "ganhador" : "ganhadores"} de {fmtData(de)} a {fmtData(ate)}</span>}
       </div>

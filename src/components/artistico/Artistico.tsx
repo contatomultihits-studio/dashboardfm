@@ -1,9 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { AvisoConfig } from "@/components/AvisoConfig";
+import { useAcesso } from "@/components/ComAcesso";
 import { Topbar } from "@/components/Topbar";
+import { pode, type Area } from "@/lib/acesso";
 import { getSupabase } from "@/lib/supabase/client";
 import { Conexoes } from "./Conexoes";
 import { Convidados } from "./Convidados";
@@ -17,27 +18,30 @@ import { Prioridades } from "./Prioridades";
 import { Recados } from "./Recados";
 import { Relatorios } from "./Relatorios";
 
+// Cada aba pertence a uma área de acesso (Escala vai junto com Locutores).
 const ABAS = [
-  { id: "prioridades", rotulo: "Prioridades do ar" },
-  { id: "recados", rotulo: "Recados" },
-  { id: "pautas", rotulo: "Partiu Rádio Disney" },
-  { id: "jornalismo", rotulo: "Jornalismo" },
-  { id: "promocao", rotulo: "Promoção" },
-  { id: "conexoes", rotulo: "Conexões" },
-  { id: "convidados", rotulo: "Convidados" },
-  { id: "eventos", rotulo: "Eventos" },
-  { id: "relatorios", rotulo: "Relatórios" },
-  { id: "locutores", rotulo: "Locutores" },
-  { id: "escala", rotulo: "Escala" },
-] as const;
+  { id: "prioridades", rotulo: "Prioridades do ar", area: "prioridades" },
+  { id: "recados", rotulo: "Recados", area: "recados" },
+  { id: "pautas", rotulo: "Partiu Rádio Disney", area: "partiu" },
+  { id: "jornalismo", rotulo: "Jornalismo", area: "jornalismo" },
+  { id: "promocao", rotulo: "Promoção", area: "promocao" },
+  { id: "conexoes", rotulo: "Conexões", area: "conexoes" },
+  { id: "convidados", rotulo: "Convidados", area: "convidados" },
+  { id: "eventos", rotulo: "Eventos", area: "eventos" },
+  { id: "relatorios", rotulo: "Relatórios", area: "relatorios" },
+  { id: "locutores", rotulo: "Locutores", area: "locutores" },
+  { id: "escala", rotulo: "Escala", area: "locutores" },
+] as const satisfies readonly { id: string; rotulo: string; area: Area }[];
 type Aba = (typeof ABAS)[number]["id"];
 
 export function Artistico() {
   const sb = getSupabase();
-  const router = useRouter();
-  const [estado, setEstado] = useState<"verificando" | "sem-permissao" | "ok">("verificando");
-  const [email, setEmail] = useState("");
-  const [aba, setAba] = useState<Aba>("prioridades");
+  const acesso = useAcesso();
+  const abas = useMemo(() => ABAS.filter((a) => pode(acesso, a.area)), [acesso]);
+  const [escolhida, setAba] = useState<Aba | null>(null);
+  const aba = escolhida ?? abas[0]?.id;
+  const area = ABAS.find((a) => a.id === aba)?.area;
+  const soVer = area ? !pode(acesso, area, "editar") : true;
   const [toast, setToast] = useState<{ msg: string; erro: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -47,44 +51,16 @@ export function Artistico() {
     timer.current = setTimeout(() => setToast(null), erro ? 6000 : 2500);
   }, []);
 
-  useEffect(() => {
-    if (!sb) return;
-    (async () => {
-      const { data } = await sb.auth.getUser();
-      if (!data.user) {
-        router.replace("/login");
-        return;
-      }
-      setEmail(data.user.email ?? "");
-      const { data: ok } = await sb.rpc("is_equipe");
-      setEstado(ok ? "ok" : "sem-permissao");
-    })();
-  }, [sb, router]);
-
-  async function sair() {
-    await sb?.auth.signOut();
-    window.location.assign("/login");
-  }
-
   return (
     <>
-      <Topbar atual="artistico">
-        {email && <button type="button" className="branco pequeno" onClick={sair} title={email}>Sair</button>}
-      </Topbar>
+      <Topbar atual="artistico" />
       <main className="container">
         {!sb ? (
           <AvisoConfig />
-        ) : estado === "verificando" ? (
-          <div className="vazio">Verificando acesso…</div>
-        ) : estado === "sem-permissao" ? (
-          <div className="aviso">
-            Você entrou como <strong>{email}</strong>, mas esse usuário ainda não foi liberado para editar.
-            Peça para quem administra o Supabase rodar o comando de liberar equipe (final do arquivo <code>supabase/schema.sql</code>).
-          </div>
         ) : (
           <>
             <div className="abas" role="tablist" aria-label="Seções do artístico">
-              {ABAS.map((a) => (
+              {abas.map((a) => (
                 <button
                   key={a.id}
                   type="button"
@@ -98,6 +74,8 @@ export function Artistico() {
                 </button>
               ))}
             </div>
+            {soVer && <div className="aviso aviso-leitura">Nesta área você pode <strong>só ver</strong>. Para mudar algo, fale com o administrador.</div>}
+            <div className={soVer ? "somente-leitura" : undefined}>
             {aba === "prioridades" && <Prioridades sb={sb} avisar={avisar} />}
             {aba === "recados" && <Recados sb={sb} avisar={avisar} />}
             {aba === "pautas" && <Pautas sb={sb} avisar={avisar} />}
@@ -109,6 +87,7 @@ export function Artistico() {
             {aba === "relatorios" && <Relatorios sb={sb} avisar={avisar} />}
             {aba === "locutores" && <Locutores sb={sb} avisar={avisar} />}
             {aba === "escala" && <Escala sb={sb} avisar={avisar} />}
+            </div>
           </>
         )}
       </main>
