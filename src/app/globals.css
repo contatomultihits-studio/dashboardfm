@@ -522,3 +522,16 @@ input.rodada-fim { width: 8.5em; padding: 6px 8px; }
 .faixa-linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .faixa-linha input { width: 9em; }
 .carregar-mais { display: flex; justify-content: center; margin-top: 14px; }
+
+/* ---------- Relatórios (Artístico) ---------- */
+.relatorios-grade { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.relatorio-card {
+  display: grid; gap: 6px; align-content: start; text-align: left; text-transform: none; font-weight: 700;
+  padding: 16px; border: 2px solid var(--ink); border-radius: 18px; background: var(--surface); box-shadow: 0 5px 0 var(--ink);
+}
+.relatorio-card strong { font-size: 1.05rem; font-weight: 900; text-transform: uppercase; }
+.relatorio-card.ativo { background: var(--verde); box-shadow: 0 6px 0 var(--ink); }
+.relatorio-icone { font-size: 1.8rem; line-height: 1; }
+.relatorio-card-texto { color: var(--muted); font-size: 0.85rem; }
+.relatorio-card.ativo .relatorio-card-texto { color: var(--ink); }
+.relatorio-card.em-breve { border-style: dashed; box-shadow: none; background: #f6f6f6; opacity: 0.8; }

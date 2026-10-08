@@ -44,7 +44,7 @@ src/app/page.tsx             dashboard pública
 src/app/login/               login da equipe
 src/app/artistico/           área da equipe
 src/components/Dashboard.tsx carrosséis e janelas de detalhe
-src/components/artistico/    formulários e listas (prioridades, recados, pautas, conexões, convidados, eventos, relatório)
+src/components/artistico/    formulários e listas (prioridades, recados, pautas, conexões, convidados, eventos) e a aba Relatórios
 src/components/PromocaoNoAr.tsx  promoção na tela do locutor (hoje na prévia /promocao)
 src/lib/                     datas, filtro de HTML, imagens, cliente Supabase
 src/proxy.ts                 mantém a sessão e protege /artistico

@@ -15,8 +15,7 @@ import { Pautas } from "./Pautas";
 import { Promocao } from "./promocao/Promocao";
 import { Prioridades } from "./Prioridades";
 import { Recados } from "./Recados";
-import { RelatorioLeituras } from "./RelatorioLeituras";
-import { RelatorioPautas } from "./RelatorioPautas";
+import { Relatorios } from "./Relatorios";
 
 const ABAS = [
   { id: "prioridades", rotulo: "Prioridades do ar" },
@@ -27,9 +26,7 @@ const ABAS = [
   { id: "conexoes", rotulo: "Conexões" },
   { id: "convidados", rotulo: "Convidados" },
   { id: "eventos", rotulo: "Eventos" },
-  { id: "relatorio", rotulo: "Relatório do Partiu" },
-  { id: "relatorio-jornalismo", rotulo: "Relatório do Jornalismo" },
-  { id: "leituras", rotulo: "Relatório de leituras" },
+  { id: "relatorios", rotulo: "Relatórios" },
   { id: "locutores", rotulo: "Locutores" },
   { id: "escala", rotulo: "Escala" },
 ] as const;
@@ -109,9 +106,7 @@ export function Artistico() {
             {aba === "conexoes" && <Conexoes sb={sb} avisar={avisar} />}
             {aba === "convidados" && <Convidados sb={sb} avisar={avisar} />}
             {aba === "eventos" && <Eventos sb={sb} avisar={avisar} />}
-            {aba === "relatorio" && <RelatorioPautas key="partiu" sb={sb} avisar={avisar} secao="partiu" />}
-            {aba === "relatorio-jornalismo" && <RelatorioPautas key="jornalismo" sb={sb} avisar={avisar} secao="jornalismo" />}
-            {aba === "leituras" && <RelatorioLeituras sb={sb} avisar={avisar} />}
+            {aba === "relatorios" && <Relatorios sb={sb} avisar={avisar} />}
             {aba === "locutores" && <Locutores sb={sb} avisar={avisar} />}
             {aba === "escala" && <Escala sb={sb} avisar={avisar} />}
           </>
