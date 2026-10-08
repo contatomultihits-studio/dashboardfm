@@ -7,12 +7,11 @@ import { Imagem } from "@/components/Imagem";
 import { tocarAviso } from "@/components/LembretePautas";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
-import { ATUALIZAR_A_CADA_MS } from "@/lib/config";
 import { agoraHHMM, hojeISO, horaCurta, somarDias } from "@/lib/datas";
 import { noArEm, nomesFaixa, type Faixa } from "@/lib/escala";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
-import { localOuvinte, momentoPromo, premiosParaLembrar, textoFaltamPremio, type GanhadorPublico, type Premio, type Rodada } from "@/lib/promocao";
+import { fotoPromo, localOuvinte, momentoPromo, novidadesPromo, premiosParaLembrar, textoFaltamPremio, type FotoPromo, type GanhadorPublico, type NovidadePromo, type Premio, type Rodada } from "@/lib/promocao";
 import type { ItemEscala, Locutor } from "@/lib/tipos";
 
 type Papel = "ultimo" | "daHora" | "proximo";
@@ -23,6 +22,28 @@ const VAZIO: Record<Papel, string> = {
   daHora: "Nenhum prêmio rolando agora",
   proximo: "Sem mais prêmios hoje",
 };
+
+/** A promoção confere mais seguido que o resto: o ganhador precisa chegar rápido ao locutor. */
+const ATUALIZAR_PROMO_MS = 30_000;
+
+/** Última versão vista nesta tela (para avisar o que mudou, mesmo depois de recarregar a página). */
+const chaveFoto = (dia: string) => `dashboardfm:promo-foto:${dia}`;
+function lerFoto(dia: string): FotoPromo | null {
+  try {
+    const bruto = localStorage.getItem(chaveFoto(dia));
+    return bruto ? (JSON.parse(bruto) as FotoPromo) : null;
+  } catch {
+    return null;
+  }
+}
+function salvarFoto(dia: string, foto: FotoPromo) {
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith("dashboardfm:promo-foto:") && k !== chaveFoto(dia)) localStorage.removeItem(k);
+    localStorage.setItem(chaveFoto(dia), JSON.stringify(foto));
+  } catch {
+    // sem espaço ou navegação privada: segue sem guardar
+  }
+}
 
 /** "15h" / "15h30" */
 const horaH = (h: string) => {
@@ -47,6 +68,9 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
   const [erro, setErro] = useState<string | null>(null);
   const [aberta, setAberta] = useState<Rodada | null>(null);
   const [dispensadas, setDispensadas] = useState<Set<string>>(() => new Set());
+  // Ganhador incluído / prêmio trocado pela promoção desde a última olhada: aviso até o locutor abrir ou fechar.
+  const [novidades, setNovidades] = useState<NovidadePromo[]>([]);
+  const fotoRef = useRef<{ dia: string; foto: FotoPromo } | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setAgora(agoraHHMM()), 15_000);
@@ -64,9 +88,22 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
     const falha = r.error ?? p.error ?? g.error ?? l.error ?? e.error;
     setErro(falha?.message ?? null);
     if (!falha) {
-      setRodadas(r.data as Rodada[]);
+      const rs = r.data as Rodada[];
+      const gs = (g.data as GanhadorPublico[]) ?? [];
+      const nova = fotoPromo(rs, gs);
+      const antes = fotoRef.current?.dia === hoje ? fotoRef.current.foto : lerFoto(hoje);
+      if (antes) {
+        const novas = novidadesPromo(antes, nova);
+        if (novas.length) {
+          setNovidades((atuais) => [...atuais.filter((a) => !novas.some((n) => n.rodada_id === a.rodada_id)), ...novas]);
+          tocarAviso();
+        }
+      }
+      fotoRef.current = { dia: hoje, foto: nova };
+      salvarFoto(hoje, nova);
+      setRodadas(rs);
       setPremios(p.data as Premio[]);
-      setGanhadores((g.data as GanhadorPublico[]) ?? []);
+      setGanhadores(gs);
       setLocutores(l.data as Locutor[]);
       setEscala(e.data as ItemEscala[]);
     }
@@ -75,7 +112,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
 
   useEffect(() => {
     carregar();
-    const timer = setInterval(carregar, ATUALIZAR_A_CADA_MS);
+    const timer = setInterval(carregar, ATUALIZAR_PROMO_MS);
     return () => clearInterval(timer);
   }, [carregar]);
 
@@ -92,6 +129,14 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
     () => premiosParaLembrar(rodadas, comGanhador, dispensadas, agora).filter((l) => l.rodada.id !== aberta?.id),
     [rodadas, comGanhador, dispensadas, agora, aberta],
   );
+
+  const novidadePorRodada = useMemo(() => new Map(novidades.map((n) => [n.rodada_id, n])), [novidades]);
+  // Abrir o prêmio já conta como "visto".
+  const abrir = useCallback((r: Rodada) => {
+    setAberta(r);
+    setNovidades((ns) => ns.filter((n) => n.rodada_id !== r.id));
+  }, []);
+  const rodadaPorId = useMemo(() => new Map(rodadas.map((r) => [r.id, r])), [rodadas]);
 
   if (!carregando && rodadas.length === 0) {
     return (
@@ -116,8 +161,11 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
     const gs = ganhadoresDe(r.id);
     const f = faixaDe(r);
     return (
-      <button key={papel} type="button" className={`promo-card papel-${papel} ${gs.length ? "com-ganhador" : ""}`} onClick={() => setAberta(r)}>
-        <span className="promo-fita">{ROTULO[papel]}</span>
+      <button key={papel} type="button" className={`promo-card papel-${papel} ${gs.length ? "com-ganhador" : ""} ${novidadePorRodada.has(r.id) ? "com-novidade" : ""}`} onClick={() => abrir(r)}>
+        <span className="promo-fita">
+          {ROTULO[papel]}
+          {novidadePorRodada.has(r.id) && <span className="promo-novo">{novidadePorRodada.get(r.id)!.tipo === "ganhador" ? "Ganhador novo" : "Atualizado"}</span>}
+        </span>
         <span className="promo-foto">
           <Imagem src={urlImagem(sb, p?.imagem_path)} alt="" className="thumb" ajustar prioridade={papel === "daHora"} />
           <span className="promo-hora">{horaH(r.horario)}</span>
@@ -126,15 +174,16 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
           <span className="promo-nome">{p?.titulo || p?.nome || "Prêmio a definir"}</span>
           {p?.titulo && <span className="promo-sub">{p.nome}</span>}
           {p?.patrocinador && <span className="promo-sub">Oferecimento: {p.patrocinador}</span>}
-          <span className="promo-rodape">
-            {f ? (
-              <span className="promo-locutor"><Avatares sb={sb} locutores={f.locutores} tamanho={28} /> {nomesFaixa(f)}</span>
-            ) : <span />}
+          {f && <span className="promo-locutor"><Avatares sb={sb} locutores={f.locutores} tamanho={28} /> {nomesFaixa(f)}</span>}
+          <span className={`promo-ganhador-box ${gs.length ? "com" : ""}`}>
+            <span className="promo-ganhador-rotulo">🏆 Ganhador</span>
             {gs.length ? (
-              <span className="promo-ganhador">🏆 {gs.map((g) => g.nome).join(", ")}</span>
-            ) : papel !== "proximo" ? (
-              <span className="etiqueta cinza">Aguardando ganhador</span>
-            ) : null}
+              gs.map((g, i) => (
+                <span key={i} className="promo-ganhador-nome">{g.nome}{localOuvinte(g) && <small> · {localOuvinte(g)}</small>}</span>
+              ))
+            ) : (
+              <span className="promo-ganhador-espera">{papel === "proximo" ? "Ainda vai ser sorteado" : "Aguardando a promoção"}</span>
+            )}
           </span>
         </span>
       </button>
@@ -152,7 +201,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
             const estado = r.id === momento.daHora?.id ? "agora" : horaCurta(r.horario)! < agora ? "passou" : "depois";
             return (
               <li key={r.id}>
-                <button type="button" className={`promo-chip ${estado} ${comGanhador.has(r.id) ? "ganho" : ""}`} onClick={() => setAberta(r)} title={premioPorId.get(r.premio_id ?? "")?.nome ?? "Prêmio a definir"}>
+                <button type="button" className={`promo-chip ${estado} ${comGanhador.has(r.id) ? "ganho" : ""}`} onClick={() => abrir(r)} title={premioPorId.get(r.premio_id ?? "")?.nome ?? "Prêmio a definir"}>
                   {comGanhador.has(r.id) ? "✓ " : estado === "agora" ? "● " : ""}{horaH(r.horario)}
                 </button>
               </li>
@@ -191,13 +240,39 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
         </Modal>
       )}
 
-      <LembretePremios
-        sb={sb}
-        lembretes={lembretes}
-        premioPorId={premioPorId}
-        onAbrir={(r) => setAberta(r)}
-        onFechar={(id) => setDispensadas((d) => new Set(d).add(id))}
-      />
+      <div className="lembretes">
+        {novidades.length > 0 && (
+          <div className="lembretes-grupo" role="alert" aria-label="Novidade da promoção">
+            {novidades.map((n) => {
+              const r = rodadaPorId.get(n.rodada_id);
+              if (!r) return null;
+              const p = r.premio_id ? premioPorId.get(r.premio_id) : undefined;
+              return (
+                <div key={n.rodada_id} className={`lembrete lembrete-novidade ${n.tipo}`}>
+                  <span className="lembrete-sino" aria-hidden>{n.tipo === "ganhador" ? "🏆" : "✏️"}</span>
+                  <div className="lembrete-texto">
+                    <span className="lembrete-quando">
+                      {n.tipo === "ganhador" ? `Ganhador do prêmio das ${horaH(r.horario)}` : `Prêmio das ${horaH(r.horario)} foi alterado`} · Promoção
+                    </span>
+                    <strong>{n.tipo === "ganhador" ? n.nomes.join(", ") : p?.titulo || p?.nome || "Prêmio"}</strong>
+                  </div>
+                  <div className="lembrete-acoes">
+                    <button type="button" className="verde" onClick={() => abrir(r)}>Abrir prêmio</button>
+                    <button type="button" className="branco pequeno" aria-label={`Fechar novidade do prêmio das ${horaCurta(r.horario)}`} onClick={() => setNovidades((ns) => ns.filter((x) => x.rodada_id !== n.rodada_id))}>✕</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <LembretePremios
+          sb={sb}
+          lembretes={lembretes}
+          premioPorId={premioPorId}
+          onAbrir={abrir}
+          onFechar={(id) => setDispensadas((d) => new Set(d).add(id))}
+        />
+      </div>
     </section>
   );
 }
@@ -225,7 +300,7 @@ function LembretePremios({ sb, lembretes, premioPorId, onAbrir, onFechar }: {
 
   if (!lembretes.length) return null;
   return (
-    <div className="lembretes lembretes-premio" role="alert" aria-label="Aviso de prêmio">
+    <div className="lembretes-grupo" role="alert" aria-label="Aviso de prêmio">
       {lembretes.map(({ rodada: r, faltam }) => {
         const p = r.premio_id ? premioPorId.get(r.premio_id) : undefined;
         const foto = urlImagem(sb, p?.imagem_path);

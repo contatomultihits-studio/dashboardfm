@@ -212,6 +212,9 @@ button.icone { width: 38px; height: 34px; padding: 0; border-radius: 12px; }
 .form { display: grid; gap: 12px; }
 .form-grade { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 label.campo { display: grid; gap: 6px; font-weight: 800; font-size: 0.8rem; text-transform: uppercase; }
+div.campo { display: grid; gap: 6px; align-content: start; }
+.rotulo-campo { font-weight: 800; font-size: 0.8rem; text-transform: uppercase; }
+.campo-locutor-linha input { flex: 1; min-width: 0; }
 input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="time"], select {
   width: 100%; border: 2px solid var(--ink); border-radius: 12px; background: #fff;
   padding: 10px 12px; font: inherit; font-weight: 700; color: var(--ink);
@@ -442,9 +445,7 @@ tr.nao-lido td { background: #fff1f2; }
 .promo-info { display: grid; gap: 4px; padding: 12px 14px 14px; align-content: start; }
 .promo-nome { font-size: 1.1rem; font-weight: 900; text-transform: uppercase; line-height: 1.15; overflow-wrap: anywhere; }
 .promo-sub { color: var(--muted); font-size: 0.85rem; font-weight: 700; }
-.promo-rodape { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .promo-locutor { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 0.85rem; }
-.promo-ganhador { padding: 3px 10px; border: 2px solid var(--ink); border-radius: 999px; background: var(--verde); font-weight: 900; font-size: 0.8rem; overflow-wrap: anywhere; }
 /* O prêmio da hora é o destaque: dourado, maior e com brilho na faixa. */
 .promo-card.papel-daHora { background: linear-gradient(160deg, #fffbe6 0%, #fff0a8 100%); border-color: #92400e; box-shadow: 7px 7px 0 #92400e; }
 .papel-daHora .promo-fita { background: linear-gradient(90deg, #ff4d57, #ff9f1c, #ff4d57); background-size: 200% 100%; animation: promo-brilho 3s linear infinite; font-size: 0.95rem; }
@@ -464,8 +465,21 @@ tr.nao-lido td { background: #fff1f2; }
 .lembrete.lembrete-premio { background: linear-gradient(135deg, #fff6c2, #ffd43b); }
 .lembrete-premio-foto { display: block; width: 56px; height: 56px; border-radius: 12px; overflow: hidden; border: 2px solid var(--ink); }
 .lembrete-premio-foto .thumb { width: 100%; height: 100%; aspect-ratio: 1; border-radius: 0; }
-/* Com aviso de pauta e de prêmio ao mesmo tempo, o de prêmio fica em cima. */
-.lembretes + .lembretes-premio, .lembretes-premio:has(~ .lembretes) { bottom: auto; top: 96px; }
+.lembretes-grupo { display: grid; gap: 10px; }
+.lembretes:empty { display: none; }
+.lembrete.lembrete-novidade.ganhador { background: var(--verde); animation: lembrete-entra 0.35s ease-out, novidade-pulsa 1.4s ease-in-out 3; }
+.lembrete.lembrete-novidade.premio { background: #bfdbfe; }
+@keyframes novidade-pulsa { 50% { box-shadow: 6px 6px 0 #166534; } }
+.promo-novo { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--verde); color: var(--ink); font-size: 0.7rem; animation: promo-novo 1s ease-in-out infinite; }
+@keyframes promo-novo { 50% { background: #fff; } }
+.promo-card.com-novidade { outline: 4px solid var(--verde); outline-offset: 2px; }
+.promo-ganhador-box { display: grid; gap: 2px; margin-top: 8px; padding: 8px 10px; border: 2px dashed #9ca3af; border-radius: 12px; background: rgba(255, 255, 255, 0.6); }
+.promo-ganhador-box.com { border: 2px solid var(--ink); background: var(--verde); }
+.promo-ganhador-rotulo { font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+.promo-ganhador-nome { font-size: 1.05rem; font-weight: 900; text-transform: uppercase; overflow-wrap: anywhere; }
+.promo-ganhador-nome small { font-size: 0.75rem; font-weight: 700; text-transform: none; }
+.promo-ganhador-espera { font-weight: 800; color: var(--muted); font-size: 0.85rem; }
+@media (prefers-reduced-motion: reduce) { .promo-novo, .lembrete.lembrete-novidade.ganhador { animation: none; } }
 @media (max-width: 900px) {
   /* Carrossel no celular/tablet: arrasta para o lado; o prêmio da hora aparece primeiro. */
   .promo-trio { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; }

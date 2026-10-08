@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csvGanhadores, datasEntre, fmtTelefone, gerarHorarios, localOuvinte, momentoPromo, normalizarBusca, normalizarTelefone, premiosParaLembrar, situacaoOuvinte, textoFaltamPremio } from "@/lib/promocao";
+import { csvGanhadores, datasEntre, fmtTelefone, fotoPromo, novidadesPromo, localOuvinte, momentoPromo, normalizarBusca, normalizarTelefone, premiosParaLembrar, situacaoOuvinte, textoFaltamPremio } from "@/lib/promocao";
 
 const livre = { bloqueado: false, motivo_bloqueio: "" };
 
@@ -51,17 +51,6 @@ describe("regra dos 30 dias", () => {
 });
 
 describe("grade", () => {
-  it("de hora em hora, incluindo o último horário", () => {
-    expect(gerarHorarios("09:00", "12:00", 60)).toEqual(["09:00", "10:00", "11:00", "12:00"]);
-  });
-  it("a cada 2 horas e a cada 30 min", () => {
-    expect(gerarHorarios("10:00", "17:00", 120)).toEqual(["10:00", "12:00", "14:00", "16:00"]);
-    expect(gerarHorarios("10:00", "11:00", 30)).toEqual(["10:00", "10:30", "11:00"]);
-  });
-  it("entradas inválidas: vazio", () => {
-    expect(gerarHorarios("", "12:00", 60)).toEqual([]);
-    expect(gerarHorarios("09:00", "12:00", 0)).toEqual([]);
-  });
   it("datas do período", () => {
     expect(datasEntre("2026-10-30", "2026-11-02")).toEqual(["2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02"]);
     expect(datasEntre("2026-10-30", "2026-10-29")).toEqual([]);
@@ -119,5 +108,31 @@ describe("pop-up do prêmio", () => {
     expect(textoFaltamPremio(3)).toBe("Em 3 min");
     expect(textoFaltamPremio(0)).toBe("É agora!");
     expect(textoFaltamPremio(-4)).toBe("Começou há 4 min");
+  });
+});
+
+describe("aviso de novidade na promoção", () => {
+  const rod = [{ id: "a", premio_id: "p1" }, { id: "b", premio_id: null }];
+  const antes = fotoPromo(rod, []);
+  it("ganhador incluído vira aviso", () => {
+    const depois = fotoPromo(rod, [{ rodada_id: "a", nome: "Maria" }]);
+    expect(novidadesPromo(antes, depois)).toEqual([{ rodada_id: "a", tipo: "ganhador", nomes: ["Maria"] }]);
+  });
+  it("prêmio trocado ou escolhido vira aviso; tirar o prêmio não", () => {
+    expect(novidadesPromo(antes, fotoPromo([{ id: "a", premio_id: "p2" }, { id: "b", premio_id: "p3" }], []))).toEqual([
+      { rodada_id: "a", tipo: "premio" },
+      { rodada_id: "b", tipo: "premio" },
+    ]);
+    expect(novidadesPromo(antes, fotoPromo([{ id: "a", premio_id: null }], []))).toEqual([]);
+  });
+  it("sem mudança, ou horário novo na grade: nada", () => {
+    expect(novidadesPromo(antes, fotoPromo(rod, []))).toEqual([]);
+    expect(novidadesPromo(antes, fotoPromo([...rod, { id: "c", premio_id: "p1" }], []))).toEqual([]);
+  });
+  it("ganhador que já estava não avisa de novo", () => {
+    const com = fotoPromo(rod, [{ rodada_id: "a", nome: "Maria" }]);
+    expect(novidadesPromo(com, fotoPromo(rod, [{ rodada_id: "a", nome: "Maria" }, { rodada_id: "a", nome: "João" }]))).toEqual([
+      { rodada_id: "a", tipo: "ganhador", nomes: ["João"] },
+    ]);
   });
 });

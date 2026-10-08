@@ -97,16 +97,6 @@ export function situacaoOuvinte(o: Pick<Ouvinte, "bloqueado" | "motivo_bloqueio"
 }
 
 const minutos = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
-const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-
-/** Horários da grade: das `inicio` às `fim` (incluindo), a cada `intervaloMin`. */
-export function gerarHorarios(inicio: string, fim: string, intervaloMin: number): string[] {
-  if (!inicio || !fim || intervaloMin <= 0) return [];
-  const lista: string[] = [];
-  for (let m = minutos(inicio); m <= minutos(fim) && m < 1440; m += intervaloMin) lista.push(hhmm(m));
-  return lista;
-}
-
 /** Datas de `inicio` a `fim` (incluindo). */
 export function datasEntre(inicio: string, fim: string): string[] {
   const n = fim >= inicio ? diasNoPeriodo(inicio, fim) : 0;
@@ -179,4 +169,29 @@ export function textoFaltamPremio(faltam: number): string {
   if (faltam > 0) return `Em ${faltam} min`;
   if (faltam === 0) return "É agora!";
   return `Começou há ${-faltam} min`;
+}
+
+/** Como estava cada prêmio do dia na última olhada da tela: o prêmio escolhido e quem ganhou. */
+export type FotoPromo = Record<string, { premio: string | null; ganhadores: string[] }>;
+
+export function fotoPromo(rodadas: Pick<Rodada, "id" | "premio_id">[], ganhadores: Pick<GanhadorPublico, "rodada_id" | "nome">[]): FotoPromo {
+  const foto: FotoPromo = {};
+  for (const r of rodadas) foto[r.id] = { premio: r.premio_id, ganhadores: [] };
+  for (const g of ganhadores) foto[g.rodada_id]?.ganhadores.push(g.nome);
+  return foto;
+}
+
+/** O que a promoção mudou desde a última olhada: ganhador incluído ou prêmio trocado. */
+export type NovidadePromo = { rodada_id: string; tipo: "ganhador"; nomes: string[] } | { rodada_id: string; tipo: "premio" };
+
+export function novidadesPromo(antes: FotoPromo, depois: FotoPromo): NovidadePromo[] {
+  const lista: NovidadePromo[] = [];
+  for (const [id, d] of Object.entries(depois)) {
+    const a = antes[id];
+    if (!a) continue; // horário novo na grade: não é aviso
+    const novos = d.ganhadores.filter((n) => !a.ganhadores.includes(n));
+    if (novos.length) lista.push({ rodada_id: id, tipo: "ganhador", nomes: novos });
+    else if (a.premio !== d.premio && d.premio) lista.push({ rodada_id: id, tipo: "premio" });
+  }
+  return lista;
 }

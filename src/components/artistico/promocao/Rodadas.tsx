@@ -6,18 +6,11 @@ import { Imagem } from "@/components/Imagem";
 import { fmtData, fmtDiaSemana, hojeISO, horaCurta, somarDias } from "@/lib/datas";
 import { noArEm, nomesFaixa } from "@/lib/escala";
 import { urlImagem } from "@/lib/imagens";
-import { datasEntre, gerarHorarios, localOuvinte, type Ganhador, type Ouvinte, type Rodada } from "@/lib/promocao";
+import { datasEntre, localOuvinte, type Ganhador, type Ouvinte, type Rodada } from "@/lib/promocao";
 import type { ItemEscala } from "@/lib/tipos";
 import { erroMsg, useLocutoresEquipe, type Avisar } from "../comum";
 import type { usePremios } from "./comum";
 import { RegistrarGanhador } from "./RegistrarGanhador";
-
-const INTERVALOS = [
-  { min: 60, rotulo: "De hora em hora" },
-  { min: 120, rotulo: "A cada 2 horas" },
-  { min: 180, rotulo: "A cada 3 horas" },
-  { min: 30, rotulo: "A cada 30 minutos" },
-];
 
 /** Grade do dia: em que horários sai prêmio, qual prêmio, com aviso ou não, e quem ganhou. */
 export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avisar: Avisar; premiosLista: ReturnType<typeof usePremios> }) {
@@ -30,7 +23,7 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [registrando, setRegistrando] = useState<Rodada | null>(null);
-  const [gerar, setGerar] = useState(() => ({ de: hojeISO(), ate: hojeISO(), inicio: "09:00", fim: "18:00", intervalo: 60, premio_id: "", aviso: false }));
+  const [gerar, setGerar] = useState(() => ({ de: hojeISO(), ate: hojeISO(), horario: "", horarios: [] as string[], premio_id: "", aviso: false }));
   const [gerando, setGerando] = useState(false);
 
   const carregar = useCallback(async () => {
@@ -59,7 +52,7 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
   }, [carregar]);
 
   // A grade nova começa no dia que está aberto.
-  useEffect(() => setGerar((g) => ({ ...g, de: dia, ate: g.ate < dia ? dia : g.ate })), [dia]);
+  useEffect(() => setGerar((g) => ({ ...g, de: dia, ate: g.ate === g.de || g.ate < dia ? dia : g.ate })), [dia]);
 
   const premioPorId = useMemo(() => new Map(premios.map((p) => [p.id, p])), [premios]);
   const locutorNoAr = (r: Rodada) => {
@@ -67,7 +60,12 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
     return f ? nomesFaixa(f) : "";
   };
 
-  const horariosNovos = gerarHorarios(gerar.inicio, gerar.fim, gerar.intervalo);
+  // Os horários exatos escolhidos (e o que ficou digitado no campo, se não clicou em "adicionar").
+  const horariosNovos = [...new Set([...gerar.horarios, ...(gerar.horario ? [gerar.horario] : [])])].sort();
+  function adicionarHorario() {
+    if (!gerar.horario) return;
+    setGerar((g) => ({ ...g, horarios: [...new Set([...g.horarios, g.horario])].sort(), horario: "" }));
+  }
   const diasNovos = datasEntre(gerar.de, gerar.ate);
 
   async function criarGrade(e: React.FormEvent) {
@@ -82,11 +80,15 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
       const novas = diasNovos.flatMap((d) =>
         horariosNovos.filter((h) => !existe.has(`${d} ${h}`)).map((h) => ({ data: d, horario: h, premio_id: gerar.premio_id || null, aviso: gerar.aviso })),
       );
-      if (!novas.length) return avisar("Esses horários já estão na grade.");
+      if (!novas.length) {
+        setGerar((g) => ({ ...g, horario: "", horarios: [] }));
+        return avisar("Esses horários já estão na grade.");
+      }
       const { error: e2 } = await sb.from("promo_rodadas").insert(novas);
       if (e2) throw new Error(e2.message);
       const pulados = diasNovos.length * horariosNovos.length - novas.length;
       avisar(`${novas.length} ${novas.length === 1 ? "horário criado" : "horários criados"}${pulados ? ` (${pulados} já existiam)` : ""}`);
+      setGerar((g) => ({ ...g, horario: "", horarios: [] }));
       carregar();
     } catch (err) {
       avisar(erroMsg(err), true);
@@ -187,7 +189,7 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
                           </div>
                         ))}
                         <button type="button" className={`pequeno ${gs.length ? "branco" : "amarelo"}`} onClick={() => setRegistrando(r)}>
-                          {gs.length ? "+ Outro ganhador" : "Registrar ganhador"}
+                          {gs.length ? "+ Outro ganhador" : "🏆 Incluir ganhador"}
                         </button>
                       </td>
                       <td><input type="checkbox" aria-label={`Exibir prêmio das ${horaCurta(r.horario)}`} checked={r.ativo} onChange={() => mudar(r, { ativo: !r.ativo })} /></td>
@@ -202,51 +204,65 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
       </section>
 
       <form className="card form" onSubmit={criarGrade}>
-        <h2>Montar grade</h2>
-        <p className="dica">Cria os horários de uma vez (ex.: de hora em hora das 9h às 18h, na semana toda). Depois é só escolher o prêmio de cada horário na tabela. Para um horário avulso, use o mesmo horário em “das” e “até”.</p>
+        <h2>Colocar prêmio na grade</h2>
+        <p className="dica">Escolha o horário exato em que o prêmio entra na tela do locutor (pode adicionar vários). Depois de sortear, a promoção volta na tabela acima e clica em “Incluir ganhador”.</p>
         <div className="form-grade">
           <label className="campo">
-            Do dia
-            <input type="date" required value={gerar.de} onChange={(e) => e.target.value && setGerar({ ...gerar, de: e.target.value, ate: gerar.ate < e.target.value ? e.target.value : gerar.ate })} />
+            Dia
+            <input type="date" required value={gerar.de} onChange={(e) => e.target.value && setGerar({ ...gerar, de: e.target.value, ate: gerar.ate === gerar.de || gerar.ate < e.target.value ? e.target.value : gerar.ate })} />
           </label>
           <label className="campo">
-            Até o dia
+            Repetir até o dia (opcional)
             <input type="date" required min={gerar.de} value={gerar.ate} onChange={(e) => e.target.value && setGerar({ ...gerar, ate: e.target.value })} />
           </label>
+          <div className="campo">
+            <label htmlFor="grade-horario" className="rotulo-campo">Horário no ar</label>
+            <div className="campo-locutor-linha">
+              <input
+                id="grade-horario"
+                type="time"
+                value={gerar.horario}
+                onChange={(e) => setGerar({ ...gerar, horario: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    adicionarHorario();
+                  }
+                }}
+              />
+              <button type="button" className="pequeno branco" style={{ whiteSpace: "nowrap" }} disabled={!gerar.horario} onClick={adicionarHorario}>+ Adicionar</button>
+            </div>
+          </div>
           <label className="campo">
-            Das
-            <input type="time" required value={gerar.inicio} onChange={(e) => setGerar({ ...gerar, inicio: e.target.value })} />
-          </label>
-          <label className="campo">
-            Até
-            <input type="time" required value={gerar.fim} onChange={(e) => setGerar({ ...gerar, fim: e.target.value })} />
-          </label>
-          <label className="campo">
-            Frequência
-            <select value={gerar.intervalo} onChange={(e) => setGerar({ ...gerar, intervalo: Number(e.target.value) })}>
-              {INTERVALOS.map((i) => <option key={i.min} value={i.min}>{i.rotulo}</option>)}
-            </select>
-          </label>
-          <label className="campo">
-            Prêmio (opcional)
+            Prêmio
             <select value={gerar.premio_id} onChange={(e) => setGerar({ ...gerar, premio_id: e.target.value })}>
               <option value="">Escolher depois</option>
               {premios.filter((p) => p.ativo).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
             </select>
           </label>
         </div>
+        {gerar.horarios.length > 0 && (
+          <div className="atalhos" aria-label="Horários escolhidos">
+            <span>Horários:</span>
+            {gerar.horarios.map((h) => (
+              <button key={h} type="button" className="pequeno amarelo" title="Tirar este horário" onClick={() => setGerar((g) => ({ ...g, horarios: g.horarios.filter((x) => x !== h) }))}>
+                {h} ✕
+              </button>
+            ))}
+          </div>
+        )}
         <label className="check">
           <input type="checkbox" checked={gerar.aviso} onChange={(e) => setGerar({ ...gerar, aviso: e.target.checked })} />
           ⏰ Avisar 5 min antes na tela do locutor (pop-up com som)
         </label>
         <div className="acoes">
           <button type="submit" className="verde" disabled={gerando || !horariosNovos.length || !diasNovos.length}>
-            {gerando ? "Criando…" : `Criar ${horariosNovos.length * diasNovos.length} ${horariosNovos.length * diasNovos.length === 1 ? "horário" : "horários"}`}
+            {gerando ? "Salvando…" : horariosNovos.length * diasNovos.length <= 1 ? "Colocar na grade" : `Colocar ${horariosNovos.length * diasNovos.length} horários na grade`}
           </button>
           {horariosNovos.length > 0 && (
             <span className="resumo-periodo">
-              {horariosNovos.length <= 8 ? horariosNovos.join(", ") : `${horariosNovos.slice(0, 6).join(", ")} … ${horariosNovos[horariosNovos.length - 1]}`}
-              {diasNovos.length > 1 ? ` · em ${diasNovos.length} dias` : ""}
+              {horariosNovos.join(", ")}
+              {diasNovos.length > 1 ? ` · todos os dias de ${fmtData(gerar.de)} a ${fmtData(gerar.ate)}` : ` · ${fmtData(gerar.de)}`}
             </span>
           )}
           {rodadas.length > 0 && <button type="button" className="branco" onClick={copiarDiaAnterior}>Copiar a grade de {fmtData(somarDias(dia, -1))}</button>}
