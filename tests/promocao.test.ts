@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csvGanhadores, datasEntre, detalheGanhador, estadoPremio, faixaPremio, fmtTelefone, fotoPromo, novidadesPromo, localOuvinte, momentoPromo, normalizarBusca, normalizarTelefone, premiosParaLembrar, situacaoOuvinte, textoFaltamPremio } from "@/lib/promocao";
+import { csvEntregas, csvGanhadores, diaForaDaValidade, filaPromo, lerParticipantes, premioValidoEm, relatorioEntregas, situacaoLocutor, sortear, textoValidade, tipoPremio, datasEntre, detalheGanhador, estadoPremio, faixaPremio, fmtTelefone, fotoPromo, novidadesPromo, localOuvinte, momentoPromo, normalizarBusca, normalizarTelefone, premiosParaLembrar, situacaoOuvinte, textoFaltamPremio } from "@/lib/promocao";
 
 const livre = { bloqueado: false, motivo_bloqueio: "" };
 
@@ -157,5 +157,80 @@ describe("o que o locutor vê de quem ganhou", () => {
   it("bairro, cidade e final do telefone, só o que tiver", () => {
     expect(detalheGanhador({ rodada_id: "r", nome: "Ana", bairro: "Bela Vista", cidade: "São Paulo", telefone_final: "4758" })).toBe("Bela Vista · São Paulo · final 4758");
     expect(detalheGanhador({ rodada_id: "r", nome: "Ana", bairro: "", cidade: "", telefone_final: "" })).toBe("");
+  });
+});
+
+describe("validade do prêmio", () => {
+  const p = { data_inicio: "2026-10-08", data_fim: "2026-10-13" };
+  it("só vale dentro do período", () => {
+    expect(premioValidoEm(p, "2026-10-08")).toBe(true);
+    expect(premioValidoEm(p, "2026-10-13")).toBe(true);
+    expect(premioValidoEm(p, "2026-10-07")).toBe(false);
+    expect(premioValidoEm(p, "2026-10-14")).toBe(false);
+    expect(premioValidoEm({ data_inicio: null, data_fim: null }, "2030-01-01")).toBe(true);
+    expect(diaForaDaValidade(p, ["2026-10-12", "2026-10-13", "2026-10-14"])).toBe("2026-10-14");
+    expect(diaForaDaValidade(p, ["2026-10-12"])).toBeNull();
+  });
+  it("textos", () => {
+    expect(textoValidade(p)).toBe("Válido de 08/10/2026 a 13/10/2026");
+    expect(textoValidade({ data_inicio: null, data_fim: "2026-10-13" })).toBe("Válido até 13/10/2026");
+    expect(textoValidade({})).toBe("Sem validade definida");
+    expect(tipoPremio({ evento: true, parceria: "CAMAROTE" })).toBe("Evento · Camarote Rádio Disney");
+    expect(tipoPremio({ evento: false, parceria: "APOIO" })).toBe("");
+  });
+});
+
+describe("filaPromo", () => {
+  const r = (id: string, horario: string, horario_fim: string | null = null) => ({ id, horario, horario_fim });
+  const grade = [r("c", "10:00"), r("a", "06:00", "09:00"), r("b", "09:00"), r("d", "15:00")];
+  it("ordem de horário, concluídos no fim e atrasado continua como pendente", () => {
+    const f = filaPromo(grade, new Set(["b"]), "10:30");
+    expect(f.map((x) => `${x.rodada.id}:${x.estado}`)).toEqual(["a:pendente", "c:agora", "d:depois", "b:concluido"]);
+  });
+  it("tudo concluído: mesma ordem de horário", () => {
+    const f = filaPromo(grade, new Set(["a", "b", "c", "d"]), "18:00");
+    expect(f.map((x) => x.rodada.id)).toEqual(["a", "b", "c", "d"]);
+  });
+});
+
+describe("relatorioEntregas", () => {
+  it("previsto x feito, inclusive entrega de horário apagado", () => {
+    const linhas = relatorioEntregas(
+      [
+        { id: "r1", data: "2026-10-08", horario: "06:00:00", horario_fim: "09:00:00", premio: "Show" },
+        { id: "r2", data: "2026-10-08", horario: "10:00:00", horario_fim: null, premio: "Vale" },
+      ],
+      [
+        { id: "e1", rodada_id: "r1", data: "2026-10-08", horario: "06:00:00", horario_fim: "09:00:00", premio_id: null, premio_nome: "Show", locutor: "Ana", entregue_em: "2026-10-08T10:12:00Z" },
+        { id: "e2", rodada_id: null, data: "2026-10-08", horario: "08:00:00", horario_fim: null, premio_id: null, premio_nome: "Antigo", locutor: "Beto", entregue_em: "2026-10-08T11:00:00Z" },
+      ],
+    );
+    expect(linhas.map((l) => `${l.horario}|${l.premio}|${l.locutor}|${l.entregue_em ? "sim" : "não"}`)).toEqual([
+      "06:00:00|Show|Ana|sim",
+      "08:00:00|Antigo|Beto|sim",
+      "10:00:00|Vale||não",
+    ]);
+    const csv = csvEntregas(linhas, () => "07:12");
+    expect(csv).toContain("08/10/2026;06h às 09h;Show;07:12;Ana;Entregue");
+    expect(csv).toContain("Vale;;;Não entregue");
+  });
+});
+
+describe("sorteio", () => {
+  it("lê a lista colada: nome e telefone, sem repetidos", () => {
+    const l = lerParticipantes("1. Maria Souza - (11) 99999-8888\nJoão  da Silva\n\n2) maria souza 11 99999-8888\n+55 11 98888-7777 Pedro\nJoão da Silva");
+    expect(l.map((p) => `${p.nome}|${p.telefone}`)).toEqual(["Maria Souza|11999998888", "João da Silva|", "Pedro|11988887777"]);
+  });
+  it("sorteia sem repetir", () => {
+    const lista = ["a", "b", "c"];
+    expect(sortear(lista, new Set(), () => 0.99)).toBe(2);
+    expect(sortear(lista, new Set([2]), () => 0.99)).toBe(1);
+    expect(sortear(lista, new Set([0, 1, 2]))).toBeNull();
+  });
+  it("situação do ouvinte para o locutor", () => {
+    const o = { nome: "M", bairro: "", cidade: "", telefone_final: "8888", bloqueado: false, motivo_bloqueio: "", ultima_vitoria: "2026-10-01", ultimo_premio: "X", vitorias: 2 };
+    expect(situacaoLocutor(o, "2026-10-08").tipo).toBe("carencia");
+    expect(situacaoLocutor({ ...o, ultima_vitoria: null }, "2026-10-08").tipo).toBe("livre");
+    expect(situacaoLocutor({ ...o, bloqueado: true }, "2026-10-08").tipo).toBe("bloqueado");
   });
 });

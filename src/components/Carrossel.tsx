@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-function useItensPorPagina(maximo: number) {
+export function useItensPorPagina(maximo: number) {
   const [n, setN] = useState(maximo);
   useEffect(() => {
     const calc = () => setN(window.innerWidth <= 600 ? 1 : window.innerWidth <= 900 ? 2 : maximo);

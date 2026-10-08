@@ -4,24 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Avatares } from "@/components/Avatar";
 import { Imagem } from "@/components/Imagem";
+import { useItensPorPagina } from "@/components/Carrossel";
 import { tocarAviso } from "@/components/LembretePautas";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { agoraHHMM, hojeISO, horaCurta, somarDias } from "@/lib/datas";
+import { horaNoFuso } from "@/lib/pautas";
 import { noArEm, nomesFaixa, type Faixa } from "@/lib/escala";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
-import { detalheGanhador, estadoPremio, faixaPremio, fotoPromo, momentoPromo, novidadesPromo, premiosParaLembrar, textoFaltamPremio, type FotoPromo, type GanhadorPublico, type NovidadePromo, type Premio, type Rodada } from "@/lib/promocao";
+import { detalheGanhador, estadoPremio, faixaPremio, filaPromo, fotoPromo, novidadesPromo, premiosParaLembrar, textoFaltamPremio, tipoPremio, type Entrega, type EstadoFila, type FotoPromo, type GanhadorPublico, type NovidadePromo, type Premio, type Rodada } from "@/lib/promocao";
 import type { ItemEscala, Locutor } from "@/lib/tipos";
 
-type Papel = "ultimo" | "daHora" | "proximo";
-
-const ROTULO: Record<Papel, string> = { ultimo: "Último prêmio", daHora: "Prêmio da hora", proximo: "Próximo prêmio" };
-const VAZIO: Record<Papel, string> = {
-  ultimo: "Ainda não teve prêmio hoje",
-  daHora: "Nenhum prêmio rolando agora",
-  proximo: "Sem mais prêmios hoje",
-};
+/** O locutor desfaz o "Concluído" sozinho até este tempo; depois, só a promoção, no relatório. */
+const DESFAZER_MIN = 15;
 
 /** A promoção confere mais seguido que o resto: o ganhador precisa chegar rápido ao locutor. */
 const ATUALIZAR_PROMO_MS = 15_000;
@@ -52,9 +48,10 @@ const horaH = (h: string) => {
 };
 
 /**
- * Promoção na tela do locutor: último prêmio, prêmio da hora (em destaque) e o próximo,
- * a linha do dia com todos os horários e o pop-up de aviso. Busca os próprios dados,
- * para poder ir para a dashboard sem mudar nada.
+ * Promoção na tela do locutor: todos os prêmios do dia num carrossel (3 por vez), em ordem de horário,
+ * com "Concluído" igual ao Partiu (o concluído muda de cor e vai para o fim da fila). Prêmio que passou
+ * da hora sem "Concluído" fica como pendente. Busca os próprios dados, para poder ir para a dashboard
+ * sem mudar nada.
  */
 export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
   const [agora, setAgora] = useState(agoraHHMM());
@@ -62,6 +59,11 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
   const [rodadas, setRodadas] = useState<Rodada[]>([]);
   const [premios, setPremios] = useState<Premio[]>([]);
   const [ganhadores, setGanhadores] = useState<GanhadorPublico[]>([]);
+  const [entregas, setEntregas] = useState<Entrega[]>([]);
+  const [marcando, setMarcando] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ texto: string; erro?: boolean } | null>(null);
+  const [inicio, setInicio] = useState(0);
+  const porPagina = useItensPorPagina(3);
   const [locutores, setLocutores] = useState<Locutor[]>([]);
   const [escala, setEscala] = useState<ItemEscala[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -78,14 +80,15 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
   }, []);
 
   const carregar = useCallback(async () => {
-    const [r, p, g, l, e] = await Promise.all([
+    const [r, p, g, l, e, x] = await Promise.all([
       sb.from("promo_rodadas").select("*").eq("data", hoje).eq("ativo", true).order("horario"),
       sb.from("premios").select("*").eq("ativo", true),
       sb.rpc("promocao_ganhadores_hoje", { p_dia: hoje }),
       sb.from("locutores").select("*").eq("ativo", true),
       sb.from("escala").select("*").in("data", [hoje, somarDias(hoje, -1)]),
+      sb.from("promo_entregas").select("*").eq("data", hoje),
     ]);
-    const falha = r.error ?? p.error ?? g.error ?? l.error ?? e.error;
+    const falha = r.error ?? p.error ?? g.error ?? l.error ?? e.error ?? x.error;
     setErro(falha?.message ?? null);
     if (!falha) {
       const rs = r.data as Rodada[];
@@ -106,6 +109,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
       setGanhadores(gs);
       setLocutores(l.data as Locutor[]);
       setEscala(e.data as ItemEscala[]);
+      setEntregas(x.data as Entrega[]);
     }
     setCarregando(false);
   }, [sb, hoje]);
@@ -125,15 +129,17 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
   const premioPorId = useMemo(() => new Map(premios.map((p) => [p.id, p])), [premios]);
   const ganhadoresDe = useCallback((id: string) => ganhadores.filter((g) => g.rodada_id === id), [ganhadores]);
   const comGanhador = useMemo(() => new Set(ganhadores.map((g) => g.rodada_id)), [ganhadores]);
-  const momento = useMemo(() => momentoPromo(rodadas, agora), [rodadas, agora]);
+  const entregaDe = useMemo(() => new Map(entregas.filter((e) => e.rodada_id).map((e) => [e.rodada_id!, e])), [entregas]);
+  const concluidas = useMemo(() => new Set(entregaDe.keys()), [entregaDe]);
+  const fila = useMemo(() => filaPromo(rodadas, concluidas, agora), [rodadas, concluidas, agora]);
   const faixaDe = useCallback(
     (r: Rodada): Faixa | null => (locutores.length ? noArEm(r.data, horaCurta(r.horario)!, locutores, escala) : null),
     [locutores, escala],
   );
 
   const lembretes = useMemo(
-    () => premiosParaLembrar(rodadas, comGanhador, dispensadas, agora).filter((l) => l.rodada.id !== aberta?.id),
-    [rodadas, comGanhador, dispensadas, agora, aberta],
+    () => premiosParaLembrar(rodadas, new Set([...comGanhador, ...concluidas]), dispensadas, agora).filter((l) => l.rodada.id !== aberta?.id),
+    [rodadas, comGanhador, concluidas, dispensadas, agora, aberta],
   );
 
   const novidadePorRodada = useMemo(() => new Map(novidades.map((n) => [n.rodada_id, n])), [novidades]);
@@ -144,6 +150,34 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
   }, []);
   const rodadaPorId = useMemo(() => new Map(rodadas.map((r) => [r.id, r])), [rodadas]);
 
+  // Quem está no ar agora assina a entrega (a hora vem do servidor).
+  const noArAgora = useMemo(() => (locutores.length ? noArEm(hoje, agora, locutores, escala) : null), [hoje, agora, locutores, escala]);
+
+  async function concluir(r: Rodada) {
+    setMarcando(r.id);
+    setMsg(null);
+    const { data, error } = await sb.rpc("concluir_premio", { p_rodada: r.id, p_locutor: noArAgora ? nomesFaixa(noArAgora) : "" });
+    setMarcando(null);
+    if (error) return setMsg({ texto: `Não deu para concluir: ${error.message}`, erro: true });
+    const p = r.premio_id ? premioPorId.get(r.premio_id) : undefined;
+    const nova: Entrega = {
+      id: `local-${r.id}`, rodada_id: r.id, data: r.data, horario: r.horario, horario_fim: r.horario_fim ?? null,
+      premio_id: r.premio_id, premio_nome: p?.nome ?? "", locutor: noArAgora ? nomesFaixa(noArAgora) : "", entregue_em: String(data),
+    };
+    setEntregas((es) => [...es.filter((e) => e.rodada_id !== r.id), nova]);
+    setMsg({ texto: `Prêmio das ${horaH(r.horario)} concluído às ${horaNoFuso(nova.entregue_em)}. Valeu!` });
+  }
+
+  async function desfazer(r: Rodada) {
+    setMarcando(r.id);
+    const { data, error } = await sb.from("promo_entregas").delete().eq("rodada_id", r.id).select("id");
+    setMarcando(null);
+    if (error) return setMsg({ texto: error.message, erro: true });
+    if (!data?.length) return setMsg({ texto: `Passou de ${DESFAZER_MIN} minutos: peça para a promoção corrigir no relatório.`, erro: true });
+    setEntregas((es) => es.filter((e) => e.rodada_id !== r.id));
+    setMsg({ texto: "Desfeito: o prêmio voltou para a fila." });
+  }
+
   if (!carregando && rodadas.length === 0) {
     return (
       <section className="card secao-promo" aria-label="Promoção">
@@ -153,47 +187,60 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
     );
   }
 
-  const card = (papel: Papel) => {
-    const r = momento[papel];
-    if (!r) {
-      return (
-        <div key={papel} className={`promo-card vazio-card papel-${papel}`}>
-          <span className="promo-fita">{ROTULO[papel]}</span>
-          <span className="promo-vazio">{carregando ? "…" : VAZIO[papel]}</span>
-        </div>
-      );
-    }
+  const ROTULO: Record<EstadoFila, string> = { agora: "No ar agora", pendente: "Pendente", depois: "Próximo", concluido: "Concluído" };
+
+  const card = ({ rodada: r, estado }: { rodada: Rodada; estado: EstadoFila }) => {
     const p = r.premio_id ? premioPorId.get(r.premio_id) : undefined;
     const gs = ganhadoresDe(r.id);
     const f = faixaDe(r);
+    const ent = entregaDe.get(r.id);
+    const podeDesfazer = ent && Date.now() - Date.parse(ent.entregue_em) < DESFAZER_MIN * 60_000;
+    const tipo = p ? tipoPremio(p) : "";
     return (
-      <button key={papel} type="button" className={`promo-card papel-${papel} ${gs.length ? "com-ganhador" : ""} ${novidadePorRodada.has(r.id) ? "com-novidade" : ""}`} onClick={() => abrir(r)}>
+      <article key={r.id} className={`promo-card estado-${estado} ${gs.length ? "com-ganhador" : ""} ${novidadePorRodada.has(r.id) ? "com-novidade" : ""}`} aria-label={`Prêmio das ${horaH(r.horario)}`}>
         <span className="promo-fita">
-          {ROTULO[papel]}
+          {estado === "pendente" ? `⚠ Pendente · passou das ${faixaPremio(r).split(" às ")[1]}` : estado === "concluido" && ent ? `✓ Concluído às ${horaNoFuso(ent.entregue_em)}` : ROTULO[estado]}
           {novidadePorRodada.has(r.id) && <span className="promo-novo">{novidadePorRodada.get(r.id)!.tipo === "ganhador" ? "Ganhador novo" : "Atualizado"}</span>}
         </span>
-        <span className="promo-foto">
-          <Imagem src={urlImagem(sb, p?.imagem_path)} alt="" className="thumb" ajustar prioridade={papel === "daHora"} />
-          <span className="promo-hora">{faixaPremio(r)}</span>
-        </span>
-        <span className="promo-info">
-          <span className="promo-nome">{p?.nome || "Prêmio a definir"}</span>
-          {p?.patrocinador && <span className="promo-sub">Cliente: {p.patrocinador}</span>}
-          {f && <span className="promo-locutor"><Avatares sb={sb} locutores={f.locutores} tamanho={28} /> {nomesFaixa(f)}</span>}
-          <span className={`promo-ganhador-box ${gs.length ? "com" : ""}`}>
-            <span className="promo-ganhador-rotulo">🏆 Ganhador</span>
-            {gs.length ? (
-              gs.map((g, i) => (
-                <span key={i} className="promo-ganhador-nome">{g.nome}{detalheGanhador(g) && <small> · {detalheGanhador(g)}</small>}</span>
-              ))
-            ) : (
-              <span className="promo-ganhador-espera">{papel === "proximo" ? "Ainda vai ser sorteado" : "Aguardando a promoção"}</span>
-            )}
+        <button type="button" className="promo-abrir" onClick={() => abrir(r)} aria-label={`Abrir prêmio das ${horaH(r.horario)}: ${p?.nome || "a definir"}`}>
+          <span className="promo-foto">
+            <Imagem src={urlImagem(sb, p?.imagem_path)} alt="" className="thumb" ajustar prioridade={estado === "agora"} />
+            <span className="promo-hora">{faixaPremio(r)}</span>
           </span>
-        </span>
-      </button>
+          <span className="promo-info">
+            <span className="promo-nome">{p?.nome || "Prêmio a definir"}</span>
+            {tipo && <span className="promo-sub">{tipo}</span>}
+            {f && <span className="promo-locutor"><Avatares sb={sb} locutores={f.locutores} tamanho={28} /> {nomesFaixa(f)}</span>}
+            <span className={`promo-ganhador-box ${gs.length ? "com" : ""}`}>
+              <span className="promo-ganhador-rotulo">🏆 Ganhador</span>
+              {gs.length ? (
+                gs.map((g, i) => (
+                  <span key={i} className="promo-ganhador-nome">{g.nome}{detalheGanhador(g) && <small> · {detalheGanhador(g)}</small>}</span>
+                ))
+              ) : (
+                <span className="promo-ganhador-espera">{estado === "depois" ? "Ainda vai ser sorteado" : "Aguardando a promoção"}</span>
+              )}
+            </span>
+          </span>
+        </button>
+        <div className="promo-acoes">
+          {ent ? (
+            podeDesfazer && <button type="button" className="pequeno branco" disabled={marcando === r.id} onClick={() => desfazer(r)}>Desfazer</button>
+          ) : (
+            <button type="button" className="verde" disabled={marcando === r.id} onClick={() => concluir(r)} aria-label={`Concluído: prêmio das ${horaH(r.horario)}`}>
+              {marcando === r.id ? "Salvando…" : "✓ Concluído"}
+            </button>
+          )}
+        </div>
+      </article>
     );
   };
+
+  const maxInicio = Math.max(0, fila.length - porPagina);
+  const atual = Math.min(inicio, maxInicio);
+  const visiveis = fila.slice(atual, atual + porPagina);
+  const ultimoVisivel = Math.min(fila.length, atual + porPagina);
+  const pendentes = fila.filter((x) => x.estado === "pendente").length;
 
   const premioAberto = aberta?.premio_id ? premioPorId.get(aberta.premio_id) : undefined;
 
@@ -206,8 +253,8 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
             const estado = estadoPremio(r, agora);
             return (
               <li key={r.id}>
-                <button type="button" className={`promo-chip ${estado} ${comGanhador.has(r.id) ? "ganho" : ""}`} onClick={() => abrir(r)} title={premioPorId.get(r.premio_id ?? "")?.nome ?? "Prêmio a definir"}>
-                  {comGanhador.has(r.id) ? "✓ " : estado === "agora" ? "● " : ""}{horaH(r.horario)}
+                <button type="button" className={`promo-chip ${estado} ${concluidas.has(r.id) ? "ganho" : !concluidas.has(r.id) && estado === "passou" ? "pendente" : ""}`} onClick={() => abrir(r)} title={premioPorId.get(r.premio_id ?? "")?.nome ?? "Prêmio a definir"}>
+                  {concluidas.has(r.id) ? "✓ " : estado === "agora" ? "● " : estado === "passou" ? "⚠ " : ""}{horaH(r.horario)}
                 </button>
               </li>
             );
@@ -215,21 +262,28 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
         </ol>
       </div>
       {erro && <div className="aviso erro">Erro ao buscar a promoção: {erro}</div>}
-      <div className="promo-trio">
-        {card("ultimo")}
-        {card("daHora")}
-        {card("proximo")}
+      {pendentes > 0 && <div className="aviso promo-pendentes" role="status">⚠ {pendentes === 1 ? "1 prêmio passou da hora" : `${pendentes} prêmios passaram da hora`} sem “Concluído”.</div>}
+      {msg && <div className={`aviso ${msg.erro ? "erro" : "ok"}`} role="status">{msg.texto}</div>}
+      <div className="carrossel-nav promo-nav">
+        <button type="button" className="icone branco" aria-label="Prêmios anteriores" disabled={atual <= 0} onClick={() => setInicio(Math.max(0, atual - porPagina))}>◀</button>
+        <span aria-live="polite" style={{ whiteSpace: "nowrap" }}>{fila.length ? `${atual + 1}–${ultimoVisivel} de ${fila.length}` : "…"}</span>
+        <button type="button" className="icone" aria-label="Próximos prêmios" disabled={atual >= maxInicio} onClick={() => setInicio(Math.min(maxInicio, atual + porPagina))}>▶</button>
+      </div>
+      <div className="promo-fila" style={{ gridTemplateColumns: `repeat(${porPagina}, minmax(0, 1fr))` }}>
+        {visiveis.map(card)}
       </div>
 
       {aberta && (
         <Modal titulo={`${premioAberto?.nome || "Prêmio"} · ${faixaPremio(aberta)}`} onFechar={() => setAberta(null)} leitura>
           <dl className="promo-ficha">
-            <div><dt>Prêmio</dt><dd>{premioAberto?.nome ?? "A definir"}</dd></div>
-            <div><dt>Cliente</dt><dd>{premioAberto?.patrocinador || "—"}</dd></div>
+            <div><dt>Cliente / Evento / Prêmio</dt><dd>{premioAberto?.nome ?? "A definir"}</dd></div>
+            {premioAberto && tipoPremio(premioAberto) && <div><dt>Parceria</dt><dd>{tipoPremio(premioAberto)}</dd></div>}
+            {premioAberto?.patrocinador && <div><dt>Cliente</dt><dd>{premioAberto.patrocinador}</dd></div>}
             <div><dt>Horário</dt><dd>{faixaPremio(aberta)}</dd></div>
             {faixaDe(aberta) && <div><dt>Locutor</dt><dd>🎙 {nomesFaixa(faixaDe(aberta)!)}</dd></div>}
           </dl>
-          {textoPuro(premioAberto?.descricao_html) ? <TextoRico html={premioAberto!.descricao_html} /> : <p className="dica">Sem descrição cadastrada para este prêmio.</p>}
+          {entregaDe.get(aberta.id) && <p className="aviso ok">✓ Concluído às {horaNoFuso(entregaDe.get(aberta.id)!.entregue_em)}{entregaDe.get(aberta.id)!.locutor ? ` · ${entregaDe.get(aberta.id)!.locutor}` : ""}</p>}
+          {textoPuro(premioAberto?.descricao_html) ? <TextoRico html={premioAberto!.descricao_html} /> : <p className="dica">Sem nota cadastrada para este prêmio.</p>}
           <div className={`promo-modal-ganhador ${ganhadoresDe(aberta.id).length ? "com" : ""}`}>
             <span className="promo-ganhador-rotulo">🏆 Ganhador</span>
             {ganhadoresDe(aberta.id).length ? (

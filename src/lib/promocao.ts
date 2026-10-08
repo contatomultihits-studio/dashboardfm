@@ -12,6 +12,56 @@ export type Premio = {
   patrocinador: string;
   imagem_path: string | null;
   ativo: boolean;
+  /** Validade: a grade só aceita o prêmio entre estas datas (sem data = sem limite). */
+  data_inicio?: string | null;
+  data_fim?: string | null;
+  /** É um evento? Então tem tipo de parceria. */
+  evento?: boolean;
+  parceria?: Parceria | null;
+};
+
+export type Parceria = "RADIO_OFICIAL" | "APOIO" | "CAMAROTE";
+export const PARCERIAS: Record<Parceria, string> = {
+  RADIO_OFICIAL: "Rádio Oficial",
+  APOIO: "Apoio",
+  CAMAROTE: "Camarote Rádio Disney",
+};
+
+/** O prêmio pode ir para a grade neste dia? */
+export function premioValidoEm(p: Pick<Premio, "data_inicio" | "data_fim">, dia: string): boolean {
+  return (!p.data_inicio || dia >= p.data_inicio) && (!p.data_fim || dia <= p.data_fim);
+}
+
+/** Algum dia da lista fica fora da validade? Devolve o primeiro. */
+export function diaForaDaValidade(p: Pick<Premio, "data_inicio" | "data_fim">, dias: string[]): string | null {
+  return dias.find((d) => !premioValidoEm(p, d)) ?? null;
+}
+
+/** "Válido de 08/10/2026 a 13/10/2026" / "Válido a partir de …" / "Sem validade definida" */
+export function textoValidade(p: Pick<Premio, "data_inicio" | "data_fim">): string {
+  if (p.data_inicio && p.data_fim) return `Válido de ${fmtData(p.data_inicio)} a ${fmtData(p.data_fim)}`;
+  if (p.data_inicio) return `Válido a partir de ${fmtData(p.data_inicio)}`;
+  if (p.data_fim) return `Válido até ${fmtData(p.data_fim)}`;
+  return "Sem validade definida";
+}
+
+/** "Evento · Camarote Rádio Disney" */
+export function tipoPremio(p: Pick<Premio, "evento" | "parceria">): string {
+  if (!p.evento) return "";
+  return p.parceria ? `Evento · ${PARCERIAS[p.parceria]}` : "Evento";
+}
+
+/** Prêmio entregue no ar (o "Concluído" do locutor). */
+export type Entrega = {
+  id: string;
+  rodada_id: string | null;
+  data: string;
+  horario: string;
+  horario_fim: string | null;
+  premio_id: string | null;
+  premio_nome: string;
+  locutor: string;
+  entregue_em: string;
 };
 
 /** Um horário da grade do dia ("prêmio das 15h"). */
@@ -147,6 +197,118 @@ export function momentoPromo<T extends ComFaixa>(rodadas: T[], agora: string): {
     ultimo: passados[passados.length - 1] ?? null,
     proximo: ord.find((r) => estadoPremio(r, agora) === "depois") ?? null,
   };
+}
+
+/** Situação de cada prêmio no carrossel do locutor. */
+export type EstadoFila = "concluido" | "agora" | "pendente" | "depois";
+
+/**
+ * O carrossel do dia: todos os prêmios da grade em ordem de horário; os concluídos vão para o fim.
+ * Prêmio cuja faixa já passou sem "Concluído" continua na fila como pendente.
+ */
+export function filaPromo<T extends ComFaixa & { id: string }>(rodadas: T[], concluidas: Set<string>, agora: string): { rodada: T; estado: EstadoFila }[] {
+  const ord = [...rodadas].sort((a, b) => inicioMin(a) - inicioMin(b) || fimMin(a) - fimMin(b));
+  const estado = (r: T): EstadoFila => {
+    if (concluidas.has(r.id)) return "concluido";
+    const e = estadoPremio(r, agora);
+    return e === "agora" ? "agora" : e === "passou" ? "pendente" : "depois";
+  };
+  const comEstado = ord.map((r) => ({ rodada: r, estado: estado(r) }));
+  return [...comEstado.filter((x) => x.estado !== "concluido"), ...comEstado.filter((x) => x.estado === "concluido")];
+}
+
+/** Linha do relatório de entregas: o previsto na grade e o que foi feito no ar. */
+export type LinhaEntrega = {
+  /** Horário da grade (para desfazer); null se o horário foi apagado da grade. */
+  rodada_id: string | null;
+  data: string;
+  horario: string;
+  horario_fim: string | null;
+  premio: string;
+  locutor: string;
+  entregue_em: string | null;
+};
+
+/** Junta a grade (previsto) com as entregas (feito); entrega de horário apagado da grade também entra. */
+export function relatorioEntregas(
+  rodadas: (Pick<Rodada, "id" | "data" | "horario" | "horario_fim"> & { premio: string })[],
+  entregas: Entrega[],
+): LinhaEntrega[] {
+  const porRodada = new Map(entregas.filter((e) => e.rodada_id).map((e) => [e.rodada_id!, e]));
+  const linhas: LinhaEntrega[] = rodadas.map((r) => {
+    const e = porRodada.get(r.id);
+    return { rodada_id: e ? r.id : null, data: r.data, horario: r.horario, horario_fim: r.horario_fim ?? null, premio: e?.premio_nome || r.premio, locutor: e?.locutor ?? "", entregue_em: e?.entregue_em ?? null };
+  });
+  const naGrade = new Set(rodadas.map((r) => r.id));
+  for (const e of entregas) {
+    if (!e.rodada_id || !naGrade.has(e.rodada_id)) {
+      linhas.push({ rodada_id: null, data: e.data, horario: e.horario, horario_fim: e.horario_fim, premio: e.premio_nome, locutor: e.locutor, entregue_em: e.entregue_em });
+    }
+  }
+  return linhas.sort((a, b) => a.data.localeCompare(b.data) || a.horario.localeCompare(b.horario));
+}
+
+/** Planilha do relatório de entregas. */
+export function csvEntregas(linhas: LinhaEntrega[], horaDe: (iso: string) => string): string {
+  const cab = ["Data", "Horário previsto", "Prêmio", "Entregue no ar", "Locutor", "Situação"];
+  const corpo = linhas.map((l) => [
+    fmtData(l.data),
+    faixaPremio(l),
+    l.premio,
+    l.entregue_em ? horaDe(l.entregue_em) : "",
+    l.locutor,
+    l.entregue_em ? "Entregue" : "Não entregue",
+  ]);
+  return "\ufeff" + [cab, ...corpo].map((linha) => linha.map(celula).join(";")).join("\r\n");
+}
+
+/** Um participante do sorteio (uma linha colada). */
+export type Participante = { linha: string; nome: string; telefone: string };
+
+/**
+ * Lista colada pelo locutor (do WhatsApp, por exemplo): uma pessoa por linha.
+ * Separa nome e telefone quando a linha tem número; tira repetidos e linhas vazias.
+ */
+export function lerParticipantes(texto: string): Participante[] {
+  const vistos = new Set<string>();
+  const lista: Participante[] = [];
+  for (const bruta of texto.split(/\r?\n/)) {
+    const linha = bruta.replace(/^\s*\d+[.)-]\s+/, "").trim();
+    if (!linha) continue;
+    const tel = normalizarTelefone(linha.match(/\+?[\d\s().-]{8,}/)?.[0] ?? "");
+    const telefone = tel.length >= 8 ? tel : "";
+    const nome = (telefone ? linha.replace(/\+?[\d\s().-]{8,}/, " ") : linha).replace(/[\s:;,–—-]+$/, "").replace(/^[\s:;,–—-]+/, "").replace(/\s{2,}/g, " ").trim();
+    const chave = telefone || normalizarBusca(nome);
+    if (!chave || vistos.has(chave)) continue;
+    vistos.add(chave);
+    lista.push({ linha, nome: nome || linha, telefone });
+  }
+  return lista;
+}
+
+/** Sorteia um participante que ainda não saiu. */
+export function sortear<T>(lista: T[], jaSorteados: Set<number>, aleatorio: () => number = Math.random): number | null {
+  const livres = lista.map((_, i) => i).filter((i) => !jaSorteados.has(i));
+  if (!livres.length) return null;
+  return livres[Math.min(livres.length - 1, Math.floor(aleatorio() * livres.length))];
+}
+
+/** O que a busca do locutor devolve (sem telefone completo). */
+export type OuvinteLocutor = {
+  nome: string;
+  bairro: string;
+  cidade: string;
+  telefone_final: string;
+  bloqueado: boolean;
+  motivo_bloqueio: string;
+  ultima_vitoria: string | null;
+  ultimo_premio: string | null;
+  vitorias: number;
+};
+
+/** Pode ganhar hoje? (mesma regra dos 30 dias, a partir do que a busca do locutor devolve). */
+export function situacaoLocutor(o: OuvinteLocutor, dia: string): SituacaoOuvinte {
+  return situacaoOuvinte(o, o.ultima_vitoria ? [{ data: o.ultima_vitoria }] : [], dia);
 }
 
 export type LinhaGanhador = Ganhador & { ouvinte: Ouvinte | undefined; horario: string | null };

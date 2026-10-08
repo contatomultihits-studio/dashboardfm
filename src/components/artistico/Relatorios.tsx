@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Avisar } from "./comum";
 import { usePremios } from "./promocao/comum";
 import { Ganhadores } from "./promocao/Ganhadores";
+import { RelatorioEntregas } from "./RelatorioEntregas";
 import { RelatorioLeituras } from "./RelatorioLeituras";
 import { RelatorioPautas } from "./RelatorioPautas";
 
@@ -12,6 +13,7 @@ const RELATORIOS = [
   { id: "partiu", icone: "🚗", titulo: "Relatório do Partiu", texto: "Pautas das ações externas: previsto x feito, para a Opec e os produtores." },
   { id: "jornalismo", icone: "📰", titulo: "Relatório do Jornalismo", texto: "Pautas do jornalismo: previsto x feito, no mesmo formato." },
   { id: "leituras", icone: "📖", titulo: "Relatório de leituras", texto: "Quantas vezes cada prioridade e conexão foi lida, a que horas e por quem." },
+  { id: "entregas", icone: "🎁", titulo: "Prêmios entregues no ar", texto: "Prêmio, locutor e a hora exata do “Concluído”, previsto x entregue." },
   { id: "ganhadores", icone: "🏆", titulo: "Ganhadores da promoção", texto: "Quem ganhou o quê, por período, com planilha para baixar." },
 ] as const;
 type Relatorio = (typeof RELATORIOS)[number]["id"];
@@ -52,6 +54,7 @@ export function Relatorios({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar 
       {aberto === "partiu" && <RelatorioPautas key="partiu" sb={sb} avisar={avisar} secao="partiu" />}
       {aberto === "jornalismo" && <RelatorioPautas key="jornalismo" sb={sb} avisar={avisar} secao="jornalismo" />}
       {aberto === "leituras" && <RelatorioLeituras sb={sb} avisar={avisar} />}
+      {aberto === "entregas" && <RelatorioEntregas sb={sb} avisar={avisar} />}
       {aberto === "ganhadores" && <Ganhadores sb={sb} avisar={avisar} premiosLista={premios} />}
     </>
   );

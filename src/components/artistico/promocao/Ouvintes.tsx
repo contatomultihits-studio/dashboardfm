@@ -12,11 +12,15 @@ import { buscarOuvintes, comVitorias } from "./RegistrarGanhador";
 type Linha = { ouvinte: Ouvinte; vitorias: Pick<Ganhador, "data" | "premio_nome">[] };
 
 
-/** Base de ouvintes: busca "já ganhou?", histórico, cadastro e lista de bloqueados. */
-export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) {
+/**
+ * Base de ouvintes: busca "já ganhou?", histórico, cadastro e lista de bloqueados.
+ * `bloqueados`: só a lista de bloqueados (na aba Ganhadores e bloqueados).
+ */
+export function Ouvintes({ sb, avisar, bloqueados = false }: { sb: SupabaseClient; avisar: Avisar; bloqueados?: boolean }) {
   const hoje = hojeISO();
   const [termo, setTermo] = useState("");
-  const [soBloqueados, setSoBloqueados] = useState(false);
+  const [soBloqueadosMarcado, setSoBloqueados] = useState(false);
+  const soBloqueados = bloqueados || soBloqueadosMarcado;
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [aberto, setAberto] = useState<string | null>(null);
@@ -86,17 +90,19 @@ export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar })
     <>
       <section className="card">
         <div className="secao-topo" style={{ flexWrap: "wrap" }}>
-          <h2>Ouvintes · já ganhou?</h2>
+          <h2>{bloqueados ? "Ouvintes bloqueados" : "Ouvintes · já ganhou?"}</h2>
           <div className="tabela-acoes" style={{ alignItems: "center" }}>
-            <label className="check">
-              <input type="checkbox" checked={soBloqueados} onChange={(e) => setSoBloqueados(e.target.checked)} />
-              Só bloqueados
-            </label>
+            {!bloqueados && (
+              <label className="check">
+                <input type="checkbox" checked={soBloqueados} onChange={(e) => setSoBloqueados(e.target.checked)} />
+                Só bloqueados
+              </label>
+            )}
             <button type="button" className="pequeno amarelo" data-edita onClick={() => setEditando("novo")}>+ Cadastrar ouvinte / bloquear</button>
           </div>
         </div>
         <label className="campo">
-          Buscar por nome ou telefone
+          {bloqueados ? "Buscar entre os bloqueados" : "Buscar por nome ou telefone"}
           <input type="search" placeholder="Ex.: Maria Silva ou 99999-8888" value={termo} onChange={(e) => setTermo(e.target.value)} />
         </label>
         <p className="dica" style={{ marginTop: 8 }}>

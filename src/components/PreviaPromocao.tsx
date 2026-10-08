@@ -1,6 +1,7 @@
 "use client";
 
 import { AvisoConfig } from "@/components/AvisoConfig";
+import { OuvintesLocutor } from "@/components/OuvintesLocutor";
 import { PromocaoNoAr } from "@/components/PromocaoNoAr";
 import { Topbar } from "@/components/Topbar";
 import { getSupabase } from "@/lib/supabase/client";
@@ -15,7 +16,14 @@ export function PreviaPromocao() {
         <div className="aviso previa-aviso">
           <strong>Prévia</strong> · É assim que a Promoção vai aparecer para o locutor. Ainda não está na dashboard.
         </div>
-        {sb ? <PromocaoNoAr sb={sb} /> : <AvisoConfig />}
+        {sb ? (
+          <>
+            <PromocaoNoAr sb={sb} />
+            <OuvintesLocutor sb={sb} />
+          </>
+        ) : (
+          <AvisoConfig />
+        )}
       </main>
     </>
   );

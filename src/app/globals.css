@@ -553,3 +553,40 @@ input.rodada-fim { width: 8.5em; padding: 6px 8px; }
 .senha-gerada { white-space: pre-wrap; background: #fff8d6; border: 2px solid #f4c430; border-radius: 12px; padding: 12px; font-size: 0.95rem; }
 .usuario-areas { font-size: 0.85rem; color: var(--muted); font-weight: 700; }
 .campo-rotulo { font-weight: 800; font-size: 0.8rem; text-transform: uppercase; }
+
+/* Promoção: carrossel do dia com "Concluído" (mesmas cores do Partiu) */
+.aviso.ok { background: #dcfce7; }
+.promo-nav { justify-content: flex-end; margin-bottom: 10px; }
+.promo-fila { display: grid; gap: 16px; align-items: stretch; }
+.promo-card { grid-template-rows: auto 1fr auto; }
+.promo-card:hover { transform: none; }
+.promo-abrir {
+  display: grid; grid-template-rows: auto 1fr; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent;
+  text-align: left; text-transform: none; font-weight: 700; color: inherit; width: 100%;
+}
+.promo-abrir:hover { transform: none; filter: brightness(0.98); }
+.promo-acoes { display: flex; justify-content: flex-end; gap: 8px; padding: 0 14px 14px; min-height: 8px; }
+.promo-acoes .verde { width: 100%; }
+.promo-card.estado-agora { background: #fef9c3; border-color: #92400e; box-shadow: 6px 6px 0 #92400e; }
+.estado-agora .promo-fita { background: linear-gradient(90deg, #ff4d57, #ff9f1c, #ff4d57); background-size: 200% 100%; animation: promo-brilho 3s linear infinite; }
+.estado-agora .promo-fita::before { content: "★ "; }
+.estado-agora .promo-hora { background: #ff9f1c; }
+.promo-card.estado-pendente { border-color: #b91c1c; box-shadow: 5px 5px 0 #b91c1c; }
+.estado-pendente .promo-fita { background: #b91c1c; }
+.estado-depois .promo-fita { background: #2563eb; }
+.estado-depois .promo-hora { background: #bfdbfe; }
+.promo-card.estado-concluido { background: #dcfce7; opacity: 0.85; }
+.estado-concluido .promo-fita { background: #15803d; }
+.estado-concluido .promo-hora { background: #bbf7d0; }
+.promo-chip.pendente { background: #ffd6d9; border-color: #b91c1c; }
+.promo-pendentes { background: #ffd6d9; margin-bottom: 10px; }
+@media (prefers-reduced-motion: reduce) { .estado-agora .promo-fita { animation: none; } }
+.sorteio textarea { width: 100%; font: inherit; padding: 10px 12px; border: 2px solid var(--ink); border-radius: 12px; }
+.sorteado { margin-top: 12px; display: grid; gap: 4px; padding: 14px; border: 3px solid var(--ink); border-radius: 16px; background: linear-gradient(135deg, #fff7c2, #ffe066); box-shadow: var(--sombra); }
+.sorteado-rotulo { font-size: 0.75rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; }
+.sorteado-nome { font-size: 1.6rem; font-weight: 900; text-transform: uppercase; overflow-wrap: anywhere; }
+.sorteado-base table { width: 100%; }
+.historico-filtros { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.etiqueta.acao-criou { background: var(--verde); }
+.etiqueta.acao-editou { background: #bfdbfe; }
+.etiqueta.acao-excluiu { background: #ffd6d9; }

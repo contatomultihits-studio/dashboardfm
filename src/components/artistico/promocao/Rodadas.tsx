@@ -7,7 +7,7 @@ import { Modal } from "@/components/Modal";
 import { fmtData, fmtDiaSemana, hojeISO, horaCurta, somarDias } from "@/lib/datas";
 import { noArEm, nomesFaixa } from "@/lib/escala";
 import { urlImagem } from "@/lib/imagens";
-import { datasEntre, faixaPremio, localOuvinte, type Ganhador, type Ouvinte, type Premio, type Rodada } from "@/lib/promocao";
+import { datasEntre, diaForaDaValidade, faixaPremio, localOuvinte, premioValidoEm, textoValidade, type Ganhador, type Ouvinte, type Premio, type Rodada } from "@/lib/promocao";
 import type { ItemEscala } from "@/lib/tipos";
 import { erroMsg, useLocutoresEquipe, type Avisar } from "../comum";
 import type { usePremios } from "./comum";
@@ -87,6 +87,9 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
     e.preventDefault();
     if (gerar.inicio && gerar.fim && gerar.fim <= gerar.inicio) return avisar("O fim precisa ser depois do começo.", true);
     if (!faixasNovas.length || !diasNovos.length) return avisar("Coloque pelo menos uma faixa de horário (das … até …).", true);
+    const escolhido = gerar.premio_id ? premioPorId.get(gerar.premio_id) : undefined;
+    const fora = escolhido ? diaForaDaValidade(escolhido, diasNovos) : null;
+    if (escolhido && fora) return avisar(`"${escolhido.nome}" não vale em ${fmtData(fora)} (${textoValidade(escolhido).toLowerCase()}).`, true);
     setGerando(true);
     try {
       // Não repete horário que já existe no dia.
@@ -118,13 +121,20 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
     const { data, error } = await sb.from("promo_rodadas").select("*").eq("data", ontem);
     if (error) return avisar(error.message, true);
     const existe = new Set(rodadas.map((r) => horaCurta(r.horario)));
+    let semPremio = 0;
     const novas = (data as Rodada[])
       .filter((r) => !existe.has(horaCurta(r.horario)))
-      .map((r) => ({ data: dia, horario: horaCurta(r.horario), horario_fim: horaCurta(r.horario_fim), premio_id: r.premio_id, aviso: r.aviso, ativo: r.ativo }));
+      .map((r) => {
+        const p = r.premio_id ? premioPorId.get(r.premio_id) : undefined;
+        // Prêmio que já venceu (ou ainda não começou) neste dia: o horário vem sem prêmio.
+        const valido = p ? premioValidoEm(p, dia) : true;
+        if (!valido) semPremio++;
+        return { data: dia, horario: horaCurta(r.horario), horario_fim: horaCurta(r.horario_fim), premio_id: valido ? r.premio_id : null, aviso: r.aviso, ativo: r.ativo };
+      });
     if (!novas.length) return avisar(`Nada para copiar de ${fmtData(ontem)}.`, true);
     const { error: e2 } = await sb.from("promo_rodadas").insert(novas);
     if (e2) return avisar(e2.message, true);
-    avisar(`Copiada a grade de ${fmtData(ontem)}: ${novas.length} horários`);
+    avisar(`Copiada a grade de ${fmtData(ontem)}: ${novas.length} horários${semPremio ? ` (${semPremio} sem prêmio: fora da validade)` : ""}`);
     carregar();
   }
 
@@ -209,7 +219,9 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
                           <Imagem src={urlImagem(sb, p?.imagem_path)} alt="" className="mini-thumb" largura={88} altura={88} sizes="44px" />
                           <select aria-label={`Prêmio das ${horaCurta(r.horario)}`} value={r.premio_id ?? ""} onChange={(e) => mudar(r, { premio_id: e.target.value || null })}>
                             <option value="">— Escolher prêmio —</option>
-                            {premios.filter((x) => x.ativo || x.id === r.premio_id).map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                            {premios.filter((x) => (x.ativo && premioValidoEm(x, r.data)) || x.id === r.premio_id).map((x) => (
+                              <option key={x.id} value={x.id}>{x.nome}{premioValidoEm(x, r.data) ? "" : " (fora da validade)"}</option>
+                            ))}
                           </select>
                         </div>
                       </td>
@@ -279,7 +291,10 @@ export function Rodadas({ sb, avisar, premiosLista }: { sb: SupabaseClient; avis
             Prêmio
             <select value={gerar.premio_id} onChange={(e) => setGerar({ ...gerar, premio_id: e.target.value })}>
               <option value="">Escolher depois</option>
-              {premios.filter((p) => p.ativo).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              {premios.filter((p) => p.ativo).map((p) => {
+                const fora = diasNovos.length ? diaForaDaValidade(p, diasNovos) : null;
+                return <option key={p.id} value={p.id} disabled={Boolean(fora)}>{p.nome}{fora ? ` — fora da validade (${textoValidade(p).replace("Válido ", "")})` : ""}</option>;
+              })}
             </select>
           </label>
         </div>
@@ -368,6 +383,10 @@ function EditarRodada({ sb, avisar, rodada, premios, onSalvo, onFechar }: {
     e.preventDefault();
     if (!form.data || !form.inicio) return avisar("Preencha o dia e o horário de começo.", true);
     if (form.fim && form.fim <= form.inicio) return avisar("O fim precisa ser depois do começo.", true);
+    const p = premios.find((x) => x.id === form.premio_id);
+    if (p && !premioValidoEm(p, form.data) && (p.id !== rodada.premio_id || form.data !== rodada.data)) {
+      return avisar(`"${p.nome}" não vale em ${fmtData(form.data)} (${textoValidade(p).toLowerCase()}).`, true);
+    }
     setSalvando(true);
     const { error } = await sb.from("promo_rodadas").update({
       data: form.data,
@@ -404,7 +423,9 @@ function EditarRodada({ sb, avisar, rodada, premios, onSalvo, onFechar }: {
           Prêmio
           <select value={form.premio_id} onChange={(e) => setForm({ ...form, premio_id: e.target.value })}>
             <option value="">— Escolher prêmio —</option>
-            {premios.filter((p) => p.ativo || p.id === form.premio_id).map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+            {premios.filter((p) => (p.ativo && premioValidoEm(p, form.data)) || p.id === form.premio_id).map((p) => (
+              <option key={p.id} value={p.id}>{p.nome}{premioValidoEm(p, form.data) ? "" : " (fora da validade)"}</option>
+            ))}
           </select>
         </label>
         <label className="check">

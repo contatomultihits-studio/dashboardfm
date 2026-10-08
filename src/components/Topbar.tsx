@@ -9,7 +9,7 @@ export function Topbar({
   meio,
   children,
 }: {
-  atual: "dashboard" | "artistico" | "login" | "promocao" | "usuarios" | "senha";
+  atual: "dashboard" | "artistico" | "login" | "promocao" | "usuarios" | "historico" | "senha";
   /** Conteúdo antes do menu (na dashboard: dia e botões de navegação). */
   meio?: React.ReactNode;
   children?: React.ReactNode;
@@ -26,7 +26,10 @@ export function Topbar({
               <Link href="/artistico" prefetch={false} className={`pill ${atual === "artistico" ? "ativo" : ""}`}>Artístico</Link>
             )}
             {acesso.tipo === "admin" && (
-              <Link href="/usuarios" prefetch={false} className={`pill ${atual === "usuarios" ? "ativo" : ""}`}>Usuários</Link>
+              <>
+                <Link href="/usuarios" prefetch={false} className={`pill ${atual === "usuarios" ? "ativo" : ""}`}>Usuários</Link>
+                <Link href="/historico" prefetch={false} className={`pill ${atual === "historico" ? "ativo" : ""}`}>Histórico</Link>
+              </>
             )}
             {children}
             <button type="button" className="branco pequeno" onClick={sair} title={`${acesso.nome} · ${acesso.email}`}>Sair</button>
