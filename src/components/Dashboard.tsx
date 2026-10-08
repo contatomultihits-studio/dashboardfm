@@ -21,7 +21,7 @@ import { lerLeituras, ordenarPorLeitura, salvarLeituras, type Leituras } from "@
 import { haQuanto, type VideoYoutube } from "@/lib/youtube";
 import { getSupabase } from "@/lib/supabase/client";
 import { horaNoFuso, ordenarPautas, pautasParaLembrar, situacaoPauta } from "@/lib/pautas";
-import { classeTipo, nomePauta, SECAO_PAUTA_LABEL, TIPO_PAUTA_LABEL, VINCULO_LABEL, type Conexao, type Convidado, type ItemEscala, type Locutor, type Evento, type Pauta, type PautaRealizada, type Prioridade, type Recado } from "@/lib/tipos";
+import { classeTipo, classeVinculo, nomePauta, SECAO_PAUTA_LABEL, TIPO_PAUTA_LABEL, VINCULO_LABEL, type Conexao, type Convidado, type ItemEscala, type Locutor, type Evento, type Pauta, type PautaRealizada, type Prioridade, type Recado } from "@/lib/tipos";
 
 /** Convidado na dashboard: os que já vieram aparecem depois dos próximos, em preto e branco. */
 type ConvidadoCard = Convidado & { jaVeio: boolean };
@@ -521,7 +521,7 @@ export function Dashboard() {
                   {e.local && <span className="item-local">📍 {e.local}</span>}
                   <span className="item-rodape rodape-etiquetas">
                     <Quando data={e.data_evento} />
-                    <span className={`etiqueta ${e.vinculo === "RADIO_OFICIAL" ? "oficial" : "apoio"}`}>{VINCULO_LABEL[e.vinculo]}</span>
+                    <span className={`etiqueta ${classeVinculo(e.vinculo)}`}>{VINCULO_LABEL[e.vinculo]}</span>
                   </span>
                 </button>
               )}
@@ -681,7 +681,7 @@ export function Dashboard() {
       {aberto?.tipo === "evento" && (
         <Modal titulo={aberto.item.nome} onFechar={fechar} leitura>
           <div className="modal-meta">
-            <span className={`etiqueta ${aberto.item.vinculo === "RADIO_OFICIAL" ? "oficial" : "apoio"}`}>{VINCULO_LABEL[aberto.item.vinculo]}</span>
+            <span className={`etiqueta ${classeVinculo(aberto.item.vinculo)}`}>{VINCULO_LABEL[aberto.item.vinculo]}</span>
             <span className="etiqueta cinza">{fmtData(aberto.item.data_evento)}</span>
             {aberto.item.local && <span className="etiqueta cinza">{aberto.item.local}</span>}
           </div>

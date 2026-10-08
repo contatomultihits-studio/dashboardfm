@@ -6,7 +6,7 @@ import { Imagem } from "@/components/Imagem";
 import { fmtData, hojeISO } from "@/lib/datas";
 import { sanitizarHtml } from "@/lib/html";
 import { removerImagem, urlImagem } from "@/lib/imagens";
-import { VINCULO_LABEL, type Evento, type Vinculo } from "@/lib/tipos";
+import { classeVinculo, VINCULO_LABEL, type Evento, type Vinculo } from "@/lib/tipos";
 import { CampoImagem, useImagemForm } from "./CampoImagem";
 import { CabecalhoLista, erroMsg, useLista, type Avisar } from "./comum";
 import { EditorTexto } from "./EditorTexto";
@@ -136,7 +136,7 @@ export function Eventos({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) 
                     <td>{ev.nome}</td>
                     <td>{fmtData(ev.data_evento)}</td>
                     <td>{ev.local || "—"}</td>
-                    <td><span className={`etiqueta ${ev.vinculo === "RADIO_OFICIAL" ? "oficial" : "apoio"}`}>{VINCULO_LABEL[ev.vinculo]}</span></td>
+                    <td><span className={`etiqueta ${classeVinculo(ev.vinculo)}`}>{VINCULO_LABEL[ev.vinculo]}</span></td>
                     <td><input type="checkbox" aria-label="Exibir na dashboard" checked={ev.ativo} onChange={() => alternarAtivo(ev)} /></td>
                     <td>
                       <div className="tabela-acoes">

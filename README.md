@@ -16,7 +16,7 @@ Tudo o que o locutor precisa para tocar o horário, numa tela só:
   Em Cartaz, Desafio RD — com o mesmo "feita" e relatório próprio; o aviso de 5 min é opcional por pauta.
 - **Conexões**: conteúdo institucional e atemporal da emissora (pode ficar "sem prazo").
 - **Próximos convidados**, com foto, data e horário. Clicando, abre a mini pauta.
-- **Agenda de eventos**, com etiqueta *Rádio oficial* ou *Apoio*, data e local.
+- **Agenda de eventos**, com etiqueta *Rádio oficial*, *Apoio* ou *Camarote Rádio Disney*, data e local.
 - **Últimos vídeos do YouTube**: desligado por enquanto (`MOSTRAR_YOUTUBE` em `src/lib/config.ts`).
 - **Promoção** (em teste na página `/promocao`, ainda fora da dashboard): último prêmio, **prêmio da hora** e
   próximo prêmio, com foto, ganhador e pop-up opcional 5 min antes. No Artístico, a aba Promoção tem o catálogo

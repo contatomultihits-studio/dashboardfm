@@ -162,7 +162,7 @@ create table if not exists public.eventos (
   data_evento    date not null,
   local          text,
   vinculo        text not null default 'APOIO'
-                   check (vinculo in ('RADIO_OFICIAL', 'APOIO')),
+                   check (vinculo in ('RADIO_OFICIAL', 'APOIO', 'CAMAROTE')),
   descricao_html text not null default '',
   imagem_path    text,
   ativo          boolean not null default true,

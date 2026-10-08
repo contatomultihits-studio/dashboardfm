@@ -112,7 +112,7 @@ export type Convidado = {
   ativo: boolean;
 };
 
-export type Vinculo = "RADIO_OFICIAL" | "APOIO";
+export type Vinculo = "RADIO_OFICIAL" | "APOIO" | "CAMAROTE";
 
 export type Evento = {
   id: string;
@@ -128,7 +128,13 @@ export type Evento = {
 export const VINCULO_LABEL: Record<Vinculo, string> = {
   RADIO_OFICIAL: "Rádio oficial",
   APOIO: "Apoio",
+  CAMAROTE: "Camarote Rádio Disney",
 };
+
+/** Classe da etiqueta de cada vínculo (cor). */
+export function classeVinculo(v: Vinculo): string {
+  return v === "RADIO_OFICIAL" ? "oficial" : v === "CAMAROTE" ? "camarote" : "apoio";
+}
 
 /** Locutor: perfil e horário fixo da semana (freela costuma não ter). */
 export type Locutor = {
