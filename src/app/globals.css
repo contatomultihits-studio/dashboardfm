@@ -521,3 +521,4 @@ input.rodada-fim { width: 8.5em; padding: 6px 8px; }
 .campo-faixa { grid-column: 1 / -1; }
 .faixa-linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .faixa-linha input { width: 9em; }
+.carregar-mais { display: flex; justify-content: center; margin-top: 14px; }

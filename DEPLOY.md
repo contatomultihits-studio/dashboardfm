@@ -104,6 +104,7 @@ que já vem com tudo.
 | `011_promocao.sql` | Promoção: prêmios, grade por horário (com aviso opcional), ouvintes, bloqueados e ganhadores (regra dos 30 dias no banco). |
 | `012_camarote.sql` | Eventos: novo vínculo "Camarote Rádio Disney". |
 | `013_faixa_premio.sql` | Promoção: prêmio com faixa de horário (das 06h às 09h). |
+| `014_final_telefone.sql` | Promoção: a tela do locutor mostra o final do telefone de quem ganhou. |
 
 ### Deu problema?
 

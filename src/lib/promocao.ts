@@ -53,7 +53,12 @@ export type Ganhador = {
 };
 
 /** O que a dashboard pode ver de quem ganhou (sem telefone). */
-export type GanhadorPublico = { rodada_id: string; nome: string; bairro: string; cidade: string };
+export type GanhadorPublico = { rodada_id: string; nome: string; bairro: string; cidade: string; telefone_final?: string };
+
+/** "Bela Vista · São Paulo · final 4758" (o que o locutor vê de quem ganhou). */
+export function detalheGanhador(g: GanhadorPublico): string {
+  return [localOuvinte(g), g.telefone_final ? `final ${g.telefone_final}` : ""].filter(Boolean).join(" · ");
+}
 
 /** Só os números; tira o +55 do começo. */
 export function normalizarTelefone(t: string): string {

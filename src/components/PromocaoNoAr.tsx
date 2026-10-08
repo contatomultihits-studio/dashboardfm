@@ -11,7 +11,7 @@ import { agoraHHMM, hojeISO, horaCurta, somarDias } from "@/lib/datas";
 import { noArEm, nomesFaixa, type Faixa } from "@/lib/escala";
 import { textoPuro } from "@/lib/html";
 import { urlImagem } from "@/lib/imagens";
-import { estadoPremio, faixaPremio, fotoPromo, localOuvinte, momentoPromo, novidadesPromo, premiosParaLembrar, textoFaltamPremio, type FotoPromo, type GanhadorPublico, type NovidadePromo, type Premio, type Rodada } from "@/lib/promocao";
+import { detalheGanhador, estadoPremio, faixaPremio, fotoPromo, momentoPromo, novidadesPromo, premiosParaLembrar, textoFaltamPremio, type FotoPromo, type GanhadorPublico, type NovidadePromo, type Premio, type Rodada } from "@/lib/promocao";
 import type { ItemEscala, Locutor } from "@/lib/tipos";
 
 type Papel = "ultimo" | "daHora" | "proximo";
@@ -81,7 +81,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
     const [r, p, g, l, e] = await Promise.all([
       sb.from("promo_rodadas").select("*").eq("data", hoje).eq("ativo", true).order("horario"),
       sb.from("premios").select("*").eq("ativo", true),
-      sb.rpc("promocao_ganhadores_dia", { p_dia: hoje }),
+      sb.rpc("promocao_ganhadores_hoje", { p_dia: hoje }),
       sb.from("locutores").select("*").eq("ativo", true),
       sb.from("escala").select("*").in("data", [hoje, somarDias(hoje, -1)]),
     ]);
@@ -184,7 +184,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
             <span className="promo-ganhador-rotulo">🏆 Ganhador</span>
             {gs.length ? (
               gs.map((g, i) => (
-                <span key={i} className="promo-ganhador-nome">{g.nome}{localOuvinte(g) && <small> · {localOuvinte(g)}</small>}</span>
+                <span key={i} className="promo-ganhador-nome">{g.nome}{detalheGanhador(g) && <small> · {detalheGanhador(g)}</small>}</span>
               ))
             ) : (
               <span className="promo-ganhador-espera">{papel === "proximo" ? "Ainda vai ser sorteado" : "Aguardando a promoção"}</span>
@@ -226,7 +226,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
           <dl className="promo-ficha">
             <div><dt>Prêmio</dt><dd>{premioAberto?.nome ?? "A definir"}</dd></div>
             <div><dt>Cliente</dt><dd>{premioAberto?.patrocinador || "—"}</dd></div>
-            <div><dt>Na tela</dt><dd>{faixaPremio(aberta)}</dd></div>
+            <div><dt>Horário</dt><dd>{faixaPremio(aberta)}</dd></div>
             {faixaDe(aberta) && <div><dt>Locutor</dt><dd>🎙 {nomesFaixa(faixaDe(aberta)!)}</dd></div>}
           </dl>
           {textoPuro(premioAberto?.descricao_html) ? <TextoRico html={premioAberto!.descricao_html} /> : <p className="dica">Sem descrição cadastrada para este prêmio.</p>}
@@ -234,7 +234,7 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
             <span className="promo-ganhador-rotulo">🏆 Ganhador</span>
             {ganhadoresDe(aberta.id).length ? (
               ganhadoresDe(aberta.id).map((g, i) => (
-                <strong key={i}>{g.nome}{localOuvinte(g) ? ` · ${localOuvinte(g)}` : ""}</strong>
+                <strong key={i}>{g.nome}{detalheGanhador(g) ? ` · ${detalheGanhador(g)}` : ""}</strong>
               ))
             ) : (
               <span>Ainda não registrado pela promoção.</span>
@@ -257,7 +257,11 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
                     <span className="lembrete-quando">
                       {n.tipo === "ganhador" ? `Ganhador do prêmio das ${horaH(r.horario)}` : `Prêmio das ${horaH(r.horario)} foi alterado`} · Promoção
                     </span>
-                    <strong>{n.tipo === "ganhador" ? n.nomes.join(", ") : p?.nome || "Prêmio"}</strong>
+                    <strong>
+                      {n.tipo === "ganhador"
+                        ? ganhadoresDe(r.id).filter((g) => n.nomes.includes(g.nome)).map((g) => `${g.nome}${g.telefone_final ? ` · final ${g.telefone_final}` : ""}`).join(", ") || n.nomes.join(", ")
+                        : p?.nome || "Prêmio"}
+                    </strong>
                   </div>
                   <div className="lembrete-acoes">
                     <button type="button" className="verde" onClick={() => abrir(r)}>Abrir prêmio</button>

@@ -5,7 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { fmtData, hojeISO, horaCurta } from "@/lib/datas";
 import { csvGanhadores, fmtTelefone, localOuvinte, type Ganhador, type LinhaGanhador, type Ouvinte, type Rodada } from "@/lib/promocao";
 import type { Avisar } from "../comum";
-import type { usePremios } from "./comum";
+import { CARREGAR_MAIS, POR_PAGINA, type usePremios } from "./comum";
+import { EditarOuvinte } from "./EditarOuvinte";
 import { RegistrarGanhador } from "./RegistrarGanhador";
 
 const inicioDoMes = (iso: string) => `${iso.slice(0, 8)}01`;
@@ -18,6 +19,9 @@ export function Ganhadores({ sb, avisar, premiosLista }: { sb: SupabaseClient; a
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [lancando, setLancando] = useState(false);
+  const [editando, setEditando] = useState<Ouvinte | null>(null);
+  const [limite, setLimite] = useState(POR_PAGINA);
+  useEffect(() => setLimite(POR_PAGINA), [de, ate]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -89,7 +93,7 @@ export function Ganhadores({ sb, avisar, premiosLista }: { sb: SupabaseClient; a
               <tr><th>Data</th><th>Ouvinte</th><th>Prêmio</th><th>Locutor</th><th>Ações</th></tr>
             </thead>
             <tbody>
-              {linhas.map((l) => (
+              {linhas.slice(0, limite).map((l) => (
                 <tr key={l.id}>
                   <td style={{ whiteSpace: "nowrap" }}><strong>{fmtData(l.data)}</strong>{l.horario && ` ${l.horario}`}</td>
                   <td className="texto">
@@ -102,12 +106,34 @@ export function Ganhadores({ sb, avisar, premiosLista }: { sb: SupabaseClient; a
                     {l.obs && <div className="trecho">{l.obs}</div>}
                   </td>
                   <td>{l.locutor || "—"}</td>
-                  <td><button type="button" className="pequeno vermelho" onClick={() => excluir(l)}>Apagar</button></td>
+                  <td>
+                    <div className="tabela-acoes">
+                      {l.ouvinte && <button type="button" className="pequeno" aria-label={`Editar ouvinte ${l.ouvinte.nome}`} onClick={() => setEditando(l.ouvinte!)}>Editar ouvinte</button>}
+                      <button type="button" className="pequeno vermelho" onClick={() => excluir(l)}>Apagar</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+      {linhas.length > limite && (
+        <div className="carregar-mais">
+          <button type="button" className="branco" onClick={() => setLimite((n) => n + CARREGAR_MAIS)}>Carregar mais ({linhas.length - limite} restantes)</button>
+        </div>
+      )}
+      {editando && (
+        <EditarOuvinte
+          sb={sb}
+          avisar={avisar}
+          ouvinte={editando}
+          onSalvo={() => {
+            setEditando(null);
+            carregar();
+          }}
+          onFechar={() => setEditando(null)}
+        />
       )}
       {lancando && (
         <RegistrarGanhador

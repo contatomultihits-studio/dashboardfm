@@ -3,13 +3,14 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fmtData, hojeISO } from "@/lib/datas";
-import { fmtTelefone, localOuvinte, normalizarTelefone, situacaoOuvinte, type Ganhador, type Ouvinte } from "@/lib/promocao";
+import { fmtTelefone, localOuvinte, situacaoOuvinte, type Ganhador, type Ouvinte } from "@/lib/promocao";
 import { erroMsg, type Avisar } from "../comum";
+import { CARREGAR_MAIS, POR_PAGINA } from "./comum";
+import { EditarOuvinte } from "./EditarOuvinte";
 import { buscarOuvintes, comVitorias } from "./RegistrarGanhador";
 
 type Linha = { ouvinte: Ouvinte; vitorias: Pick<Ganhador, "data" | "premio_nome">[] };
 
-const VAZIO = { nome: "", telefone: "", bairro: "", cidade: "", bloqueado: false, motivo_bloqueio: "" };
 
 /** Base de ouvintes: busca "já ganhou?", histórico, cadastro e lista de bloqueados. */
 export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar }) {
@@ -19,9 +20,13 @@ export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar })
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [aberto, setAberto] = useState<string | null>(null);
-  const [form, setForm] = useState(VAZIO);
-  const [editandoId, setEditandoId] = useState<string | null>(null);
-  const [salvando, setSalvando] = useState(false);
+  // Ouvinte aberto na janela de edição ("novo" = cadastro).
+  const [editando, setEditando] = useState<Ouvinte | "novo" | null>(null);
+  const [limite, setLimite] = useState(POR_PAGINA);
+  const [temMais, setTemMais] = useState(false);
+
+  // Nova busca ou filtro: volta para os primeiros.
+  useEffect(() => setLimite(POR_PAGINA), [termo, soBloqueados]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -29,58 +34,28 @@ export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar })
       const t = termo.trim();
       let r: Linha[];
       if (t.length >= 2) {
-        r = await buscarOuvintes(sb, t, 50);
+        r = await buscarOuvintes(sb, t, soBloqueados ? 200 : limite + 1);
         if (soBloqueados) r = r.filter((x) => x.ouvinte.bloqueado);
       } else {
         let q = sb.from("ouvintes").select("*");
         if (soBloqueados) q = q.eq("bloqueado", true);
-        const { data, error } = await q.order("created_at", { ascending: false }).limit(30);
+        const { data, error } = await q.order("created_at", { ascending: false }).limit(limite + 1);
         if (error) throw new Error(error.message);
         r = await comVitorias(sb, data as Ouvinte[]);
       }
-      setLinhas(r);
+      setTemMais(r.length > limite);
+      setLinhas(r.slice(0, limite));
     } catch (e) {
       avisar(erroMsg(e), true);
     } finally {
       setCarregando(false);
     }
-  }, [sb, termo, soBloqueados, avisar]);
+  }, [sb, termo, soBloqueados, limite, avisar]);
 
   useEffect(() => {
     const timer = setTimeout(carregar, 300);
     return () => clearTimeout(timer);
   }, [carregar]);
-
-  function limpar() {
-    setForm(VAZIO);
-    setEditandoId(null);
-  }
-
-  function editar(o: Ouvinte) {
-    setForm({ nome: o.nome, telefone: fmtTelefone(o.telefone), bairro: o.bairro, cidade: o.cidade, bloqueado: o.bloqueado, motivo_bloqueio: o.motivo_bloqueio });
-    setEditandoId(o.id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  async function salvar(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.nome.trim()) return avisar("O nome é obrigatório.", true);
-    setSalvando(true);
-    const dados = {
-      nome: form.nome.trim(),
-      telefone: normalizarTelefone(form.telefone),
-      bairro: form.bairro.trim(),
-      cidade: form.cidade.trim(),
-      bloqueado: form.bloqueado,
-      motivo_bloqueio: form.bloqueado ? form.motivo_bloqueio.trim() : "",
-    };
-    const { error } = editandoId ? await sb.from("ouvintes").update(dados).eq("id", editandoId) : await sb.from("ouvintes").insert(dados);
-    setSalvando(false);
-    if (error) return avisar(error.message, true);
-    avisar(editandoId ? "Ouvinte atualizado" : form.bloqueado ? "Ouvinte cadastrado como bloqueado" : "Ouvinte cadastrado");
-    limpar();
-    carregar();
-  }
 
   async function bloquear(o: Ouvinte) {
     if (o.bloqueado) {
@@ -103,7 +78,6 @@ export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar })
     if (!confirm(`Excluir ${l.ouvinte.nome} da base?${extra} Não dá para desfazer.`)) return;
     const { error } = await sb.from("ouvintes").delete().eq("id", l.ouvinte.id);
     if (error) return avisar(error.message, true);
-    if (editandoId === l.ouvinte.id) limpar();
     avisar("Ouvinte excluído");
     carregar();
   }
@@ -113,10 +87,13 @@ export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar })
       <section className="card">
         <div className="secao-topo" style={{ flexWrap: "wrap" }}>
           <h2>Ouvintes · já ganhou?</h2>
-          <label className="check">
-            <input type="checkbox" checked={soBloqueados} onChange={(e) => setSoBloqueados(e.target.checked)} />
-            Só bloqueados
-          </label>
+          <div className="tabela-acoes" style={{ alignItems: "center" }}>
+            <label className="check">
+              <input type="checkbox" checked={soBloqueados} onChange={(e) => setSoBloqueados(e.target.checked)} />
+              Só bloqueados
+            </label>
+            <button type="button" className="pequeno amarelo" onClick={() => setEditando("novo")}>+ Cadastrar ouvinte / bloquear</button>
+          </div>
         </div>
         <label className="campo">
           Buscar por nome ou telefone
@@ -153,7 +130,7 @@ export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar })
                         <td><span className={`situacao-ouvinte ${s.tipo}`}>{s.texto}</span></td>
                         <td>
                           <div className="tabela-acoes">
-                            <button type="button" className="pequeno" onClick={() => editar(l.ouvinte)}>Editar</button>
+                            <button type="button" className="pequeno" onClick={() => setEditando(l.ouvinte)}>Editar</button>
                             <button type="button" className={`pequeno ${l.ouvinte.bloqueado ? "verde" : "branco"}`} onClick={() => bloquear(l.ouvinte)}>{l.ouvinte.bloqueado ? "Desbloquear" : "Bloquear"}</button>
                             <button type="button" className="pequeno vermelho" onClick={() => excluir(l)}>Excluir</button>
                           </div>
@@ -175,43 +152,25 @@ export function Ouvintes({ sb, avisar }: { sb: SupabaseClient; avisar: Avisar })
             </table>
           </div>
         )}
+        {temMais && (
+          <div className="carregar-mais">
+            <button type="button" className="branco" onClick={() => setLimite((n) => n + CARREGAR_MAIS)}>Carregar mais</button>
+          </div>
+        )}
       </section>
 
-      <form className="card form" onSubmit={salvar}>
-        <h2>{editandoId ? "Editar ouvinte" : "Cadastrar ouvinte (ou bloquear alguém)"}</h2>
-        <div className="form-grade">
-          <label className="campo">
-            Nome
-            <input type="text" required maxLength={80} value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-          </label>
-          <label className="campo">
-            Telefone (opcional)
-            <input type="tel" maxLength={20} placeholder="(11) 99999-8888" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
-          </label>
-          <label className="campo">
-            Bairro (opcional)
-            <input type="text" maxLength={60} value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
-          </label>
-          <label className="campo">
-            Cidade (opcional)
-            <input type="text" maxLength={60} value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
-          </label>
-        </div>
-        <label className="check">
-          <input type="checkbox" checked={form.bloqueado} onChange={(e) => setForm({ ...form, bloqueado: e.target.checked })} />
-          🚫 Bloqueado (não pode ganhar prêmios)
-        </label>
-        {form.bloqueado && (
-          <label className="campo">
-            Motivo do bloqueio
-            <input type="text" maxLength={200} placeholder="Ex.: usou dados de outra pessoa" value={form.motivo_bloqueio} onChange={(e) => setForm({ ...form, motivo_bloqueio: e.target.value })} />
-          </label>
-        )}
-        <div className="acoes">
-          <button type="submit" className="verde" disabled={salvando}>{salvando ? "Salvando…" : editandoId ? "Salvar alterações" : "Cadastrar ouvinte"}</button>
-          {editandoId && <button type="button" className="branco" onClick={limpar}>Cancelar edição</button>}
-        </div>
-      </form>
+      {editando && (
+        <EditarOuvinte
+          sb={sb}
+          avisar={avisar}
+          ouvinte={editando === "novo" ? null : editando}
+          onSalvo={() => {
+            setEditando(null);
+            carregar();
+          }}
+          onFechar={() => setEditando(null)}
+        />
+      )}
     </>
   );
 }

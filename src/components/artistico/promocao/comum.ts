@@ -20,3 +20,7 @@ export function usePremios(sb: SupabaseClient) {
   }, [recarregar]);
   return { premios, carregando, erro, recarregar };
 }
+
+/** Listas da promoção: quantos aparecem de início, e quantos a mais a cada "Carregar mais". */
+export const POR_PAGINA = 5;
+export const CARREGAR_MAIS = 10;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { csvGanhadores, datasEntre, estadoPremio, faixaPremio, fmtTelefone, fotoPromo, novidadesPromo, localOuvinte, momentoPromo, normalizarBusca, normalizarTelefone, premiosParaLembrar, situacaoOuvinte, textoFaltamPremio } from "@/lib/promocao";
+import { csvGanhadores, datasEntre, detalheGanhador, estadoPremio, faixaPremio, fmtTelefone, fotoPromo, novidadesPromo, localOuvinte, momentoPromo, normalizarBusca, normalizarTelefone, premiosParaLembrar, situacaoOuvinte, textoFaltamPremio } from "@/lib/promocao";
 
 const livre = { bloqueado: false, motivo_bloqueio: "" };
 
@@ -150,5 +150,12 @@ describe("aviso de novidade na promoção", () => {
     expect(novidadesPromo(com, fotoPromo(rod, [{ rodada_id: "a", nome: "Maria" }, { rodada_id: "a", nome: "João" }]))).toEqual([
       { rodada_id: "a", tipo: "ganhador", nomes: ["João"] },
     ]);
+  });
+});
+
+describe("o que o locutor vê de quem ganhou", () => {
+  it("bairro, cidade e final do telefone, só o que tiver", () => {
+    expect(detalheGanhador({ rodada_id: "r", nome: "Ana", bairro: "Bela Vista", cidade: "São Paulo", telefone_final: "4758" })).toBe("Bela Vista · São Paulo · final 4758");
+    expect(detalheGanhador({ rodada_id: "r", nome: "Ana", bairro: "", cidade: "", telefone_final: "" })).toBe("");
   });
 });
