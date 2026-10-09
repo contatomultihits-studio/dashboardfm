@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { diaDaSemana, noArRepetido, proximasVezes, resumoRepeticao, situacaoRepetida, textoDias } from "@/lib/repeticao";
+import { diaDaSemana, duracaoRecadoMin, fimHoje, noArRepetido, sugereLembrete, proximasVezes, resumoRepeticao, situacaoRepetida, textoDias } from "@/lib/repeticao";
 
 // 2026-10-12 é segunda; 2026-10-14 quarta.
 const base = { data_inicio: "2026-10-01", data_fim: "2026-10-31", repetir: true, dias_semana: [1, 3], janela_inicio: "10:00:00", janela_fim: "12:00:00" };
@@ -43,5 +43,21 @@ describe("recado que repete", () => {
     expect(situacaoRepetida(base, "2026-10-13", "10:30").texto).toBe("Hoje não aparece");
     expect(situacaoRepetida(base, "2026-09-20", "10:30").tipo).toBe("agendada");
     expect(situacaoRepetida(base, "2026-11-02", "10:30").tipo).toBe("encerrada");
+  });
+});
+
+describe("lembrete (recado curto)", () => {
+  it("duração e sugestão de pop-up", () => {
+    expect(duracaoRecadoMin({ ...base, janela_inicio: "10:00", janela_fim: "10:10" })).toBe(10);
+    expect(duracaoRecadoMin({ ...base, janela_inicio: "23:50", janela_fim: "00:05" })).toBe(15);
+    expect(sugereLembrete({ ...base, janela_inicio: "10:00", janela_fim: "10:29" })).toBe(true);
+    expect(sugereLembrete({ ...base, janela_inicio: "10:00", janela_fim: "10:30" })).toBe(false);
+    const corrido = { data_inicio: "2026-10-12", data_fim: "2026-10-12", repetir: false, hora_inicio: "15:00:00", hora_fim: "15:20:00" };
+    expect(sugereLembrete(corrido)).toBe(true);
+    expect(sugereLembrete({ ...corrido, data_fim: "2026-10-13" })).toBe(false); // vários dias
+    expect(sugereLembrete({ ...corrido, hora_fim: null })).toBe(false); // dia todo
+  });
+  it("quanto falta para sair", () => {
+    expect(fimHoje({ ...base, janela_inicio: "10:00", janela_fim: "10:10" }, "10:02")).toEqual({ fim: "10:10", faltam: 8 });
   });
 });

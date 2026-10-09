@@ -2,7 +2,7 @@
 
 export const COLUNAS = {
   prioridades: "id,data_inicio,data_fim,hora_inicio,hora_fim,titulo,conteudo_html,imagem_path,ativo,fixado",
-  recados: "id,data_inicio,data_fim,hora_inicio,hora_fim,titulo,conteudo_html,destaque,ativo,repetir,dias_semana,janela_inicio,janela_fim",
+  recados: "id,data_inicio,data_fim,hora_inicio,hora_fim,titulo,conteudo_html,destaque,ativo,repetir,dias_semana,janela_inicio,janela_fim,lembrete",
   conexoes: "id,data_inicio,data_fim,hora_inicio,hora_fim,titulo,conteudo_html,imagem_path,ativo,fixado",
   pautas: "id,data_inicio,data_fim,horario,cliente,locutor,locutor_id,tipo,titulo,conteudo_html,secao,aviso,ativo",
   pautas_realizadas: "id,pauta_id,dia,realizado_em,origem",

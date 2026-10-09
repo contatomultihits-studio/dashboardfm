@@ -8,7 +8,7 @@ import { EtiquetaSituacao } from "@/components/EtiquetaSituacao";
 import { agoraHHMM, diasNoPeriodo, ehSemPrazo, fimDoPeriodo, fmtData, hojeISO, horaCurta, SEM_PRAZO, situacaoPeriodo, somarDias, type Duracao } from "@/lib/datas";
 import { sanitizarHtml, textoPuro } from "@/lib/html";
 import { removerImagemSemUso, urlImagem } from "@/lib/imagens";
-import { ATALHOS_DIAS, DIAS_CURTOS, ORDEM_DIAS, proximasVezes, resumoRepeticao, situacaoRepetida, viraMeiaNoite } from "@/lib/repeticao";
+import { ATALHOS_DIAS, DIAS_CURTOS, duracaoRecadoMin, LEMBRETE_ATE_MIN, ORDEM_DIAS, proximasVezes, resumoRepeticao, situacaoRepetida, sugereLembrete, viraMeiaNoite } from "@/lib/repeticao";
 import { classeTipo, nomePauta, TIPO_PAUTA_LABEL, TIPOS_POR_SECAO, type ItemNoAr, type SecaoPauta, type TipoPauta } from "@/lib/tipos";
 import { CampoImagem, useImagemForm } from "./CampoImagem";
 import { CampoLocutor } from "./CampoLocutor";
@@ -93,12 +93,18 @@ function novo(padrao: Atalho, secao: SecaoPauta = "partiu") {
     dias_semana: [] as number[],
     janela_inicio: "",
     janela_fim: "",
+    lembrete: false,
+    /** A produção mexeu na caixa do lembrete: não marca/desmarca mais sozinho. */
+    lembreteManual: false,
   };
 }
 
 /** Campos da repetição (recados), copiados ao editar e ao duplicar. */
 function camposRepetir(p: ItemNoAr) {
-  return { repetir: Boolean(p.repetir), dias_semana: p.dias_semana ?? [], janela_inicio: horaCurta(p.janela_inicio) ?? "", janela_fim: horaCurta(p.janela_fim) ?? "" };
+  return {
+    repetir: Boolean(p.repetir), dias_semana: p.dias_semana ?? [], janela_inicio: horaCurta(p.janela_inicio) ?? "", janela_fim: horaCurta(p.janela_fim) ?? "",
+    lembrete: Boolean(p.lembrete), lembreteManual: true,
+  };
 }
 
 /** Campos das pautas, copiados ao editar e ao duplicar. */
@@ -247,6 +253,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
             : { hora_inicio: form.hora_inicio || null, hora_fim: semPrazo ? null : form.hora_fim || null }),
         ...(c.comRepetir
           ? {
+              lembrete: lembreteEfetivo,
               repetir,
               dias_semana: repetir ? form.dias_semana : [],
               janela_inicio: repetir ? form.janela_inicio : null,
@@ -311,6 +318,9 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
   }
 
   const semPrazo = ehSemPrazo(form.data_fim);
+  // Lembrete com pop-up: marca sozinho quando o horário é curto (menos de 30 min no mesmo dia), até a produção mexer.
+  const duracaoMin = c.comRepetir ? duracaoRecadoMin(form) : null;
+  const lembreteEfetivo = Boolean(c.comRepetir && duracaoMin !== null && (form.lembreteManual ? form.lembrete : sugereLembrete(form)));
   const dias = !semPrazo && form.data_fim >= form.data_inicio ? diasNoPeriodo(form.data_inicio, form.data_fim) : 0;
 
   return (
@@ -511,6 +521,24 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
         </div>
         <EditorTexto key={`${c.tabela}-${versao}`} rotulo={c.pauta ? "Pauta (texto que o locutor vai ler)" : "Texto para o locutor ler no ar"} valorInicial={form.conteudo_html} placeholder="O que o locutor precisa falar no ar…" onChange={(html) => setForm((f) => ({ ...f, conteudo_html: html }))} />
         {c.comImagem && <CampoImagem sb={sb} imagem={imagem} />}
+        {c.comRepetir && (
+          <div className="campo">
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={lembreteEfetivo}
+                disabled={duracaoMin === null}
+                onChange={(e) => setForm({ ...form, lembrete: e.target.checked, lembreteManual: true })}
+              />
+              🔔 Lembrete com pop-up (abre na tela do locutor, com som, na hora em que começa)
+            </label>
+            <p className="dica" style={{ margin: 0 }}>
+              {duracaoMin === null
+                ? "Para virar lembrete, o recado precisa de um horário no mesmo dia (das … às …)."
+                : `Horário de ${duracaoMin} min${duracaoMin < LEMBRETE_ATE_MIN ? ": marcado sozinho (menos de 30 min)" : ""}. Ao fechar o pop-up, o recado continua na faixa até o fim do horário.`}
+            </p>
+          </div>
+        )}
         {c.comDestaque && (
           <label className="check">
             <input type="checkbox" checked={form.destaque} onChange={(e) => setForm({ ...form, destaque: e.target.checked })} />
@@ -578,6 +606,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
                     </td>
                     <td className="texto">
                       {p.destaque && <span className="etiqueta destaque" style={{ marginRight: 6 }}>Destaque</span>}
+                      {p.lembrete && <span className="etiqueta lembrete-etiqueta" style={{ marginRight: 6 }} title="Abre pop-up na tela do locutor na hora em que começa">🔔 Lembrete</span>}
                       {p.fixado && <span className="etiqueta fixado" style={{ marginRight: 6 }}>⭐ Fixado</span>}
                       {c.pauta ? (
                         <>

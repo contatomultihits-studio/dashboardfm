@@ -95,3 +95,33 @@ export function situacaoRepetida(r: Repeticao, hoje: string, agora: string): Sit
   if (valeNoDia(r, hoje) && agora < hm(r.janela_inicio)) return { tipo: "mais-tarde", texto: `Hoje às ${horaH(r.janela_inicio)}` };
   return { tipo: "hoje-nao", texto: "Hoje não aparece" };
 }
+
+/** Recado como lembrete: horário curto no mesmo dia vira pop-up na tela do locutor. */
+export const LEMBRETE_ATE_MIN = 30;
+
+type ComHorario = Repeticao & { hora_inicio?: string | null; hora_fim?: string | null };
+const minutos = (h: string) => Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5));
+
+/** Duração em minutos de cada vez que o recado aparece; null quando é o dia todo ou vários dias. */
+export function duracaoRecadoMin(r: ComHorario): number | null {
+  if (r.repetir) {
+    if (!r.janela_inicio || !r.janela_fim) return null;
+    return (minutos(hm(r.janela_fim)) - minutos(hm(r.janela_inicio)) + 1440) % 1440 || null;
+  }
+  if (r.data_inicio !== r.data_fim || !r.hora_inicio || !r.hora_fim) return null;
+  const d = minutos(hm(r.hora_fim)) - minutos(hm(r.hora_inicio));
+  return d > 0 ? d : null;
+}
+
+/** Sugere marcar "Lembrete com pop-up": menos de 30 minutos no mesmo dia. */
+export const sugereLembrete = (r: ComHorario) => {
+  const d = duracaoRecadoMin(r);
+  return d !== null && d < LEMBRETE_ATE_MIN;
+};
+
+/** Horário em que o recado sai do ar hoje ("HH:MM") e quantos minutos faltam. */
+export function fimHoje(r: ComHorario, agora: string): { fim: string; faltam: number } | null {
+  const fim = r.repetir ? hm(r.janela_fim) : r.hora_fim ? hm(r.hora_fim) : null;
+  if (!fim) return null;
+  return { fim, faltam: (minutos(fim) - minutos(agora) + 1440) % 1440 };
+}

@@ -79,7 +79,7 @@ export function LembretePautas({ sb, locutores, lembretes, onAbrir, onFechar }: 
   if (lembretes.length === 0) return null;
 
   return (
-    <div className="lembretes" role="alert" aria-label="Lembretes de pauta">
+    <div className="lembretes-grupo" role="alert" aria-label="Lembretes de pauta">
       {lembretes.map(({ pauta: p, faltam }) => (
         <div key={p.id} className={`lembrete ${faltam < 0 ? "atrasada" : faltam === 0 ? "agora" : ""}`}>
           {p.locutor_id && locutores.get(p.locutor_id) ? (

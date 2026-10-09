@@ -19,6 +19,8 @@ export type ItemNoAr = {
   dias_semana?: number[];
   janela_inicio?: string | null;
   janela_fim?: string | null;
+  /** Recados: abre pop-up com som na tela do locutor na hora em que começa. */
+  lembrete?: boolean;
   /** Só nas pautas do "Partiu Rádio Disney". */
   cliente?: string;
   locutor?: string;

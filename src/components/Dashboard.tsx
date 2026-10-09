@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { EscalaFimDeSemana } from "@/components/EscalaFimDeSemana";
 import { NoArTopo } from "@/components/NoArTopo";
 import { LembretePautas } from "@/components/LembretePautas";
+import { LembreteRecados } from "@/components/LembreteRecados";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { Topbar } from "@/components/Topbar";
@@ -292,6 +293,28 @@ export function Dashboard() {
     () => ordenarPorLeitura(dia ? prioridades.filter((p) => noArAgora(p, dia, hojeISO(), agora)) : prioridades, lidos),
     [prioridades, dia, agora, lidos],
   );
+  // Recados-lembrete: pop-up enquanto estão no ar, até o locutor clicar "Ok, lido" (guardado por dia nesta tela).
+  const [recadosLidos, setRecadosLidos] = useState<Set<string>>(() => new Set());
+  const chaveLidos = `dashboardfm:recados-lidos:${hojeISO()}`;
+  useEffect(() => {
+    try {
+      setRecadosLidos(new Set(JSON.parse(localStorage.getItem(chaveLidos) ?? "[]") as string[]));
+    } catch {
+      setRecadosLidos(new Set());
+    }
+  }, [chaveLidos]);
+  const marcarRecadoLido = useCallback((id: string) => {
+    setRecadosLidos((atual) => {
+      const novo = new Set(atual).add(id);
+      try {
+        for (const k of Object.keys(localStorage)) if (k.startsWith("dashboardfm:recados-lidos:") && k !== chaveLidos) localStorage.removeItem(k);
+        localStorage.setItem(chaveLidos, JSON.stringify([...novo]));
+      } catch {
+        // sem espaço ou navegação privada: vale só até recarregar
+      }
+      return novo;
+    });
+  }, [chaveLidos]);
   const recadosNoAr = useMemo(
     () => (dia ? recados.filter((r) => (r.repetir ? noArRepetido(r, hojeISO(), agora) : noArAgora(r, dia, hojeISO(), agora))) : recados),
     [recados, dia, agora],
@@ -302,6 +325,7 @@ export function Dashboard() {
   );
   const feitas = useMemo(() => new Map(realizadas.map((x) => [x.pauta_id, x])), [realizadas]);
   // Partiu Rádio Disney e Jornalismo usam as mesmas pautas, separadas pela seção.
+  const recadosLembrete = useMemo(() => recadosNoAr.filter((r) => r.lembrete && !recadosLidos.has(r.id)), [recadosNoAr, recadosLidos]);
   const pautasDoDia = useMemo(() => ordenarPautas(pautas.filter((p) => (p.secao ?? "partiu") === "partiu"), feitas), [pautas, feitas]);
   const jornalismoDoDia = useMemo(() => ordenarPautas(pautas.filter((p) => p.secao === "jornalismo"), feitas), [pautas, feitas]);
   const locutorPorId = useMemo(() => new Map(locutores.map((l) => [l.id, l])), [locutores]);
@@ -441,8 +465,11 @@ export function Dashboard() {
                   onClick={() => abrir({ tipo: "recado", item: r })}
                 >
                   {r.destaque && <span className="etiqueta destaque">Importante</span>}
+                  {r.lembrete && <span className="etiqueta lembrete-etiqueta">🔔 Lembrete</span>}
                   <span className="item-titulo">{r.titulo || textoPuro(r.conteudo_html) || "Recado"}</span>
-                  <span className="item-rodape">{dia && <AteQuando p={r} dia={dia} />}</span>
+                  <span className="item-rodape">
+                    {r.repetir ? <span className="etiqueta cinza">Hoje até {horaCurta(r.janela_fim)}</span> : dia && <AteQuando p={r} dia={dia} />}
+                  </span>
                 </button>
                 );
               }}
@@ -592,6 +619,13 @@ export function Dashboard() {
           <TextoRico html={aberto.item.conteudo_html} />
         </Modal>
       )}
+      <div className="lembretes">
+      <LembreteRecados
+        recados={recadosLembrete}
+        agora={agora}
+        onAbrir={(r) => abrir({ tipo: "recado", item: r })}
+        onLido={marcarRecadoLido}
+      />
       <LembretePautas
         sb={sb}
         locutores={locutorPorId}
@@ -599,6 +633,7 @@ export function Dashboard() {
         onAbrir={(p) => abrir({ tipo: "pauta", item: p })}
         onFechar={(id) => setDispensadas((d) => new Set(d).add(id))}
       />
+      </div>
       {aberto?.tipo === "conexao" && (
         <Modal titulo={aberto.item.titulo || "Conexão"} onFechar={fechar} leitura>
           <div className="modal-meta">

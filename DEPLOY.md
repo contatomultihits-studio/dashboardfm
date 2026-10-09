@@ -117,6 +117,7 @@ que já vem com tudo.
 | `017_promocao_v2.sql` | Promoção: validade e parceria do prêmio, "Concluído" do locutor (relatório de entregas), busca de ouvintes do locutor e histórico de alterações (só o admin vê). |
 | `018_versao_dados.sql` | A tela do locutor só baixa os dados de novo quando algo mudou (economiza tráfego). |
 | `019_recados_repetir.sql` | Recados: opção de aparecer só em alguns dias da semana e num horário diário. |
+| `020_recados_lembrete.sql` | Recados curtos viram lembrete com pop-up na tela do locutor. |
 
 ### Deu problema?
 

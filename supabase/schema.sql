@@ -1545,6 +1545,12 @@ alter table public.recados add constraint recados_repetir_check check (
 
 
 -- =====================================================================
+-- Recado-lembrete com pop-up (migração 020)
+-- =====================================================================
+alter table public.recados add column if not exists lembrete boolean not null default false;
+
+
+-- =====================================================================
 -- DEPOIS: crie o SEU usuário em Authentication > Users (Auto Confirm) e
 -- torne-o administrador (troque o e-mail e o nome). Os outros usuários
 -- você cria pelo site, na página Usuários.
