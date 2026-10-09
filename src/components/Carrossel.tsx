@@ -5,7 +5,11 @@ import { useEffect, useRef, useState } from "react";
 export function useItensPorPagina(maximo: number) {
   const [n, setN] = useState(maximo);
   useEffect(() => {
-    const calc = () => setN(window.innerWidth <= 600 ? 1 : window.innerWidth <= 900 ? 2 : maximo);
+    // Celular 1, tablet 2, notebook até 3; telas largas (TV do estúdio) usam o máximo.
+    const calc = () => {
+      const w = window.innerWidth;
+      setN(w <= 600 ? 1 : w <= 900 ? 2 : w <= 1300 ? Math.min(maximo, 3) : maximo);
+    };
     calc();
     window.addEventListener("resize", calc);
     return () => window.removeEventListener("resize", calc);

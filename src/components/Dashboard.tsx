@@ -395,7 +395,7 @@ export function Dashboard() {
           )
         }
       />
-      <main className="container">
+      <main className="container tela-cheia">
         {!sb ? (
           <AvisoConfig />
         ) : (
@@ -450,6 +450,7 @@ export function Dashboard() {
               itens={prioridadesNoAr}
               carregando={carregando}
               vazio="Sem prioridades para este dia."
+              porPaginaMax={4}
               render={(p) => (
                 <button type="button" className="item-card" onClick={() => abrir({ tipo: "prioridade", item: p })}>
                   <Imagem src={urlImagem(sb, p.imagem_path)} alt="" className="thumb" ajustar prioridade={prioridadesNoAr.indexOf(p) < 3} />
@@ -490,6 +491,7 @@ export function Dashboard() {
               itens={convidados}
               carregando={carregando}
               vazio="Sem convidados programados."
+              porPaginaMax={4}
               render={(c) => (
                 <button type="button" className={`item-card ${c.jaVeio ? "ja-veio" : ""}`} onClick={() => abrir({ tipo: "convidado", item: c })}>
                   <span className="thumb-wrap">
@@ -511,6 +513,7 @@ export function Dashboard() {
               itens={eventos}
               carregando={carregando}
               vazio="Sem eventos na agenda."
+              porPaginaMax={4}
               render={(e) => (
                 <button type="button" className="item-card" onClick={() => abrir({ tipo: "evento", item: e })}>
                   <span className="thumb-wrap">
@@ -533,6 +536,7 @@ export function Dashboard() {
               itens={conexoesNoAr}
               carregando={carregando}
               vazio="Sem conexões no ar."
+              porPaginaMax={4}
               render={(x) => (
                 <button type="button" className="item-card" onClick={() => abrir({ tipo: "conexao", item: x })}>
                   <Imagem src={urlImagem(sb, x.imagem_path)} alt="" className="thumb" ajustar />

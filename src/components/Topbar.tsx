@@ -17,7 +17,7 @@ export function Topbar({
   const acesso = useAcesso();
   return (
     <header className="topbar">
-      <div className="container topbar-conteudo">
+      <div className={`container topbar-conteudo ${atual === "dashboard" ? "tela-cheia" : ""}`}>
         {meio && <div className="topbar-meio">{meio}</div>}
         {acesso && atual === "dashboard" ? (
           // Tela do estúdio: limpa, só o atalho para o Artístico (quem tem acesso).

@@ -590,3 +590,7 @@ input.rodada-fim { width: 8.5em; padding: 6px 8px; }
 .etiqueta.acao-criou { background: var(--verde); }
 .etiqueta.acao-editou { background: #bfdbfe; }
 .etiqueta.acao-excluiu { background: #ffd6d9; }
+
+/* Dashboard na TV do estúdio: usa a largura toda da tela. */
+.container.tela-cheia { width: calc(100% - 32px); max-width: none; }
+@media (min-width: 1600px) { .container.tela-cheia { width: calc(100% - 48px); } }
