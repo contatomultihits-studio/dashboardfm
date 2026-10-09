@@ -54,7 +54,7 @@ export function Artistico() {
   return (
     <>
       <Topbar atual="artistico" />
-      <main className="container">
+      <main className="container tela-cheia">
         {!sb ? (
           <AvisoConfig />
         ) : (
