@@ -11,6 +11,8 @@ import { LembretePautas } from "@/components/LembretePautas";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { Topbar } from "@/components/Topbar";
+import { COLUNAS, ESCALA_DIAS_A_FRENTE } from "@/lib/colunas";
+import { useAtualizacao } from "@/lib/useAtualizacao";
 import { ATUALIZAR_A_CADA_MS, MOSTRAR_YOUTUBE } from "@/lib/config";
 import { agoraHHMM, ehSemPrazo, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, horaCurta, noArAgora, partesData, quando, somarDias, type PeriodoComHora } from "@/lib/datas";
 import { textoPuro } from "@/lib/html";
@@ -171,8 +173,8 @@ export function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  const carregar = useCallback(async () => {
-    if (!sb || !dia) return;
+  const carregar = useCallback(async (): Promise<boolean> => {
+    if (!sb || !dia) return false;
     const busca = ++ultimaBusca.current;
     setCarregando(true);
     // Mostra na hora o que já tinha deste dia, enquanto busca a versão nova.
@@ -191,28 +193,28 @@ export function Dashboard() {
     // Filtra "ativo" também aqui: quem está logado enxerga os ocultos pelas regras do banco.
     const [p, r, cx, pa, pr, lo, es, c, cv, e] = await Promise.all([
       // No ar no dia escolhido: entrou até esse dia e só sai depois dele. As que saem primeiro vêm antes.
-      sb.from("prioridades").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
+      sb.from("prioridades").select(COLUNAS.prioridades).lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("data_fim").order("created_at"),
       // Recados no ar no dia: os destacados primeiro, depois os que saem antes.
-      sb.from("recados").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
+      sb.from("recados").select(COLUNAS.recados).lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("destaque", { ascending: false }).order("data_fim").order("created_at"),
-      sb.from("conexoes").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
+      sb.from("conexoes").select(COLUNAS.conexoes).lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("data_inicio", { ascending: false }).order("created_at"),
       // Partiu Rádio Disney: pautas do dia e o que o locutor já marcou como feito.
-      sb.from("pautas").select("*").lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true).order("horario"),
-      sb.from("pautas_realizadas").select("*").eq("dia", dia),
-      // Escala: locutores e o escalado de ontem (madrugada) até ~3 meses à frente (fins de semana prontos).
-      sb.from("locutores").select("*").eq("ativo", true),
-      sb.from("escala").select("*").gte("data", somarDias(hojeISO(), -1)).lte("data", somarDias(hojeISO(), 100)).limit(1000),
-      sb.from("convidados").select("*").gte("data_visita", dia).eq("ativo", true).eq("concluido", false)
+      sb.from("pautas").select(COLUNAS.pautas).lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true).order("horario"),
+      sb.from("pautas_realizadas").select(COLUNAS.pautas_realizadas).eq("dia", dia),
+      // Escala: o escalado de ontem (madrugada) até as próximas duas semanas (cobre o próximo fim de semana).
+      sb.from("locutores").select(COLUNAS.locutores).eq("ativo", true),
+      sb.from("escala").select(COLUNAS.escala).gte("data", somarDias(hojeISO(), -1)).lte("data", somarDias(hojeISO(), ESCALA_DIAS_A_FRENTE)).limit(1000),
+      sb.from("convidados").select(COLUNAS.convidados).gte("data_visita", dia).eq("ativo", true).eq("concluido", false)
         .order("data_visita").order("horario", { nullsFirst: false }).limit(60),
       // Últimos que já vieram: data anterior ao dia ou marcados como "já veio".
-      sb.from("convidados").select("*").eq("ativo", true).or(`data_visita.lt.${dia},concluido.eq.true`)
+      sb.from("convidados").select(COLUNAS.convidados).eq("ativo", true).or(`data_visita.lt.${dia},concluido.eq.true`)
         .order("data_visita", { ascending: false }).order("horario", { ascending: false, nullsFirst: false })
         .limit(ULTIMOS_CONVIDADOS),
-      sb.from("eventos").select("*").gte("data_evento", dia).eq("ativo", true).order("data_evento").limit(60),
+      sb.from("eventos").select(COLUNAS.eventos).gte("data_evento", dia).eq("ativo", true).order("data_evento").limit(60),
     ]);
-    if (busca !== ultimaBusca.current) return; // já trocaram de dia; descarta resposta antiga
+    if (busca !== ultimaBusca.current) return false; // já trocaram de dia; descarta resposta antiga
     const falha = p.error ?? r.error ?? cx.error ?? pa.error ?? pr.error ?? lo.error ?? es.error ?? c.error ?? cv.error ?? e.error;
     if (falha) {
       setErro(falha.message);
@@ -246,18 +248,15 @@ export function Dashboard() {
       salvarRetrato(dia, novo);
     }
     setCarregando(false);
+    return !falha;
   }, [sb, dia]);
 
-  useEffect(() => {
-    carregar();
-    const timer = setInterval(carregar, ATUALIZAR_A_CADA_MS);
-    const aoVoltar = () => document.visibilityState === "visible" && carregar();
-    document.addEventListener("visibilitychange", aoVoltar);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", aoVoltar);
-    };
-  }, [carregar]);
+  // A cada minuto pergunta só "mudou algo?"; baixa tudo apenas quando mudou (ou a cada 15 min, por garantia).
+  const atualizar = useAtualizacao(sb, carregar, {
+    intervaloMs: ATUALIZAR_A_CADA_MS,
+    forcarAposMs: 15 * 60_000,
+    onConferido: useCallback(() => setAtualizadoEm(new Date()), []),
+  });
 
   // Últimos vídeos do canal no YouTube (o servidor guarda por 10 min; aqui pedimos a cada 10 min).
   useEffect(() => {
@@ -389,7 +388,7 @@ export function Dashboard() {
                 <strong>{dia ? fmtDiaSemana(dia) : "…"}</strong>
               </div>
               <div className="barra-dia-acoes">
-                <button type="button" className="pequeno branco" onClick={carregar} title="Buscar de novo agora">↻ Atualizar</button>
+                <button type="button" className="pequeno branco" onClick={atualizar} title="Buscar de novo agora">↻ Atualizar</button>
               </div>
             </div>
           )

@@ -1508,6 +1508,25 @@ $$;
 
 
 -- =====================================================================
+-- "Mudou alguma coisa?" para a tela do locutor (migração 018)
+-- =====================================================================
+create or replace function public.versao_dados()
+returns bigint
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case when public.usuario_autorizado() then (
+    select coalesce(max(h.id), 0) from public.historico h
+    where h.tabela not in ('ouvintes', 'perfis', 'permissoes')
+  ) end;
+$$;
+revoke all on function public.versao_dados() from public, anon;
+grant execute on function public.versao_dados() to authenticated;
+
+
+-- =====================================================================
 -- DEPOIS: crie o SEU usuário em Authentication > Users (Auto Confirm) e
 -- torne-o administrador (troque o e-mail e o nome). Os outros usuários
 -- você cria pelo site, na página Usuários.

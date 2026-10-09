@@ -5,6 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Avatares } from "@/components/Avatar";
 import { Imagem } from "@/components/Imagem";
 import { useItensPorPagina } from "@/components/Carrossel";
+import { COLUNAS } from "@/lib/colunas";
+import { useAtualizacao } from "@/lib/useAtualizacao";
 import { tocarAviso } from "@/components/LembretePautas";
 import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
@@ -79,14 +81,14 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
     return () => clearInterval(timer);
   }, []);
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (): Promise<boolean> => {
     const [r, p, g, l, e, x] = await Promise.all([
-      sb.from("promo_rodadas").select("*").eq("data", hoje).eq("ativo", true).order("horario"),
-      sb.from("premios").select("*").eq("ativo", true),
+      sb.from("promo_rodadas").select(COLUNAS.promo_rodadas).eq("data", hoje).eq("ativo", true).order("horario"),
+      sb.from("premios").select(COLUNAS.premios).eq("ativo", true),
       sb.rpc("promocao_ganhadores_hoje", { p_dia: hoje }),
-      sb.from("locutores").select("*").eq("ativo", true),
-      sb.from("escala").select("*").in("data", [hoje, somarDias(hoje, -1)]),
-      sb.from("promo_entregas").select("*").eq("data", hoje),
+      sb.from("locutores").select(COLUNAS.locutores).eq("ativo", true),
+      sb.from("escala").select(COLUNAS.escala).in("data", [hoje, somarDias(hoje, -1)]),
+      sb.from("promo_entregas").select(COLUNAS.promo_entregas).eq("data", hoje),
     ]);
     const falha = r.error ?? p.error ?? g.error ?? l.error ?? e.error ?? x.error;
     setErro(falha?.message ?? null);
@@ -112,19 +114,11 @@ export function PromocaoNoAr({ sb }: { sb: SupabaseClient }) {
       setEntregas(x.data as Entrega[]);
     }
     setCarregando(false);
+    return !falha;
   }, [sb, hoje]);
 
-  useEffect(() => {
-    carregar();
-    const timer = setInterval(carregar, ATUALIZAR_PROMO_MS);
-    // Voltou para a aba (ou o computador acordou): busca na hora.
-    const aoVoltar = () => document.visibilityState === "visible" && carregar();
-    document.addEventListener("visibilitychange", aoVoltar);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", aoVoltar);
-    };
-  }, [carregar]);
+  // Pergunta "mudou algo?" a cada 15 s; baixa tudo só quando mudou (ou a cada 5 min, por garantia).
+  useAtualizacao(sb, carregar, { intervaloMs: ATUALIZAR_PROMO_MS, forcarAposMs: 5 * 60_000 });
 
   const premioPorId = useMemo(() => new Map(premios.map((p) => [p.id, p])), [premios]);
   const ganhadoresDe = useCallback((id: string) => ganhadores.filter((g) => g.rodada_id === id), [ganhadores]);

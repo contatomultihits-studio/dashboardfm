@@ -115,6 +115,7 @@ que já vem com tudo.
 | `015_acessos.sql` | Acessos por pessoa: perfis (admin, equipe, locutor), áreas com "ver" ou "editar" e troca de senha no primeiro acesso. Só acrescenta. |
 | `016_fechar_acesso_publico.sql` | A virada: nada abre sem login autorizado. Rode **depois** de criar o administrador (passo 4). Para desfazer: `supabase/backup/restaurar_acesso_publico.sql`. |
 | `017_promocao_v2.sql` | Promoção: validade e parceria do prêmio, "Concluído" do locutor (relatório de entregas), busca de ouvintes do locutor e histórico de alterações (só o admin vê). |
+| `018_versao_dados.sql` | A tela do locutor só baixa os dados de novo quando algo mudou (economiza tráfego). |
 
 ### Deu problema?
 
