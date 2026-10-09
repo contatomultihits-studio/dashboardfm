@@ -8,6 +8,7 @@ const CONFIG: ConfigItensNoAr = {
   tabela: "recados",
   comImagem: false,
   comDestaque: true,
+  comRepetir: true,
   feminino: false,
   nome: "recado",
   plural: "Recados",

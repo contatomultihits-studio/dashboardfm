@@ -8,6 +8,7 @@ import { EtiquetaSituacao } from "@/components/EtiquetaSituacao";
 import { agoraHHMM, diasNoPeriodo, ehSemPrazo, fimDoPeriodo, fmtData, hojeISO, horaCurta, SEM_PRAZO, situacaoPeriodo, somarDias, type Duracao } from "@/lib/datas";
 import { sanitizarHtml, textoPuro } from "@/lib/html";
 import { removerImagemSemUso, urlImagem } from "@/lib/imagens";
+import { ATALHOS_DIAS, DIAS_CURTOS, ORDEM_DIAS, proximasVezes, resumoRepeticao, situacaoRepetida, viraMeiaNoite } from "@/lib/repeticao";
 import { classeTipo, nomePauta, TIPO_PAUTA_LABEL, TIPOS_POR_SECAO, type ItemNoAr, type SecaoPauta, type TipoPauta } from "@/lib/tipos";
 import { CampoImagem, useImagemForm } from "./CampoImagem";
 import { CampoLocutor } from "./CampoLocutor";
@@ -35,7 +36,12 @@ export type ConfigItensNoAr = {
   pauta?: boolean;
   /** Seção da pauta (Partiu ou Jornalismo); só com `pauta`. */
   secao?: SecaoPauta;
+  /** Recados: opção de aparecer só em alguns dias da semana e num horário diário. */
+  comRepetir?: boolean;
 };
+
+/** Classe da etiqueta de situação de um item que repete. */
+const CLASSE_REPETIDA = { "no-ar": "situacao-no-ar", agendada: "situacao-agendada", "mais-tarde": "situacao-agendada", encerrada: "situacao-encerrada", "hoje-nao": "cinza" } as const;
 
 type Atalho = { rotulo: string; fim: (inicio: string) => string };
 
@@ -83,7 +89,16 @@ function novo(padrao: Atalho, secao: SecaoPauta = "partiu") {
     tipo: (secao === "jornalismo" ? "NOTA" : "VALENDO") as TipoPauta,
     // No Partiu o aviso de 5 min é sempre ligado; no Jornalismo, só onde a produção marcar.
     aviso: secao !== "jornalismo",
+    repetir: false,
+    dias_semana: [] as number[],
+    janela_inicio: "",
+    janela_fim: "",
   };
+}
+
+/** Campos da repetição (recados), copiados ao editar e ao duplicar. */
+function camposRepetir(p: ItemNoAr) {
+  return { repetir: Boolean(p.repetir), dias_semana: p.dias_semana ?? [], janela_inicio: horaCurta(p.janela_inicio) ?? "", janela_fim: horaCurta(p.janela_fim) ?? "" };
 }
 
 /** Campos das pautas, copiados ao editar e ao duplicar. */
@@ -131,6 +146,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
       destaque: Boolean(p.destaque),
       fixado: Boolean(p.fixado),
       ...camposPauta(p),
+      ...camposRepetir(p),
     });
     setAtalho(ehSemPrazo(p.data_fim) ? SEM_PRAZO_ATALHO : null);
     setEditandoId(p.id);
@@ -153,6 +169,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
       destaque: Boolean(p.destaque),
       fixado: Boolean(p.fixado),
       ...camposPauta(p),
+      ...camposRepetir(p),
     });
     setAtalho(null);
     setEditandoId(null);
@@ -184,7 +201,16 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
       avisar("A data de saída não pode ser antes da entrada.", true);
       return;
     }
-    if (form.data_fim === form.data_inicio && form.hora_inicio && form.hora_fim && form.hora_fim <= form.hora_inicio) {
+    const repetir = Boolean(c.comRepetir && form.repetir);
+    if (repetir && !form.dias_semana.length) {
+      avisar("Marque pelo menos um dia da semana.", true);
+      return;
+    }
+    if (repetir && (!form.janela_inicio || !form.janela_fim || form.janela_inicio === form.janela_fim)) {
+      avisar("Preencha o horário em que o recado aparece (das … às …).", true);
+      return;
+    }
+    if (!repetir && form.data_fim === form.data_inicio && form.hora_inicio && form.hora_fim && form.hora_fim <= form.hora_inicio) {
       avisar("No mesmo dia, o horário de saída precisa ser depois do de entrada.", true);
       return;
     }
@@ -216,7 +242,17 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
               tipo: form.tipo,
               aviso: jornal ? form.aviso : true,
             }
-          : { hora_inicio: form.hora_inicio || null, hora_fim: semPrazo ? null : form.hora_fim || null }),
+          : repetir
+            ? { hora_inicio: null, hora_fim: null }
+            : { hora_inicio: form.hora_inicio || null, hora_fim: semPrazo ? null : form.hora_fim || null }),
+        ...(c.comRepetir
+          ? {
+              repetir,
+              dias_semana: repetir ? form.dias_semana : [],
+              janela_inicio: repetir ? form.janela_inicio : null,
+              janela_fim: repetir ? form.janela_fim : null,
+            }
+          : {}),
         titulo: form.titulo.trim(),
         conteudo_html: sanitizarHtml(form.conteudo_html),
         ativo: form.ativo,
@@ -249,6 +285,14 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
   }
 
   async function tirarDoAr(p: ItemNoAr) {
+    if (p.repetir) {
+      // Recado que repete: para de aparecer de vez (dá para ligar de novo em "Exibir").
+      if (!confirm(`Tirar este recado do ar? Ele deixa de aparecer em todos os dias marcados (dá para voltar marcando "Exibir").`)) return;
+      const { error } = await sb.from(c.tabela).update({ ativo: false }).eq("id", p.id);
+      if (error) return avisar(error.message, true);
+      avisar(`${Nome} saiu do ar`);
+      return lista.recarregar();
+    }
     if (!confirm(`Tirar ${g("esta", "este")} ${c.nome} do ar agora? ${g("Ela", "Ele")} sai da dashboard em até 1 minuto.`)) return;
     const { error } = await sb.from(c.tabela).update({ data_fim: hoje, hora_fim: agoraHHMM() }).eq("id", p.id);
     if (error) return avisar(error.message, true);
@@ -342,7 +386,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
             Entra no ar
             <input type="date" required value={form.data_inicio} onChange={(e) => mudarInicio(e.target.value)} />
           </label>
-          {!c.pauta && (
+          {!c.pauta && !form.repetir && (
             <label className="campo">
               às (opcional)
               <input type="time" aria-label="Horário de entrada" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} />
@@ -365,7 +409,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
               />
             )}
           </label>
-          {!c.pauta && (
+          {!c.pauta && !form.repetir && (
             <label className="campo">
               até (opcional)
               <input type="time" aria-label="Horário de saída" disabled={semPrazo} value={semPrazo ? "" : form.hora_fim} onChange={(e) => setForm({ ...form, hora_fim: e.target.value })} />
@@ -375,8 +419,71 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
         <p className="dica">
           {c.pauta
             ? "Fica na dashboard o dia todo, em cada dia do período, até o locutor marcar como feita."
-            : "Sem horário, vale o dia todo. Com horário, sai da dashboard sozinho no minuto marcado."}
+            : form.repetir
+              ? "O período é a validade: o recado só aparece nos dias e no horário marcados abaixo."
+              : "Sem horário, vale o dia todo. Com horário, sai da dashboard sozinho no minuto marcado."}
         </p>
+        {c.comRepetir && (
+          <div className="repetir">
+            <div className="campo" role="radiogroup" aria-label="Quando aparece">
+              <span className="campo-rotulo">Quando aparece</span>
+              <label className="check">
+                <input type="radio" name="quando-aparece" checked={!form.repetir} onChange={() => setForm({ ...form, repetir: false })} />
+                Período corrido (todos os dias do período)
+              </label>
+              <label className="check">
+                <input type="radio" name="quando-aparece" checked={form.repetir} onChange={() => setForm({ ...form, repetir: true })} />
+                Só em alguns dias e horários
+              </label>
+            </div>
+            {form.repetir && (
+              <div className="repetir-opcoes">
+                <div className="atalhos" role="group" aria-label="Dias da semana">
+                  <span>Dias:</span>
+                  {ORDEM_DIAS.map((d) => {
+                    const marcado = form.dias_semana.includes(d);
+                    return (
+                      <button
+                        key={d}
+                        type="button"
+                        className={`pequeno ${marcado ? "verde" : "branco"}`}
+                        aria-pressed={marcado}
+                        onClick={() => setForm({ ...form, dias_semana: marcado ? form.dias_semana.filter((x) => x !== d) : [...form.dias_semana, d].sort() })}
+                      >
+                        {DIAS_CURTOS[d]}
+                      </button>
+                    );
+                  })}
+                  {ATALHOS_DIAS.map((a) => (
+                    <button key={a.rotulo} type="button" className="pequeno amarelo" onClick={() => setForm({ ...form, dias_semana: [...a.dias].sort() })}>{a.rotulo}</button>
+                  ))}
+                </div>
+                <div className="form-grade repetir-horas">
+                  <label className="campo">
+                    Aparece das
+                    <input type="time" required value={form.janela_inicio} onChange={(e) => setForm({ ...form, janela_inicio: e.target.value })} />
+                  </label>
+                  <label className="campo">
+                    às
+                    <input type="time" required value={form.janela_fim} onChange={(e) => setForm({ ...form, janela_fim: e.target.value })} />
+                  </label>
+                </div>
+                {form.janela_inicio && form.janela_fim && form.janela_inicio !== form.janela_fim && viraMeiaNoite(form) && (
+                  <p className="dica">Passa da meia-noite: fica até {form.janela_fim} do dia seguinte.</p>
+                )}
+                {form.dias_semana.length > 0 && form.janela_inicio && form.janela_fim && form.janela_inicio !== form.janela_fim && (
+                  <p className="dica proximas-vezes" aria-live="polite">
+                    <strong>Próximas vezes:</strong>{" "}
+                    {(() => {
+                      const v = proximasVezes({ ...form, repetir: true }, hoje, agoraHHMM());
+                      return v.length ? v.map((x) => (x === "agora" ? "no ar agora" : x)).join(" · ") : "nenhuma dentro do período: confira as datas";
+                    })()}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <div className="atalhos" role="group" aria-label="Duração">
           <span>Duração:</span>
           {atalhos.map((a) => {
@@ -460,10 +567,14 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
                           {horaCurta(p.hora_fim) && ` ${horaCurta(p.hora_fim)}`}
                         </>
                       )}
+                      {p.repetir && <div className="trecho">🔁 {resumoRepeticao(p)}</div>}
                     </td>
                     {c.pauta && <td><strong>{horaCurta(p.horario)}</strong></td>}
                     <td>
-                      <EtiquetaSituacao inicio={p.data_inicio} fim={p.data_fim} hoje={hoje} horaInicio={p.hora_inicio} horaFim={p.hora_fim} />
+                      {p.repetir ? (() => {
+                        const st = situacaoRepetida(p, hoje, agoraHHMM());
+                        return <span className={`etiqueta ${CLASSE_REPETIDA[st.tipo]}`}>{st.texto}</span>;
+                      })() : <EtiquetaSituacao inicio={p.data_inicio} fim={p.data_fim} hoje={hoje} horaInicio={p.hora_inicio} horaFim={p.hora_fim} />}
                     </td>
                     <td className="texto">
                       {p.destaque && <span className="etiqueta destaque" style={{ marginRight: 6 }}>Destaque</span>}
@@ -483,7 +594,7 @@ export function ItensNoAr({ sb, avisar, config: c }: { sb: SupabaseClient; avisa
                       <div className="tabela-acoes">
                         <button type="button" className="pequeno" onClick={() => editar(p)}>Editar</button>
                         <button type="button" className="pequeno branco" onClick={() => duplicar(p)} title="Criar a próxima versão (ex.: 'é amanhã', 'é hoje')">Duplicar</button>
-                        {!c.pauta && situacaoPeriodo(p.data_inicio, p.data_fim, hoje, { inicio: p.hora_inicio, fim: p.hora_fim, agora: agoraHHMM() }) === "no-ar" && (
+                        {!c.pauta && (p.repetir ? p.ativo && situacaoRepetida(p, hoje, agoraHHMM()).tipo !== "encerrada" : situacaoPeriodo(p.data_inicio, p.data_fim, hoje, { inicio: p.hora_inicio, fim: p.hora_fim, agora: agoraHHMM() }) === "no-ar") && (
                           <button type="button" className="pequeno branco" onClick={() => tirarDoAr(p)}>Tirar do ar</button>
                         )}
                         <button type="button" className="pequeno vermelho" onClick={() => excluir(p)}>Excluir</button>

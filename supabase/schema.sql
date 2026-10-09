@@ -1527,6 +1527,24 @@ grant execute on function public.versao_dados() to authenticated;
 
 
 -- =====================================================================
+-- Recados que repetem em dias e horários (migração 019)
+-- =====================================================================
+alter table public.recados add column if not exists repetir boolean not null default false;
+alter table public.recados add column if not exists dias_semana smallint[] not null default '{}';
+alter table public.recados add column if not exists janela_inicio time;
+alter table public.recados add column if not exists janela_fim time;
+alter table public.recados drop constraint if exists recados_repetir_check;
+alter table public.recados add constraint recados_repetir_check check (
+  not repetir or (
+    cardinality(dias_semana) > 0
+    and dias_semana <@ array[0, 1, 2, 3, 4, 5, 6]::smallint[]
+    and janela_inicio is not null and janela_fim is not null
+    and janela_inicio <> janela_fim
+  )
+);
+
+
+-- =====================================================================
 -- DEPOIS: crie o SEU usuário em Authentication > Users (Auto Confirm) e
 -- torne-o administrador (troque o e-mail e o nome). Os outros usuários
 -- você cria pelo site, na página Usuários.

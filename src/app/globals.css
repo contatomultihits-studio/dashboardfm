@@ -594,3 +594,10 @@ input.rodada-fim { width: 8.5em; padding: 6px 8px; }
 /* Dashboard na TV do estúdio: usa a largura toda da tela. */
 .container.tela-cheia { width: calc(100% - 32px); max-width: none; }
 @media (min-width: 1600px) { .container.tela-cheia { width: calc(100% - 48px); } }
+
+/* Recados que repetem em dias e horários */
+.repetir { display: grid; gap: 10px; padding: 12px 14px; border: 2px dashed #9ca3af; border-radius: 14px; background: #fafafa; }
+.repetir .campo[role="radiogroup"] { gap: 4px; }
+.repetir-opcoes { display: grid; gap: 10px; }
+.repetir-horas { grid-template-columns: repeat(auto-fit, minmax(160px, 220px)); }
+.proximas-vezes { margin: 0; color: var(--ink); }

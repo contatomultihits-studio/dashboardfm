@@ -14,6 +14,11 @@ export type ItemNoAr = {
   destaque?: boolean;
   /** Prioridades e conexões: fica na frente, fora do rodízio. */
   fixado?: boolean;
+  /** Recados: só em alguns dias da semana (0 = dom … 6 = sáb), na faixa diária janela_inicio–janela_fim. */
+  repetir?: boolean;
+  dias_semana?: number[];
+  janela_inicio?: string | null;
+  janela_fim?: string | null;
   /** Só nas pautas do "Partiu Rádio Disney". */
   cliente?: string;
   locutor?: string;

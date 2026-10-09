@@ -12,6 +12,7 @@ import { Modal } from "@/components/Modal";
 import { TextoRico } from "@/components/TextoRico";
 import { Topbar } from "@/components/Topbar";
 import { COLUNAS, ESCALA_DIAS_A_FRENTE } from "@/lib/colunas";
+import { noArRepetido } from "@/lib/repeticao";
 import { useAtualizacao } from "@/lib/useAtualizacao";
 import { ATUALIZAR_A_CADA_MS, MOSTRAR_YOUTUBE } from "@/lib/config";
 import { agoraHHMM, ehSemPrazo, fmtData, fmtDiaMes, fmtDiaSemana, fmtHora, hojeISO, horaCurta, noArAgora, partesData, quando, somarDias, type PeriodoComHora } from "@/lib/datas";
@@ -196,7 +197,8 @@ export function Dashboard() {
       sb.from("prioridades").select(COLUNAS.prioridades).lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("data_fim").order("created_at"),
       // Recados no ar no dia: os destacados primeiro, depois os que saem antes.
-      sb.from("recados").select(COLUNAS.recados).lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
+      // (desde ontem: recado que repete e passa da meia-noite continua na madrugada seguinte)
+      sb.from("recados").select(COLUNAS.recados).lte("data_inicio", dia).gte("data_fim", somarDias(dia, -1)).eq("ativo", true)
         .order("destaque", { ascending: false }).order("data_fim").order("created_at"),
       sb.from("conexoes").select(COLUNAS.conexoes).lte("data_inicio", dia).gte("data_fim", dia).eq("ativo", true)
         .order("data_inicio", { ascending: false }).order("created_at"),
@@ -288,7 +290,7 @@ export function Dashboard() {
     [prioridades, dia, agora, lidos],
   );
   const recadosNoAr = useMemo(
-    () => (dia ? recados.filter((r) => noArAgora(r, dia, hojeISO(), agora)) : recados),
+    () => (dia ? recados.filter((r) => (r.repetir ? noArRepetido(r, hojeISO(), agora) : noArAgora(r, dia, hojeISO(), agora))) : recados),
     [recados, dia, agora],
   );
   const conexoesNoAr = useMemo(
