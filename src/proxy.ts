@@ -21,9 +21,13 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const { data, error } = await supabase.auth.getUser();
+  // Supabase fora do ar: não espera as novas tentativas (até ~7 s); depois de 2,5 s a página abre do cache.
+  const limite = new Promise<{ data: { user: null }; error: { status: number; name: string } }>((ok) =>
+    setTimeout(() => ok({ data: { user: null }, error: { status: 0, name: "Tempo esgotado" } }), 2500),
+  );
+  const { data, error } = await Promise.race([supabase.auth.getUser(), limite]);
   // Supabase fora do ar: deixa a página abrir (ela mostra a última versão guardada; o banco segue protegido).
-  const semConexao = !!error && (isAuthRetryableFetchError(error) || !error.status || error.status >= 500);
+  const semConexao = !!error && (("__isAuthError" in error && isAuthRetryableFetchError(error)) || !error.status || error.status >= 500);
 
   const { pathname, search } = request.nextUrl;
   if (!data.user && !semConexao && pathname !== "/login") {
