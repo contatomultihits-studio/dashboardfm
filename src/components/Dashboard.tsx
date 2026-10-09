@@ -174,23 +174,26 @@ export function Dashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Mostra na hora o que já tinha deste dia (mesmo sem internet), antes de conferir no banco.
+  useEffect(() => {
+    if (!dia) return;
+    const guardado = lerRetrato(dia);
+    if (!guardado) return;
+    setPrioridades(guardado.prioridades);
+    setRecados(guardado.recados);
+    setConexoes(guardado.conexoes ?? []);
+    setPautas(guardado.pautas ?? []);
+    setRealizadas(guardado.realizadas ?? []);
+    setLocutores(guardado.locutores ?? []);
+    setEscala(guardado.escala ?? []);
+    setConvidados(guardado.convidados);
+    setEventos(guardado.eventos);
+  }, [dia]);
+
   const carregar = useCallback(async (): Promise<boolean> => {
     if (!sb || !dia) return false;
     const busca = ++ultimaBusca.current;
     setCarregando(true);
-    // Mostra na hora o que já tinha deste dia, enquanto busca a versão nova.
-    const guardado = lerRetrato(dia);
-    if (guardado) {
-      setPrioridades(guardado.prioridades);
-      setRecados(guardado.recados);
-      setConexoes(guardado.conexoes ?? []);
-      setPautas(guardado.pautas ?? []);
-      setRealizadas(guardado.realizadas ?? []);
-      setLocutores(guardado.locutores ?? []);
-      setEscala(guardado.escala ?? []);
-      setConvidados(guardado.convidados);
-      setEventos(guardado.eventos);
-    }
     // Filtra "ativo" também aqui: quem está logado enxerga os ocultos pelas regras do banco.
     const [p, r, cx, pa, pr, lo, es, c, cv, e] = await Promise.all([
       // No ar no dia escolhido: entrou até esse dia e só sai depois dele. As que saem primeiro vêm antes.
